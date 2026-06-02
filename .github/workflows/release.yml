@@ -1,0 +1,90 @@
+name: Release
+run-name: Release ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            target: windows
+          - os: ubuntu-24.04
+            target: linux
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux system dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Vermeil/src-tauri
+
+      - name: Install frontend dependencies
+        working-directory: Vermeil
+        run: pnpm install
+
+      - name: Read release notes
+        id: notes
+        shell: pwsh
+        run: |
+          # CHANGELOG.md only ever contains the current release's notes —
+          # prior releases are preserved in git history, not in this file.
+          # See `.kiro/steering/coding-standards.md` → Releases.
+          #
+          # Use `Add-Content` for the heredoc-style multi-line output —
+          # it appends each value as its own line, so the EOF delimiter
+          # ends up on a line by itself the way GitHub Actions requires.
+          $body = "See assets to download and install."
+          if (Test-Path "CHANGELOG.md") {
+            $body = (Get-Content "CHANGELOG.md" -Raw).TrimEnd()
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "body<<EOF"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $body
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "EOF"
+
+      - name: Build and release Tauri app
+        uses: tauri-apps/tauri-action@v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: Vermeil
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Vermeil ${{ github.ref_name }}'
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true

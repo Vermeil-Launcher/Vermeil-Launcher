@@ -81,7 +81,7 @@ cat > "$APPS_DIR/$APP_ID.desktop" << EOF
 [Desktop Entry]
 Name=Vermeil
 Comment=A lightweight Minecraft launcher
-Exec=$BIN_DIR/Vermeil.AppImage
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 $BIN_DIR/Vermeil.AppImage
 Icon=vermeil
 Type=Application
 Categories=Game;

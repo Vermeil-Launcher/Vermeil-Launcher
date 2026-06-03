@@ -212,7 +212,7 @@ echo ""
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
   # Determine which shell RC file to update
   SHELL_RC=""
-  if [ -n "$ZSH_VERSION" ] || [ "$SHELL" = "$(which zsh 2>/dev/null)" ]; then
+  if [ -n "${ZSH_VERSION:-}" ] || [ "$SHELL" = "$(which zsh 2>/dev/null)" ]; then
     SHELL_RC="$HOME/.zshrc"
   elif [ -f "$HOME/.bashrc" ]; then
     SHELL_RC="$HOME/.bashrc"

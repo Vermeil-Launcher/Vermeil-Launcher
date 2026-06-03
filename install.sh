@@ -208,10 +208,29 @@ echo ""
 echo "  Vermeil should appear in your application menu."
 echo ""
 
-# Check PATH
+# Check PATH and auto-fix if needed
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-  echo "  NOTE: $BIN_DIR is not in your PATH."
-  echo "  Add this to ~/.bashrc or ~/.zshrc:"
-  echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+  # Determine which shell RC file to update
+  SHELL_RC=""
+  if [ -n "$ZSH_VERSION" ] || [ "$SHELL" = "$(which zsh 2>/dev/null)" ]; then
+    SHELL_RC="$HOME/.zshrc"
+  elif [ -f "$HOME/.bashrc" ]; then
+    SHELL_RC="$HOME/.bashrc"
+  elif [ -f "$HOME/.profile" ]; then
+    SHELL_RC="$HOME/.profile"
+  fi
+
+  if [ -n "$SHELL_RC" ]; then
+    echo "  Adding $BIN_DIR to PATH in $SHELL_RC..."
+    echo "" >> "$SHELL_RC"
+    echo "# Added by Vermeil installer" >> "$SHELL_RC"
+    echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_RC"
+    export PATH="$HOME/.local/bin:$PATH"
+    echo "  Done. PATH updated for this session and future shells."
+  else
+    echo "  NOTE: Could not detect shell RC file."
+    echo "  Add this manually to your shell config:"
+    echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+  fi
   echo ""
 fi

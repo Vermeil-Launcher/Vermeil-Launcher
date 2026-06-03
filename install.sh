@@ -206,6 +206,7 @@ echo "  ║  App data:   ~/.local/share/Vermeil   ║"
 echo "  ╚═══════════════════════════════════════╝"
 echo ""
 echo "  Vermeil should appear in your application menu."
+echo "  Open a new terminal for 'vermeil-uninstall' to work."
 echo ""
 
 # Check PATH and auto-fix if needed

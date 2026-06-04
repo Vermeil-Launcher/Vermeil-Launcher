@@ -1,21 +1,10 @@
-## 0.2.2
+## 0.2.3
 
-Initial public open source release.
+### Fixed
 
-### Features
-- Multi-loader support: Vanilla, Fabric, Legacy Fabric, Quilt, NeoForge, Forge
-- Mod management with Modrinth and CurseForge integration (search, install, dependency resolution, updates)
-- Modpack import (.mrpack and CurseForge zip)
-- Microsoft account authentication (Xbox SISU flow) with multiple account support
-- Offline account support
-- 3D skin viewer with upload, cape, elytra, and local skin library
-- Auto-managed Java runtimes (8, 17, 21, 25) via Adoptium
-- Multi-instance with isolated game directories and sidebar pins
-- Discord Rich Presence
-- Auto-updater with signature verification (Windows NSIS, Linux AppImage)
-- Per-instance settings (memory, resolution, fullscreen, Java args)
-- Global video settings (FPS, VSync, FOV, GUI Scale, View Bobbing, FOV Effects)
-- DPAPI credential encryption on Windows
-- Game log streaming and crash report viewer
-- Custom NSIS installer with user-data cleanup on uninstall
-- Linux install script for one-command setup
+- Modpack install from Modrinth no longer fails with "error decoding response body" when the API returns a non-200 response (rate limit, 404, or CloudFlare challenge). Status is now checked before JSON parsing, with descriptive error messages.
+- CurseForge modpacks browsed in the modpack browser can now be installed directly. Previously, clicking Install on a CurseForge modpack incorrectly sent its project ID to the Modrinth API, which always failed.
+
+### Changed
+
+- Skin viewer animation transition (elytra ↔ regular) now ramps smoothly over 300ms instead of snapping instantly.

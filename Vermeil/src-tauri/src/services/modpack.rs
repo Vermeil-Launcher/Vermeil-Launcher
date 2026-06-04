@@ -83,8 +83,19 @@ pub async fn install_from_modrinth(
             .get(&versions_url)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
-        let versions: Vec<serde_json::Value> = resp.json().await.map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Failed to fetch versions for {}: {}", project_id, e))?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!(
+                "Modrinth returned HTTP {} when fetching versions for project {}: {}",
+                status, project_id, body.chars().take(200).collect::<String>()
+            ));
+        }
+        let versions: Vec<serde_json::Value> = resp
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse versions list for {}: {}", project_id, e))?;
         let first = versions.first().ok_or("No versions available")?;
         let vid = first.get("id").and_then(|v| v.as_str()).ok_or("No version ID")?;
         format!("https://api.modrinth.com/v2/version/{}", vid)
@@ -94,8 +105,19 @@ pub async fn install_from_modrinth(
         .get(&version_url)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
-    let version_data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Failed to fetch version data: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Modrinth returned HTTP {} when fetching version data: {}",
+            status, body.chars().take(200).collect::<String>()
+        ));
+    }
+    let version_data: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse version data: {}", e))?;
 
     // Find the .mrpack file
     let files = version_data
@@ -434,4 +456,77 @@ async fn fetch_project_icon(project_id: &str) -> Result<Option<String>, String> 
         .and_then(|x| x.as_str())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string()))
+}
+
+/// Install a modpack from a CurseForge project ID. Fetches the modpack zip
+/// from the CurseForge API, downloads it, then imports via `cf_import::import_zip`.
+pub async fn install_from_curseforge(
+    project_id: &str,
+    file_id: Option<&str>,
+    window: Option<tauri::WebviewWindow>,
+) -> Result<Instance, String> {
+    // Show progress immediately
+    if let Some(ref w) = window {
+        let _ = w.emit(
+            "install-progress",
+            crate::services::prepare::InstallProgressPayload {
+                section: "game".to_string(),
+                title: "Modpack".to_string(),
+                message: "Fetching modpack metadata...".to_string(),
+                fraction: 0.0,
+                skipped: false,
+            },
+        );
+    }
+
+    // Load settings for the API key
+    let settings = crate::services::settings_service::load()
+        .await
+        .map_err(|e| format!("Load settings: {}", e))?;
+    let api_key = if settings.curseforge_api_key.is_empty() {
+        "$2a$10$Vqhx8J1qatEwez9lhg6cjeh1W6RC6H8AtXeLdu7o8H45smb66wCgu".to_string()
+    } else {
+        settings.curseforge_api_key.clone()
+    };
+
+    // Get the download URL for the modpack file
+    let (download_url, _file_name) =
+        crate::services::curseforge::get_modpack_file_url(&api_key, project_id, file_id).await?;
+
+    // Download the modpack zip to a temp location
+    if let Some(ref w) = window {
+        let _ = w.emit(
+            "install-progress",
+            crate::services::prepare::InstallProgressPayload {
+                section: "game".to_string(),
+                title: "Modpack".to_string(),
+                message: "Downloading modpack...".to_string(),
+                fraction: 0.0,
+                skipped: false,
+            },
+        );
+    }
+
+    let temp_path = paths::data_dir().join("temp_cf_modpack.zip");
+    let task = DownloadTask {
+        url: download_url,
+        dest: temp_path.clone(),
+        expected_sha1: None,
+        expected_size: None,
+    };
+    download_file(&crate::util::http::HTTP, &task).await?;
+
+    // Import via the existing CF import logic
+    let instance =
+        crate::services::cf_import::import_zip(
+            temp_path.to_str().unwrap_or_default(),
+            &api_key,
+            window,
+        )
+        .await?;
+
+    // Cleanup
+    let _ = fs::remove_file(&temp_path);
+
+    Ok(instance)
 }

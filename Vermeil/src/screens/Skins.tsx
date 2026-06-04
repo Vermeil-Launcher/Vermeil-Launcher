@@ -130,6 +130,7 @@ const Skins: Component = () => {
   // Re-render cape as elytra or cape when the toggle changes.
   // Also switch animation: elytra uses FlyingAnimation so the wings spread
   // and move; cape uses WalkingAnimation for the natural sway.
+  // Uses a short speed ramp to smooth the transition between animations.
   createEffect(() => {
     const elytra = showElytra();
     const p = profile();
@@ -144,7 +145,26 @@ const Skins: Component = () => {
         console.error("Elytra toggle failed:", e);
       }
     }
-    viewer.animation = elytra ? new FlyingAnimation() : new WalkingAnimation();
+
+    // Smoothly transition between animations by ramping speed down, switching,
+    // then ramping back up over ~300ms.
+    const newAnim = elytra ? new FlyingAnimation() : new WalkingAnimation();
+    if (viewer.animation) {
+      viewer.animation.speed = 0;
+    }
+    viewer.animation = newAnim;
+    newAnim.speed = 0;
+
+    const duration = 300;
+    const start = performance.now();
+    const ramp = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(elapsed / duration, 1);
+      // Ease-out curve for a natural feel
+      newAnim.speed = t * t * (3 - 2 * t);
+      if (t < 1) requestAnimationFrame(ramp);
+    };
+    requestAnimationFrame(ramp);
   });
 
   // Re-load the skin when the user manually switches variant (Classic ↔ Slim).

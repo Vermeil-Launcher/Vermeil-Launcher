@@ -339,3 +339,73 @@ pub struct CfFileInfo {
     pub hashes: Vec<String>, // SHA-1 only
     pub dependencies: Vec<String>, // mod IDs of required deps
 }
+
+// ─── Modpack install from project ID ────────────────────────────────────
+
+/// Fetch the download URL for the latest (or specified) file of a CurseForge
+/// modpack project. Returns `(download_url, file_name)`.
+pub async fn get_modpack_file_url(
+    api_key: &str,
+    project_id: &str,
+    file_id: Option<&str>,
+) -> Result<(String, String), String> {
+    if api_key.is_empty() {
+        return Err("CurseForge API key not configured. Add it in Settings.".to_string());
+    }
+
+    let url = if let Some(fid) = file_id {
+        format!("{}/mods/{}/files/{}", CF_BASE, project_id, fid)
+    } else {
+        // Get the main file for the modpack (latest)
+        format!("{}/mods/{}/files?pageSize=1", CF_BASE, project_id)
+    };
+
+    let resp = HTTP
+        .get(&url)
+        .header("x-api-key", api_key)
+        .send()
+        .await
+        .map_err(|e| format!("CurseForge file fetch failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "CurseForge HTTP {} when fetching modpack file: {}",
+            status,
+            body.chars().take(200).collect::<String>()
+        ));
+    }
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse CurseForge file response: {}", e))?;
+
+    // Single file endpoint returns { data: { ... } }
+    // List endpoint returns { data: [ ... ] }
+    let file_data = if file_id.is_some() {
+        body.get("data").cloned()
+    } else {
+        body.get("data")
+            .and_then(|d| d.as_array())
+            .and_then(|arr| arr.first())
+            .cloned()
+    };
+
+    let file_data = file_data.ok_or("No file data returned from CurseForge")?;
+
+    let download_url = file_data
+        .get("downloadUrl")
+        .and_then(|u| u.as_str())
+        .ok_or("CurseForge file has no download URL (mod author may have disabled third-party downloads)")?
+        .to_string();
+
+    let file_name = file_data
+        .get("fileName")
+        .and_then(|n| n.as_str())
+        .unwrap_or("modpack.zip")
+        .to_string();
+
+    Ok((download_url, file_name))
+}

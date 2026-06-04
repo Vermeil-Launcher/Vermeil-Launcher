@@ -1,6 +1,6 @@
 import { Component, createSignal, For, Show } from "solid-js";
 import { setActiveScreen, refetchInstances, instances, trackDownload, completeDownload, failDownload } from "../App";
-import { searchModpacks, searchCurseforge, installModpack, ModHit } from "../ipc/commands";
+import { searchModpacks, searchCurseforge, installModpack, installCfModpack, ModHit } from "../ipc/commands";
 import Dropdown from "../components/Dropdown";
 import { IconModrinth, IconCurseForge } from "../components/Icons";
 
@@ -118,7 +118,11 @@ const BrowseModpacks: Component = () => {
       gameVersion: extractVersionRange(pack),
     });
 
-    installModpack(pack.project_id)
+    const installPromise = modSource() === "curseforge"
+      ? installCfModpack(pack.project_id, pack.latest_version ?? undefined)
+      : installModpack(pack.project_id);
+
+    installPromise
       .then(() => {
         refetchInstances();
         completeDownload(dlId);

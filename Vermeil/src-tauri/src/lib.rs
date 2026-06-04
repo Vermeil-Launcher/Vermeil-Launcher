@@ -161,6 +161,7 @@ pub fn run() {
             instances::clear_instance_icon,
             instances::clone_instance,
             instances::install_modpack,
+            instances::install_cf_modpack,
             instances::prepare_instance,
             // CurseForge import
             cf_import::import_cf_zip,

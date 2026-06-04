@@ -70,6 +70,20 @@ pub async fn install_modpack(
 }
 
 #[tauri::command]
+pub async fn install_cf_modpack(
+    project_id: String,
+    file_id: Option<String>,
+    window: tauri::WebviewWindow,
+) -> Result<crate::models::instance::Instance, String> {
+    crate::services::modpack::install_from_curseforge(
+        &project_id,
+        file_id.as_deref(),
+        Some(window),
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn update_instance_options(
     id: String,
     memory_max_mb: Option<u32>,

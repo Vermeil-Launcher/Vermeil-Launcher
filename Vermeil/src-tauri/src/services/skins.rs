@@ -42,8 +42,15 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
+
+/// Timestamp (unix secs) of the last local skin upload. Auto-capture is
+/// suppressed for a short window after an upload because Mojang re-encodes
+/// uploaded PNGs, which changes the SHA-1 hash and would create a visual
+/// duplicate in the library.
+static LAST_UPLOAD_EPOCH: AtomicU64 = AtomicU64::new(0);
 
 const PROFILE_URL: &str = "https://api.minecraftservices.com/minecraft/profile";
 const SKIN_UPLOAD_URL: &str = "https://api.minecraftservices.com/minecraft/profile/skins";
@@ -450,6 +457,13 @@ pub async fn upload_and_equip_skin(
     // always know the canonical profile.
     drop(resp);
 
+    // Suppress auto-capture for the next few seconds. The skin was already
+    // saved to the local library by the caller; the profile refetch below
+    // would trigger auto_capture with Mojang's re-encoded PNG which has
+    // different bytes (and thus a different hash), creating a visual duplicate.
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    LAST_UPLOAD_EPOCH.store(now, Ordering::Relaxed);
+
     fetch_profile(account).await
 }
 
@@ -539,6 +553,14 @@ fn data_url_to_bytes(data_url: &str) -> Option<Vec<u8>> {
 /// saved. Called in the background after every profile fetch so the user's
 /// skin history grows over time — including skins set externally.
 fn auto_capture_skin(account_id: &str, texture_data_url: &str, variant: SkinVariant) -> Result<(), String> {
+    // Skip if a skin was just uploaded — the upload path already saved to
+    // the library and Mojang's re-encoded bytes would create a false duplicate.
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let last_upload = LAST_UPLOAD_EPOCH.load(Ordering::Relaxed);
+    if now.saturating_sub(last_upload) < 10 {
+        return Ok(());
+    }
+
     let png_bytes = data_url_to_bytes(texture_data_url)
         .ok_or_else(|| "Not a valid base64 PNG data URL".to_string())?;
 

@@ -568,10 +568,32 @@ pub async fn ensure_forge_libraries(
         format!("{}-{}", game_version, loader_version)
     };
 
-    let installer_url = format!(
+    // Try the standard URL first (works for Forge 1.13+).
+    // Old Forge (pre-1.13) uses a legacy format with the MC version repeated at the end:
+    // e.g. `forge-1.8.9-11.15.1.2318-1.8.9-installer.jar` instead of
+    //       `forge-1.8.9-11.15.1.2318-installer.jar`.
+    // We probe with a HEAD request and fall back to the legacy format on 404.
+    let standard_url = format!(
         "{}/net/minecraftforge/forge/{}/forge-{}-installer.jar",
         FORGE_MAVEN, full_version, full_version
     );
+
+    let installer_url = match crate::util::http::HTTP.head(&standard_url).send().await {
+        Ok(resp) if resp.status().is_success() => standard_url,
+        _ => {
+            // Legacy format: {mc}-{forge}-{mc} (e.g. 1.8.9-11.15.1.2318-1.8.9)
+            let legacy_version = format!("{}-{}", full_version, game_version);
+            let legacy_url = format!(
+                "{}/net/minecraftforge/forge/{}/forge-{}-installer.jar",
+                FORGE_MAVEN, legacy_version, legacy_version
+            );
+            tracing::info!(
+                "Forge standard URL not found, trying legacy format: {}",
+                legacy_url
+            );
+            legacy_url
+        }
+    };
 
     let scratch = paths::data_dir().join("loader-scratch").join(format!("forge-{}", full_version));
     let java_exe = ensure_java_for_loader().await?;

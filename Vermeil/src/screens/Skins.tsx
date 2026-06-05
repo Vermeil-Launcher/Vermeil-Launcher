@@ -15,6 +15,7 @@ import {
 } from "../ipc/commands";
 import { SkinViewer, WalkingAnimation, FlyingAnimation } from "skinview3d";
 import { IconUpload, IconReload, IconTrash2 } from "../components/Icons";
+import SkinAvatar from "../components/SkinAvatar";
 
 /**
  * Skin & cape changer.
@@ -436,11 +437,10 @@ const Skins: Component = () => {
                   {(skin) => (
                     <div class="skins-library-item">
                       <div class="skins-library-thumb-wrap">
-                        <img
-                          class="skins-library-thumb"
-                          src={skin.texture}
-                          alt={skin.name}
-                          loading="lazy"
+                        <SkinAvatar
+                          texture={skin.texture}
+                          variant={skin.variant as "CLASSIC" | "SLIM" | "Unknown"}
+                          size={96}
                         />
                       </div>
                       <div class="skins-library-info">

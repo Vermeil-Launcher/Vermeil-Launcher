@@ -163,18 +163,18 @@ pub async fn install_from_modrinth(
     download_file(&crate::util::http::HTTP, &task).await?;
 
     // 3. Install from the downloaded file
-    let instance = install_from_mrpack_file(
+    let result = install_from_mrpack_file(
         &temp_path,
         Some(source_project_id),
         project_icon_path,
         window,
     )
-    .await?;
+    .await;
 
-    // Cleanup
+    // Cleanup temp file regardless of success/failure
     let _ = fs::remove_file(&temp_path);
 
-    Ok(instance)
+    result
 }
 
 /// Install a modpack from a local .mrpack file. Writes instance.json, then runs
@@ -343,7 +343,13 @@ pub async fn install_from_mrpack_file(
     // Run the unified prepare flow. This handles MC libs/assets/client jar,
     // loader libs, Java, then mod files, and finally extracts overrides via
     // the post action above.
-    prepare_with_extras(&instance, mod_tasks, Some(post), window).await?;
+    // On failure, delete the partially-created instance directory so no broken
+    // instance shows up in the library.
+    if let Err(e) = prepare_with_extras(&instance, mod_tasks, Some(post), window).await {
+        tracing::error!("Modpack prepare failed, cleaning up instance {}: {}", id, e);
+        let _ = fs::remove_dir_all(&instance_dir);
+        return Err(e);
+    }
 
     Ok(instance)
 }
@@ -517,16 +523,16 @@ pub async fn install_from_curseforge(
     download_file(&crate::util::http::HTTP, &task).await?;
 
     // Import via the existing CF import logic
-    let instance =
+    let result =
         crate::services::cf_import::import_zip(
             temp_path.to_str().unwrap_or_default(),
             &api_key,
             window,
         )
-        .await?;
+        .await;
 
-    // Cleanup
+    // Cleanup temp file regardless of success/failure
     let _ = fs::remove_file(&temp_path);
 
-    Ok(instance)
+    result
 }

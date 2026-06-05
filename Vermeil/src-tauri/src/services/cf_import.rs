@@ -162,7 +162,13 @@ pub async fn import_zip(
     });
 
     // Run the unified prepare flow: MC libs/assets/client + loader libs + Java + mods + overrides
-    prepare_with_extras(&instance, mod_tasks, Some(post), window).await?;
+    // On failure, delete the partially-created instance directory so no broken
+    // instance shows up in the library.
+    if let Err(e) = prepare_with_extras(&instance, mod_tasks, Some(post), window).await {
+        tracing::error!("CurseForge import prepare failed, cleaning up instance {}: {}", instance_id, e);
+        let _ = fs::remove_dir_all(&instance_dir);
+        return Err(e);
+    }
 
     Ok(instance)
 }

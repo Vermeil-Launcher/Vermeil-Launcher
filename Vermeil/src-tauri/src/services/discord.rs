@@ -65,20 +65,28 @@ fn do_connect() {
 
     let mut client = Client::new(DISCORD_APP_ID);
 
+    // In v3, on_ready/on_error return handles that unregister on drop.
+    // We .persist() them so they live forever (same as v1 behavior).
     client.on_ready(|_ctx| {
         *CONNECTED.lock().unwrap() = true;
     }).persist();
 
-    client.on_error(|_ctx| {}).persist();
+    client.on_error(|_ctx| {
+        tracing::debug!("Discord RPC error event received");
+    }).persist();
 
     client.start();
 
+    // Wait up to 4 seconds for the ready event to fire
     for _ in 0..8 {
         std::thread::sleep(std::time::Duration::from_millis(500));
         if *CONNECTED.lock().unwrap() { break; }
     }
 
-    if !*CONNECTED.lock().unwrap() { return; }
+    if !*CONNECTED.lock().unwrap() {
+        tracing::debug!("Discord RPC connection timed out");
+        return;
+    }
 
     *DISCORD.lock().unwrap() = Some(client);
 
@@ -96,7 +104,7 @@ fn show_idle() {
         let _ = client.set_activity(|act| {
             act.state("In the launcher")
                 .details("Launcher")
-                .assets(|a| a.large_image("icon").large_text("Minecraft Launcher"))
+                .assets(|a| a.large_image("icon").large_text("Vermeil"))
         });
     }
 }
@@ -132,7 +140,7 @@ pub fn set_playing(instance_name: &str, game_version: &str, loader: &str, mod_co
                 .details(&details)
                 .assets(|a| {
                     a.large_image("icon")
-                        .large_text("Minecraft Launcher")
+                        .large_text("Vermeil")
                         .small_image("play")
                         .small_text("Playing")
                 })

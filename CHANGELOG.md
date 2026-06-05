@@ -1,10 +1,12 @@
-## 0.2.3
+## 0.2.4
 
 ### Fixed
 
-- Modpack install from Modrinth no longer fails with "error decoding response body" when the API returns a non-200 response (rate limit, 404, or CloudFlare challenge). Status is now checked before JSON parsing, with descriptive error messages.
-- CurseForge modpacks browsed in the modpack browser can now be installed directly. Previously, clicking Install on a CurseForge modpack incorrectly sent its project ID to the Modrinth API, which always failed.
+- Modpack installs with old Forge versions (pre-1.13, like 1.8.9) no longer fail with HTTP 404. The installer URL now falls back to the legacy Maven artifact format when the standard format isn't found.
+- Failed modpack installs (Modrinth or CurseForge) now clean up the partial instance directory and any temp files instead of leaving broken instances in the library.
+- Discord Rich Presence now connects reliably on Linux. Upgraded the underlying library to v3 which fixes Unix socket timeouts and discovers Discord IPC sockets at any path index, including Snap and Flatpak installs.
+- Saved skins library no longer creates duplicate entries when uploading. Mojang re-encodes uploaded PNGs which changed their hash and caused auto-capture to save a second copy.
 
 ### Changed
 
-- Skin viewer animation transition (elytra ↔ regular) now ramps smoothly over 300ms instead of snapping instantly.
+- Saved skins grid now renders each skin as a static front-facing player avatar instead of the unwrapped texture atlas.

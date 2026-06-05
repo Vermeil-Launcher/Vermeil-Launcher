@@ -39,7 +39,7 @@ url = "2"
 urlencoding = "2"
 open = "5"
 zip = "2"
-discord-presence = "1"
+discord-presence = "3"
 lazy_static = "1"
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
 sysinfo = { version = "0.37", default-features = false, features = ["system"] }

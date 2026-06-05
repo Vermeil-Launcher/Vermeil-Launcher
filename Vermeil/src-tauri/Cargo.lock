@@ -901,9 +901,9 @@ dependencies = [
 
 [[package]]
 name = "discord-presence"
-version = "1.6.0"
+version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f91d7c2fc01ffdc327e2b66d65dd59b8bd3f31a17e88811ce0540412fa0b84c1"
+checksum = "9c8d811ebed75ede6c72a7b36fdcb832010298f77814cb3f63c1a7c9e6e8c192"
 dependencies = [
  "byteorder",
  "bytes",
@@ -919,6 +919,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -96,6 +96,18 @@ effort. New ideas welcome via GitHub Issues.
 - Window resize on Linux (frameless window edge/corner resize handles)
 - Skin library auto-capture (active skin saved on every profile fetch)
 
+### 0.2.3 — Modpack install fixes
+- Modrinth modpack install no longer fails with "error decoding response body" (HTTP status checked before JSON parsing)
+- CurseForge modpacks can be installed directly from the modpack browser
+- Skin viewer elytra-to-regular animation transition smoothed (300ms ramp)
+
+### 0.2.4 — Forge legacy, Discord Linux, skin avatars
+- Old Forge versions (pre-1.13) install correctly via legacy Maven URL fallback
+- Failed modpack installs clean up partial instance directories and temp files
+- Discord Rich Presence connects reliably on Linux (discord-presence v3, Unix socket fixes)
+- Saved skins library no longer creates duplicate entries from Mojang's PNG re-encoding
+- Saved skins grid renders front-facing player avatars instead of unwrapped texture sheets
+
 ---
 
 ## Planned

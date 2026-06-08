@@ -3,17 +3,16 @@ import { instances, showToast, refreshPinnedInstanceIds } from "../App";
 import { getSettings, saveSettings } from "../ipc/commands";
 
 /**
- * Sidebar pin manager. Lets the user pick up to 3 instances to surface as
+ * Sidebar pin manager. Lets the user pick up to 5 instances to surface as
  * quick-launch icons in the sidebar, between Skins and the manage button.
  *
  * Mounted at App level. Open via the exported `openPinInstancesModal()`
  * helper — usually triggered from the sidebar's plus / minus button.
  *
- * The picker shows every existing instance with a checkbox. Picking a 4th
- * instance is silently rejected with a toast — matches the cap users see
- * in the UI without throwing an error.
+ * The picker shows every existing instance. Selected rows are highlighted
+ * with the accent tint; clicking a 6th instance is rejected with a toast.
  */
-const MAX_PINS = 3;
+const MAX_PINS = 5;
 
 const [open, setOpen] = createSignal(false);
 const [pinned, setPinned] = createSignal<string[]>([]);
@@ -66,7 +65,7 @@ const PinInstancesModal: Component = () => {
     }
     if (current.length >= MAX_PINS) {
       showToast({
-        title: "3-pin limit",
+        title: "5-pin limit",
         message: "Unpin one of the existing pins to add a different instance.",
         type: "info",
         autoCloseMs: 3000,
@@ -133,15 +132,15 @@ const PinInstancesModal: Component = () => {
                   {(inst) => {
                     const checked = () => pinned().includes(inst.id);
                     return (
-                      <label class={`pin-instance-card ${checked() ? "checked" : ""}`}>
-                        <input
-                          type="checkbox"
-                          checked={checked()}
-                          onChange={() => toggle(inst.id)}
-                        />
+                      <div
+                        class={`pin-instance-card ${checked() ? "checked" : ""}`}
+                        onClick={() => toggle(inst.id)}
+                      >
                         <div class="pin-instance-icon">
                           <Show when={inst.icon && inst.icon !== "cube"} fallback={
-                            <div class="pin-instance-icon-placeholder" />
+                            <div class="pin-instance-icon-placeholder">
+                              {inst.name.trim().charAt(0).toUpperCase() || "?"}
+                            </div>
                           }>
                             <img src={inst.icon} alt="" />
                           </Show>
@@ -157,7 +156,7 @@ const PinInstancesModal: Component = () => {
                             </Show>
                           </span>
                         </div>
-                      </label>
+                      </div>
                     );
                   }}
                 </For>

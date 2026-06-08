@@ -158,7 +158,7 @@ const CreateCustom: Component = () => {
                   return (
                     <div
                       class={`choice-btn ${loader() === l ? "selected" : ""}`}
-                      onClick={() => setLoader(l)}
+                      onClick={() => { setLoader(l); setGameVersion(""); }}
                     >
                       {l === "neoforge" ? "NeoForge" : l.charAt(0).toUpperCase() + l.slice(1)}
                     </div>

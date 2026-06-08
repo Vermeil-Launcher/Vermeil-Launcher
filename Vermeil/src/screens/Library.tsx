@@ -196,9 +196,10 @@ const Library: Component = () => {
                     />
                   </Show>
                   <div class="inst-meta">
-                    {inst.game_version} · {inst.mods.length} mods · {timeAgo(inst.last_played)}
+                    {inst.mods.length} mods · {timeAgo(inst.last_played)}
                   </div>
                   <div class="inst-card-badges">
+                    <span class="inst-badge badge-version">{inst.game_version}</span>
                     <span class={`inst-badge ${loaderBadgeClass(inst.loader.type)}`}>
                       {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
                     </span>

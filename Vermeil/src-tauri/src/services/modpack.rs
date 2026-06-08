@@ -464,6 +464,29 @@ async fn fetch_project_icon(project_id: &str) -> Result<Option<String>, String> 
         .map(|s| s.to_string()))
 }
 
+/// Fetch a CurseForge project's logo/thumbnail URL. Returns `Ok(None)` when
+/// the project has no logo, `Err` only on transport failure. Used by
+/// `install_from_curseforge` to populate the new instance's tile icon.
+async fn fetch_cf_project_icon(api_key: &str, project_id: &str) -> Result<Option<String>, String> {
+    let url = format!("https://api.curseforge.com/v1/mods/{}", project_id);
+    let resp = crate::util::http::HTTP
+        .get(&url)
+        .header("x-api-key", api_key)
+        .send()
+        .await
+        .map_err(|e| format!("CurseForge project fetch: {}", e))?;
+    if !resp.status().is_success() {
+        return Ok(None);
+    }
+    let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(v.get("data")
+        .and_then(|d| d.get("logo"))
+        .and_then(|l| l.get("thumbnailUrl"))
+        .and_then(|u| u.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string()))
+}
+
 /// Install a modpack from a CurseForge project ID. Fetches the modpack zip
 /// from the CurseForge API, downloads it, then imports via `cf_import::import_zip`.
 pub async fn install_from_curseforge(
@@ -493,6 +516,14 @@ pub async fn install_from_curseforge(
         "$2a$10$Vqhx8J1qatEwez9lhg6cjeh1W6RC6H8AtXeLdu7o8H45smb66wCgu".to_string()
     } else {
         settings.curseforge_api_key.clone()
+    };
+
+    // Fetch the project's icon up-front so the new instance carries it as
+    // its tile icon in the Library and sidebar pin tile. Best-effort —
+    // a missing icon falls back to the generic placeholder.
+    let project_icon_path = match fetch_cf_project_icon(&api_key, project_id).await {
+        Ok(Some(url)) => crate::services::icon_cache::cache_remote_icon(&url).await,
+        _ => None,
     };
 
     // Get the download URL for the modpack file
@@ -533,6 +564,23 @@ pub async fn install_from_curseforge(
 
     // Cleanup temp file regardless of success/failure
     let _ = fs::remove_file(&temp_path);
+
+    // If the import succeeded and we have a cached icon, update the instance
+    // to carry it. The cf_import flow doesn't know about the project icon
+    // (it only has the zip), so we patch it after the fact.
+    if let Ok(ref instance) = result {
+        if let Some(ref icon_data_url) = project_icon_path {
+            let meta_path = paths::instances_dir().join(&instance.id).join("instance.json");
+            if let Ok(content) = fs::read_to_string(&meta_path) {
+                if let Ok(mut inst) = serde_json::from_str::<Instance>(&content) {
+                    inst.icon = icon_data_url.clone();
+                    if let Ok(json) = serde_json::to_string_pretty(&inst) {
+                        let _ = fs::write(&meta_path, json);
+                    }
+                }
+            }
+        }
+    }
 
     result
 }

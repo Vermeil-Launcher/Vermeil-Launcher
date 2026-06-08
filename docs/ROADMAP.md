@@ -108,6 +108,18 @@ effort. New ideas welcome via GitHub Issues.
 - Saved skins library no longer creates duplicate entries from Mojang's PNG re-encoding
 - Saved skins grid renders front-facing player avatars instead of unwrapped texture sheets
 
+### 0.2.5 — Pin limit, card redesign, Forge filter
+- Forge versions for MC below 1.5.2 filtered out (no installer JARs exist for them)
+- Failed custom instance preparation cleans up broken instance directory
+- Toast notifications pause auto-close timer while window is unfocused
+- Sidebar pin limit increased from 3 to 5; checkbox removed (click row to toggle)
+- CurseForge modpack installs now fetch and cache the project icon
+- Loader switch in Custom Setup resets MC version to first supported version
+- Instance cards redesigned: compact layout, version number as badge
+- Modal box-shadow reduced for cleaner appearance
+- Task Manager subprocess icon fixed (BMP-DIB format ICO)
+- Sidebar tooltips no longer hidden behind 3D skin viewer
+
 ---
 
 ## Planned

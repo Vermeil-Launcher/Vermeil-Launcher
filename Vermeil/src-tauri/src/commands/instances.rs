@@ -230,8 +230,18 @@ pub async fn clone_instance(
 
 /// Pre-download all files needed to launch an instance.
 /// Emits `install-progress` events for real-time progress display.
+/// On failure, deletes the instance directory so no broken instance lingers.
 #[tauri::command]
 pub async fn prepare_instance(id: String, window: tauri::WebviewWindow) -> Result<(), String> {
     let instance = instance_service::get_by_id(&id).await.map_err(|e| e.to_string())?;
-    crate::services::prepare::prepare(&instance, Some(window)).await
+    if let Err(e) = crate::services::prepare::prepare(&instance, Some(window)).await {
+        // Clean up the broken instance so the library doesn't show a non-launchable entry.
+        let instance_dir = crate::util::paths::instances_dir().join(&id);
+        if instance_dir.exists() {
+            tracing::error!("Instance prepare failed, cleaning up {}: {}", id, e);
+            let _ = std::fs::remove_dir_all(&instance_dir);
+        }
+        return Err(e);
+    }
+    Ok(())
 }

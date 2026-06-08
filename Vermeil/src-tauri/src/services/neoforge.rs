@@ -562,8 +562,19 @@ pub async fn ensure_forge_libraries(
     // The Forge maven uses the full coord `{game_version}-{forge_version}` (e.g. `1.20.1-47.4.10`).
     // Custom instances pass that full string, but Modrinth/CurseForge modpack manifests give just
     // the forge-side number (`47.4.10` / `forge-47.4.10`). Normalize so all sources work.
+    //
+    // The version from `get_forge_versions` may already be in legacy format with the MC version
+    // repeated at the end (e.g. `1.1-1.3.2.1-1.1`). We detect that to avoid double-suffixing.
     let full_version = if loader_version.starts_with(&format!("{}-", game_version)) {
-        loader_version.to_string()
+        // Already prefixed. Strip a trailing `-{game_version}` if present (legacy format from
+        // the Maven metadata) to get the canonical `{mc}-{forge}` form for the standard URL.
+        let suffix = format!("-{}", game_version);
+        if loader_version.ends_with(&suffix) && loader_version.len() > suffix.len() + game_version.len() + 1 {
+            // It's something like "1.8.9-11.15.1.2318-1.8.9" → strip to "1.8.9-11.15.1.2318"
+            loader_version[..loader_version.len() - suffix.len()].to_string()
+        } else {
+            loader_version.to_string()
+        }
     } else {
         format!("{}-{}", game_version, loader_version)
     };

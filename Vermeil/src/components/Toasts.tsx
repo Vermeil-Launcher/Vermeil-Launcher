@@ -31,7 +31,22 @@ export function showToast(toast: Omit<Toast, "id">): string {
 
   const autoClose = toast.autoCloseMs ?? 5000;
   if (autoClose > 0) {
-    setTimeout(() => dismissToast(id), autoClose);
+    // Use a visibility-aware countdown so toasts don't silently expire while
+    // the window is unfocused (alt-tabbed). The timer only ticks down while
+    // the document is visible, ensuring the user always sees the toast for
+    // its full duration.
+    let remaining = autoClose;
+    let last = performance.now();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        remaining -= (performance.now() - last);
+        if (remaining <= 0) {
+          clearInterval(interval);
+          dismissToast(id);
+        }
+      }
+      last = performance.now();
+    }, 250);
   }
   return id;
 }

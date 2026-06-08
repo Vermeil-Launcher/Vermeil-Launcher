@@ -80,6 +80,8 @@ body {
   padding: 12px 0;
   gap: 2px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 /* Sidebar logo. Sits above the Home nav icon as a brand mark — non-
@@ -190,22 +192,22 @@ body {
 }
 
 /* Instance grid */
-.instance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.instance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 24px; align-items: start; }
 .inst-card {
   background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
   overflow: hidden; cursor: pointer; transition: border-color .15s;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 .inst-card:hover { border-color: #4a4d55; }
 .inst-card-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .inst-card-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -216,10 +218,10 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .inst-card-icon-letter {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.85);
 }
@@ -235,7 +237,7 @@ body {
 .inst-card-badges {
   display: flex;
   gap: 5px;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 .inst-badge {
   font-size: 9px; font-weight: 600;
@@ -248,19 +250,20 @@ body {
 .badge-neo { background: #1a2640; color: #5b8af0; }
 .badge-quilt { background: #241a35; color: #c084e8; }
 .badge-ram { background: var(--bg4); color: var(--muted); }
+.badge-version { background: var(--bg4); color: var(--text); }
 
 
 /* Add card */
 .add-card {
   background: var(--bg3); border: 1.5px dashed var(--border); border-radius: var(--radius);
-  height: 100%; min-height: 62px; display: flex; flex-direction: row;
+  display: flex; flex-direction: row;
   align-items: center; justify-content: center; gap: 8px; cursor: pointer;
   color: var(--muted); transition: border-color .15s, color .15s, background .15s;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 .add-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
-.add-icon { width: 28px; height: 28px; }
-.add-label { font-size: 12px; font-weight: 500; }
+.add-card svg { width: 18px; height: 18px; flex-shrink: 0; }
+.add-label { font-size: 11px; font-weight: 500; }
 
 /* Buttons */
 .btn {
@@ -519,7 +522,7 @@ body {
 }
 .modal {
   background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
-  width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  width: 440px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
 }
 .modal-header {
   padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
@@ -2485,9 +2488,8 @@ select.field-input[size] { appearance: none; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
-  background: var(--bg3);
   border: 1px solid var(--border);
   cursor: pointer;
   transition: border-color 0.12s, background 0.12s;
@@ -2496,12 +2498,6 @@ select.field-input[size] { appearance: none; }
 .pin-instance-card.checked {
   border-color: var(--accent);
   background: var(--accent-tint);
-}
-.pin-instance-card input[type="checkbox"] {
-  margin: 0;
-  flex-shrink: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
 }
 .pin-instance-icon {
   width: 32px;
@@ -2520,6 +2516,13 @@ select.field-input[size] { appearance: none; }
   width: 100%;
   height: 100%;
   background: var(--bg4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
 }
 .pin-instance-info {
   flex: 1;

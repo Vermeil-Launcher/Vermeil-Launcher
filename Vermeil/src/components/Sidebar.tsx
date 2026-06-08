@@ -20,7 +20,7 @@ import {
 } from "./Icons";
 import { openPinInstancesModal } from "../modals/PinInstancesModal";
 
-const MAX_PINS = 3;
+const MAX_PINS = 5;
 
 /** Map a loader type to the CSS modifier that tints the pinned-icon tile.
  *  Mirrors `bannerColor()` over in Library.tsx so a pin and its instance

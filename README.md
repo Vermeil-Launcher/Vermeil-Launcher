@@ -11,6 +11,8 @@ Built with [Tauri 2](https://tauri.app/) (Rust backend) and [SolidJS](https://ww
 
 > **This is an AI-generated codebase.** It may contain bugs, incomplete features, or unexpected behavior. See [DISCLAIMER.md](DISCLAIMER.md) for details. Use at your own risk.
 
+> **Antivirus warning:** Vermeil is not code-signed. Some antivirus software may flag the `.exe` as untrusted. This project has no funds for a code-signing certificate — it's up to you to use as-is or build from source.
+
 ## Features
 
 - Microsoft account authentication

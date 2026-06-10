@@ -1,7 +1,7 @@
 /* components.css — Reusable UI: cards, buttons, fields, badges, modals (base), forms, controls */
 
 /* Instance grid */
-.instance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 24px; align-items: start; }
+.instance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 80px; align-items: start; }
 .inst-card {
   background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
   overflow: hidden; cursor: pointer; transition: border-color .15s;
@@ -346,7 +346,7 @@
 .modal-close:hover { background: var(--bg4); color: var(--text); }
 .modal-body { padding: 20px; }
 .modal-body .mod-list::-webkit-scrollbar { width: 4px; }
-.modal-body .mod-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.modal-body .mod-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 .modal-body .mod-list::-webkit-scrollbar-track { background: transparent; }
 .modal-footer {
   padding: 14px 20px; border-top: 1px solid var(--border);
@@ -627,4 +627,55 @@ select.field-input[size] { appearance: none; }
   background: var(--bg3); border: 1px solid var(--accent); border-radius: 5px;
   padding: 3px 6px; color: var(--text); font-size: 12px; font-weight: 600;
   font-family: var(--font-mono); outline: none;
+}
+
+
+/* ============================================================
+   Author display on mod / modpack cards.
+   Subtle "by Author" line under the title across browse cards,
+   installed cards, modpack browser cards, and Downloads cards.
+   ============================================================ */
+.mod-card-name-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.mod-card-author {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.mod-author {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 1px;
+}
+.dl-card-author {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+/* ============================================================
+   Disabled category tab — for Browse + Installed filter rows
+   on the InstanceMods screen. Used when a category isn't usable
+   on the current loader (e.g. mods on vanilla).
+   ============================================================ */
+.src-tab.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: auto; /* keep title tooltip working */
+  color: var(--muted);
+}
+.src-tab.disabled:hover {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
 }

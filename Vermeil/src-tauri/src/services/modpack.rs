@@ -263,6 +263,7 @@ pub async fn install_from_mrpack_file(
                     local_icon_path: None,
                     description: None,
                     category: "mod".to_string(),
+                    author: None,
                 });
             } else if let Some(filename) = mf.path.strip_prefix("resourcepacks/") {
                 mod_entries.push(ModEntry {
@@ -278,6 +279,7 @@ pub async fn install_from_mrpack_file(
                     local_icon_path: None,
                     description: None,
                     category: "resourcepack".to_string(),
+                    author: None,
                 });
             } else if let Some(filename) = mf.path.strip_prefix("shaderpacks/") {
                 mod_entries.push(ModEntry {
@@ -293,6 +295,7 @@ pub async fn install_from_mrpack_file(
                     local_icon_path: None,
                     description: None,
                     category: "shader".to_string(),
+                    author: None,
                 });
             }
         }
@@ -345,17 +348,72 @@ pub async fn install_from_mrpack_file(
     // the post action above.
     // On failure, delete the partially-created instance directory so no broken
     // instance shows up in the library.
+    let window_for_revalidate = window.clone();
     if let Err(e) = prepare_with_extras(&instance, mod_tasks, Some(post), window).await {
         tracing::error!("Modpack prepare failed, cleaning up instance {}: {}", id, e);
         let _ = fs::remove_dir_all(&instance_dir);
         return Err(e);
     }
 
-    Ok(instance)
+    // Loader-version validation: now that the mods are on disk, scan them for
+    // loader requirements the pack's declared loader version doesn't meet. If
+    // a bump is needed, instance.json is updated and we re-run prepare to pull
+    // the newer loader libraries.
+    if let Err(e) = revalidate_loader(&id, window_for_revalidate).await {
+        tracing::warn!("Loader revalidation failed for {} (non-fatal): {}", id, e);
+    }
+
+    // Re-read the (possibly loader-bumped) instance so the returned value
+    // reflects the final state.
+    let final_instance = crate::services::instance_service::get_by_id(&id)
+        .await
+        .unwrap_or(instance);
+
+    Ok(final_instance)
 }
 
-/// Generate a unique instance name by appending "(N)" if needed.
-fn unique_instance_name(base_name: &str) -> Result<String, String> {
+/// Scan installed mods and bump the loader version if any mod requires a
+/// newer one, then re-prepare to install the new loader libraries. Shared by
+/// the Modrinth and CurseForge modpack install paths.
+pub async fn revalidate_loader(
+    instance_id: &str,
+    window: Option<tauri::WebviewWindow>,
+) -> Result<(), String> {
+    let fix = crate::services::loader_scan::validate_and_fix_loader(instance_id).await?;
+    if !fix.bumped {
+        return Ok(());
+    }
+
+    // Surface the bump to the user.
+    if let (Some(ref w), Some(ref from), Some(ref to)) =
+        (window.as_ref(), &fix.from_version, &fix.to_version)
+    {
+        let _ = w.emit(
+            "install-progress",
+            crate::services::prepare::InstallProgressPayload {
+                section: "game".to_string(),
+                title: "Adjusting loader".to_string(),
+                message: format!(
+                    "Upgraded loader {} → {} for {} mod{}",
+                    from, to, fix.mods_requiring,
+                    if fix.mods_requiring == 1 { "" } else { "s" }
+                ),
+                fraction: 0.0,
+                skipped: false,
+            },
+        );
+    }
+
+    // Re-run prepare with the bumped loader version to fetch its libraries.
+    let bumped = crate::services::instance_service::get_by_id(instance_id)
+        .await
+        .map_err(|e| format!("Reload instance after bump: {}", e))?;
+    crate::services::prepare::prepare(&bumped, window).await
+}
+
+/// Generate a unique instance name by appending "(N)" if needed. Shared with
+/// the CurseForge import path so both modpack sources dedupe names the same way.
+pub(crate) fn unique_instance_name(base_name: &str) -> Result<String, String> {
     let instances_dir = paths::instances_dir();
     if !instances_dir.exists() {
         return Ok(base_name.to_string());
@@ -553,11 +611,14 @@ pub async fn install_from_curseforge(
     };
     download_file(&crate::util::http::HTTP, &task).await?;
 
-    // Import via the existing CF import logic
+    // Import via the existing CF import logic. Pass the CurseForge project ID
+    // through so the resulting instance is tied back to its source — this is
+    // what the modpack browser's "already installed" tracker matches on.
     let result =
         crate::services::cf_import::import_zip(
             temp_path.to_str().unwrap_or_default(),
             &api_key,
+            Some(project_id.to_string()),
             window,
         )
         .await;

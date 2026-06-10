@@ -79,17 +79,17 @@
   50% { box-shadow: 0 0 10px rgba(56, 189, 248, 0.6); transform: scale(1.2); }
 }
 
-/* Content — adds bottom padding so the floating dock at the bottom of the
-   window doesn't cover scrolled content. The dock is ~76px tall (56 center
-   button + 18px gap from edge); 110px gives breathing room. */
+/* Content area. The vertical scrollbar on the right edge shows in accent
+   color when there's content to scroll. No horizontal scrollbar. */
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 20px 110px;
+  overflow-x: hidden;
+  padding: 20px;
   scroll-behavior: smooth;
 }
 .content::-webkit-scrollbar { width: 4px; }
-.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.content::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 
 /* Section label */
 .section-label {

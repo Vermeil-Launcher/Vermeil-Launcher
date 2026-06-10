@@ -90,6 +90,12 @@ pub struct ModEntry {
     pub description: Option<String>,
     #[serde(default = "default_category")]
     pub category: String,
+    /// Primary author display name (Modrinth search `author` or first entry
+    /// of CurseForge `authors[]`). Cached at install time so the Installed
+    /// list and download history can show "by Author" without a fresh API
+    /// call.
+    #[serde(default)]
+    pub author: Option<String>,
 }
 
 fn default_category() -> String { "mod".to_string() }

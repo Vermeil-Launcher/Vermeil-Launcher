@@ -213,7 +213,7 @@ async fn install_one(
         .ok_or("No files in version")?;
 
     // === Project metadata for icon/title ===
-    let (title, icon_url, description, _project_type) = lookup_project_meta(project_id).await;
+    let (title, icon_url, description, _project_type, author) = lookup_project_meta(project_id).await;
 
     // Best-effort cache the project icon to disk so the Installed-tab card
     // and any future render of this mod doesn't re-hit the CDN every time.
@@ -258,6 +258,7 @@ async fn install_one(
         local_icon_path,
         description,
         category: category.to_string(),
+        author,
     };
 
     // === Persist instance.json (idempotent — skip if project already present) ===
@@ -512,16 +513,21 @@ async fn lookup_project_title(project_id: &str) -> Option<String> {
 /// `"resourcepack"`, `"shader"`, `"datapack"`). We use it to route a
 /// dependency's download to the right folder — without it, every dep
 /// (including datapack deps of a datapack) was being dropped into `mods/`.
+///
+/// `author` is the username of the project owner. Modrinth's project
+/// endpoint only returns a team ID, so we make one additional call to
+/// `/v2/team/{id}/members` to find the Owner's username. Best-effort —
+/// returns `None` on any HTTP/parse failure.
 async fn lookup_project_meta(
     project_id: &str,
-) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+) -> (Option<String>, Option<String>, Option<String>, Option<String>, Option<String>) {
     let url = format!("https://api.modrinth.com/v2/project/{}", project_id);
     let resp = match crate::util::http::HTTP.get(&url).send().await {
         Ok(r) => r,
-        Err(_) => return (None, None, None, None),
+        Err(_) => return (None, None, None, None, None),
     };
     if !resp.status().is_success() {
-        return (None, None, None, None);
+        return (None, None, None, None, None);
     }
     #[derive(serde::Deserialize)]
     struct ProjectInfo {
@@ -529,11 +535,44 @@ async fn lookup_project_meta(
         icon_url: Option<String>,
         description: Option<String>,
         project_type: Option<String>,
+        team: Option<String>,
     }
-    match resp.json::<ProjectInfo>().await {
-        Ok(p) => (p.title, p.icon_url, p.description, p.project_type),
-        Err(_) => (None, None, None, None),
+    let info = match resp.json::<ProjectInfo>().await {
+        Ok(p) => p,
+        Err(_) => return (None, None, None, None, None),
+    };
+
+    // Resolve team → owner username. Skipped if no team or if the request fails;
+    // we don't surface the error because author is optional.
+    let author = match info.team.as_deref() {
+        Some(team_id) if !team_id.is_empty() => fetch_team_owner(team_id).await,
+        _ => None,
+    };
+
+    (info.title, info.icon_url, info.description, info.project_type, author)
+}
+
+/// Resolve the `Owner`-role member of a Modrinth team. Returns the owner's
+/// username, or None if the team has no members or the request fails.
+async fn fetch_team_owner(team_id: &str) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Member {
+        role: Option<String>,
+        user: Option<MemberUser>,
     }
+    #[derive(serde::Deserialize)]
+    struct MemberUser {
+        username: Option<String>,
+    }
+    let url = format!("https://api.modrinth.com/v2/team/{}/members", team_id);
+    let resp = crate::util::http::HTTP.get(&url).send().await.ok()?;
+    if !resp.status().is_success() { return None; }
+    let members: Vec<Member> = resp.json().await.ok()?;
+    // Prefer the Owner; fall back to first member.
+    members.iter()
+        .find(|m| m.role.as_deref() == Some("Owner"))
+        .or_else(|| members.first())
+        .and_then(|m| m.user.as_ref()?.username.clone())
 }
 
 /// Resolve a dependency's project type. Modrinth's `dependency` struct
@@ -559,14 +598,16 @@ async fn resolve_project_from_version(version_id: &str) -> Option<String> {
 // Removal / toggle (unchanged from previous implementation)
 // ============================================================================
 
-pub async fn remove_mod(instance_id: &str, project_id: &str) -> Result<(), String> {
+pub async fn remove_mod(instance_id: &str, entry_id: &str) -> Result<(), String> {
     let instance_dir = paths::instances_dir().join(instance_id);
     let meta_path = instance_dir.join("instance.json");
 
     let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
     let mut instance: Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
-    if let Some(pos) = instance.mods.iter().position(|m| m.project_id == project_id) {
+    // Match on the unique per-entry `id` (see toggle_mod for why project_id
+    // is unreliable for modpack-installed mods).
+    if let Some(pos) = instance.mods.iter().position(|m| m.id == entry_id) {
         let mod_entry = instance.mods.remove(pos);
         let folder = match mod_entry.category.as_str() {
             "resourcepack" => "resourcepacks",
@@ -626,17 +667,20 @@ pub async fn remove_all_content(instance_id: &str, category: &str) -> Result<usi
     Ok(initial - instance.mods.len())
 }
 
-pub async fn toggle_mod(instance_id: &str, project_id: &str) -> Result<bool, String> {
+pub async fn toggle_mod(instance_id: &str, entry_id: &str) -> Result<bool, String> {
     let instance_dir = paths::instances_dir().join(instance_id);
     let meta_path = instance_dir.join("instance.json");
 
     let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
     let mut instance: Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
+    // Match on the unique per-entry `id`, NOT `project_id`. Modpack-installed
+    // mods all share an empty `project_id`, so matching on that would toggle
+    // the wrong mod (whichever the iterator finds first).
     let mod_idx = instance
         .mods
         .iter()
-        .position(|m| m.project_id == project_id)
+        .position(|m| m.id == entry_id)
         .ok_or("Mod not found")?;
 
     let folder = match instance.mods[mod_idx].category.as_str() {

@@ -339,13 +339,19 @@ pub async fn get_forge_versions(game_version: String) -> Result<Vec<FabricVersio
     let prefix = format!("{}-", game_version);
     let mut versions: Vec<FabricVersionInfo> = Vec::new();
 
-    // Forge versions before MC 1.5.2 don't have installer JARs on Maven
-    // (the installer system didn't exist yet). Skip them entirely so the
-    // user can't select a version that will always fail to download.
+    // Forge versions before MC 1.7.10 don't work reliably — versions below
+    // 1.5.2 have no installer JARs on Maven, and 1.5.x–1.6.x have dead FML
+    // bootstrap servers that cause runtime failures. 1.7.10 is the oldest
+    // version with working infrastructure.
     let mc_parts: Vec<u32> = game_version.split('.').filter_map(|p| p.parse().ok()).collect();
     let too_old = if mc_parts.len() >= 2 && mc_parts[0] == 1 {
-        // 1.0..1.4.x are all too old; 1.5.0 and 1.5.1 are borderline but 1.5.2+ is safe
-        mc_parts[1] < 5 || (mc_parts[1] == 5 && mc_parts.get(2).copied().unwrap_or(0) < 2)
+        if mc_parts[1] < 7 {
+            true
+        } else if mc_parts[1] == 7 {
+            mc_parts.get(2).copied().unwrap_or(0) < 10
+        } else {
+            false
+        }
     } else if mc_parts.first() == Some(&1) && mc_parts.len() == 1 {
         true // bare "1" — too old
     } else {
@@ -403,10 +409,16 @@ pub async fn get_forge_game_versions() -> Result<Vec<String>, String> {
             if let Some(mc_ver) = ver.split('-').next() {
                 // Skip entries that don't look like MC versions (e.g. just numbers)
                 if mc_ver.contains('.') && seen.insert(mc_ver.to_string()) {
-                    // Filter out MC versions below 1.5.2 (no Forge installer JARs exist for them)
+                    // Filter out MC versions below 1.7.10 (no working Forge infrastructure)
                     let parts: Vec<u32> = mc_ver.split('.').filter_map(|p| p.parse().ok()).collect();
                     let too_old = if parts.len() >= 2 && parts[0] == 1 {
-                        parts[1] < 5 || (parts[1] == 5 && parts.get(2).copied().unwrap_or(0) < 2)
+                        if parts[1] < 7 {
+                            true
+                        } else if parts[1] == 7 {
+                            parts.get(2).copied().unwrap_or(0) < 10
+                        } else {
+                            false
+                        }
                     } else if parts.first() == Some(&1) && parts.len() == 1 {
                         true
                     } else {

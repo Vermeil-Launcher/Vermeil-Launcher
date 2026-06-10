@@ -1,6 +1,6 @@
 import { Component, createSignal, createEffect, createResource, For, Show, onMount, onCleanup } from "solid-js";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor } from "../App";
+import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
@@ -30,6 +30,29 @@ function resolveIconUrl(item: { local_icon_path?: string | null; icon_url?: stri
   if (item.local_icon_path) return item.local_icon_path;
   if (item.icon_url) return item.icon_url;
   return undefined;
+}
+
+/**
+ * Whether a content category is usable on a given loader. Vanilla (no
+ * loader) can only use resource packs and data packs. Mods and shaders
+ * both require a loader (mods need Fabric/Forge/etc., shaders need
+ * Iris or OptiFine which are themselves mods).
+ */
+function isCategoryAvailable(category: string, loader: string): boolean {
+  if (loader !== "vanilla") return true;
+  return category === "resourcepack" || category === "datapack";
+}
+
+/**
+ * First category in the standard tab order that's available for the given
+ * loader. Used to auto-select a usable category when the current selection
+ * becomes invalid (e.g. user opens Browse on a vanilla instance — "mod" is
+ * grayed out, so we land on "resourcepack" instead).
+ */
+function firstAvailableCategory(loader: string): "mod" | "resourcepack" | "shader" | "datapack" {
+  const order: ("mod" | "resourcepack" | "shader" | "datapack")[] =
+    ["mod", "resourcepack", "shader", "datapack"];
+  return order.find((c) => isCategoryAvailable(c, loader)) ?? "resourcepack";
 }
 
 const InstanceMods: Component = () => {
@@ -198,6 +221,20 @@ const InstanceMods: Component = () => {
   /** Substring search across log lines. Empty string disables the filter. */
   const [logSearch, setLogSearch] = createSignal("");
 
+  // Auto-scroll state for the Logs tab. True = follow new output (snap to
+  // bottom on each new line). Flips to false when the user scrolls up to
+  // read earlier output, and back to true when they return to the bottom
+  // (via the jump button or by scrolling down themselves).
+  const [autoScrollLogs, setAutoScrollLogs] = createSignal(true);
+
+  // Hide the floating dock while the Logs tab is active so it doesn't cover
+  // output. Reset on tab change and on unmount. The dock still reveals on
+  // cursor-near-bottom (handled in FloatingDock).
+  createEffect(() => {
+    setDockHidden(mainTab() === "logs");
+  });
+  onCleanup(() => setDockHidden(false));
+
   const instance = () => {
     const list = instances();
     const id = activeInstanceId();
@@ -232,21 +269,9 @@ const InstanceMods: Component = () => {
   // persist), which is exactly the "fresh start on relaunch" behavior we
   // want without explicit work here.
 
-  // Auto-scroll log viewer when new logs arrive (only if user is near the bottom)
-  createEffect(() => {
-    const logLines = logs();
-    if (logLines.length > 0 && mainTab() === "logs") {
-      setTimeout(() => {
-        const viewer = document.querySelector('.log-viewer');
-        if (viewer) {
-          const isNearBottom = viewer.scrollHeight - viewer.scrollTop - viewer.clientHeight < 80;
-          if (isNearBottom) {
-            viewer.scrollTop = viewer.scrollHeight;
-          }
-        }
-      }, 50);
-    }
-  });
+  // Auto-scroll is handled by the .log-viewer-frame ref callback below
+  // (scroll listener + MutationObserver gated on autoScrollLogs). No separate
+  // effect here — a second mechanism would fight the user's scroll intent.
 
   createEffect(() => {
     if (mainTab() === "content" && contentTab() === "browse") {
@@ -256,6 +281,38 @@ const InstanceMods: Component = () => {
         setCurrentPage(1);
         doSearch(1);
       }
+    }
+  });
+
+  /**
+   * Auto-correct the browse category when entering Browse mode on a loader
+   * that doesn't support the current selection. Triggered when the user:
+   *   • opens Browse on a vanilla instance for the first time (default
+   *     `browseFilter` is "mod" but mods are unavailable on vanilla)
+   *   • switches to an instance whose loader can't run the previously
+   *     selected category
+   * Runs whenever any of those signals change.
+   */
+  createEffect(() => {
+    const inst = instance();
+    if (!inst) return;
+    if (mainTab() !== "content" || contentTab() !== "browse") return;
+    if (!isCategoryAvailable(browseFilter(), inst.loader.type)) {
+      setBrowseFilter(firstAvailableCategory(inst.loader.type));
+    }
+  });
+
+  /**
+   * Same auto-correction for the Installed-tab filter — keeps users on a
+   * usable category when they switch instances.
+   */
+  createEffect(() => {
+    const inst = instance();
+    if (!inst) return;
+    if (mainTab() !== "content" || contentTab() !== "installed") return;
+    const f = installedFilter();
+    if (f !== "all" && !isCategoryAvailable(f, inst.loader.type)) {
+      setInstalledFilter("all");
     }
   });
 
@@ -357,6 +414,7 @@ const InstanceMods: Component = () => {
       iconUrl: mod.icon_url,
       loader: inst.loader.type,
       gameVersion: inst.game_version,
+      author: mod.author,
     });
     try {
       const resultJson = modSource() === "curseforge"
@@ -914,11 +972,29 @@ const InstanceMods: Component = () => {
         <Show when={contentTab() === "installed"}>
           <div class="installed-filter-row">
             <div class="src-tabs" style="margin-bottom:0;flex:1">
-              <div class={`src-tab ${installedFilter() === "all" ? "active" : ""}`} onClick={() => setInstalledFilter("all")}>All{(instance()?.mods.length || 0) > 0 ? ` (${instance()?.mods.length})` : ""}</div>
-              <div class={`src-tab ${installedFilter() === "mod" ? "active" : ""}`} onClick={() => setInstalledFilter("mod")}>Mods{(() => { const c = (instance()?.mods || []).filter(m => !(m as any).category || (m as any).category === "mod").length; return c > 0 ? ` (${c})` : ""; })()}</div>
-              <div class={`src-tab ${installedFilter() === "resourcepack" ? "active" : ""}`} onClick={() => setInstalledFilter("resourcepack")}>Resources{(() => { const c = (instance()?.mods || []).filter(m => (m as any).category === "resourcepack").length; return c > 0 ? ` (${c})` : ""; })()}</div>
-              <div class={`src-tab ${installedFilter() === "shader" ? "active" : ""}`} onClick={() => setInstalledFilter("shader")}>Shaders{(() => { const c = (instance()?.mods || []).filter(m => (m as any).category === "shader").length; return c > 0 ? ` (${c})` : ""; })()}</div>
-              <div class={`src-tab ${installedFilter() === "datapack" ? "active" : ""}`} onClick={() => setInstalledFilter("datapack")}>Datapacks{(() => { const c = (instance()?.mods || []).filter(m => (m as any).category === "datapack").length; return c > 0 ? ` (${c})` : ""; })()}</div>
+              {(() => {
+                const loader = () => instance()?.loader.type ?? "vanilla";
+                const filter = (cat: "all" | "mod" | "resourcepack" | "shader" | "datapack", label: string, count: () => number) => {
+                  if (cat !== "all" && !isCategoryAvailable(cat, loader())) return null;
+                  return (
+                    <div
+                      class={`src-tab ${installedFilter() === cat ? "active" : ""}`}
+                      onClick={() => setInstalledFilter(cat)}
+                    >
+                      {label}{count() > 0 ? ` (${count()})` : ""}
+                    </div>
+                  );
+                };
+                return (
+                  <>
+                    {filter("all", "All", () => instance()?.mods.length || 0)}
+                    {filter("mod", "Mods", () => (instance()?.mods || []).filter(m => !(m as any).category || (m as any).category === "mod").length)}
+                    {filter("resourcepack", "Resources", () => (instance()?.mods || []).filter(m => (m as any).category === "resourcepack").length)}
+                    {filter("shader", "Shaders", () => (instance()?.mods || []).filter(m => (m as any).category === "shader").length)}
+                    {filter("datapack", "Datapacks", () => (instance()?.mods || []).filter(m => (m as any).category === "datapack").length)}
+                  </>
+                );
+              })()}
             </div>
             {/* Bulk-delete button — scope follows the active filter. "All" wipes
                 everything, otherwise only the matching category. */}
@@ -968,11 +1044,32 @@ const InstanceMods: Component = () => {
           </div>
         </Show>
         <Show when={contentTab() === "browse"}>
+          {/* Browse category tabs. Tabs for categories that aren't usable
+              on the current loader (mods/shaders on vanilla) are hidden
+              entirely to avoid clutter and confusion. */}
           <div class="src-tabs" style="margin-bottom:12px">
-            <div class={`src-tab ${browseFilter() === "mod" ? "active" : ""}`} onClick={() => setBrowseFilter("mod")}>Mods{browseFilter() === "mod" && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}</div>
-            <div class={`src-tab ${browseFilter() === "resourcepack" ? "active" : ""}`} onClick={() => setBrowseFilter("resourcepack")}>Resources{browseFilter() === "resourcepack" && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}</div>
-            <div class={`src-tab ${browseFilter() === "shader" ? "active" : ""}`} onClick={() => setBrowseFilter("shader")}>Shaders{browseFilter() === "shader" && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}</div>
-            <div class={`src-tab ${browseFilter() === "datapack" ? "active" : ""}`} onClick={() => setBrowseFilter("datapack")}>Datapacks{browseFilter() === "datapack" && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}</div>
+            {(() => {
+              const loader = () => instance()?.loader.type ?? "vanilla";
+              const tab = (cat: "mod" | "resourcepack" | "shader" | "datapack", label: string) => {
+                if (!isCategoryAvailable(cat, loader())) return null;
+                return (
+                  <div
+                    class={`src-tab ${browseFilter() === cat ? "active" : ""}`}
+                    onClick={() => setBrowseFilter(cat)}
+                  >
+                    {label}{browseFilter() === cat && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}
+                  </div>
+                );
+              };
+              return (
+                <>
+                  {tab("mod", "Mods")}
+                  {tab("resourcepack", "Resources")}
+                  {tab("shader", "Shaders")}
+                  {tab("datapack", "Datapacks")}
+                </>
+              );
+            })()}
           </div>
         </Show>
 
@@ -1048,7 +1145,12 @@ const InstanceMods: Component = () => {
                         <img src={resolveIconUrl(mod as any)!} style="width:100%;height:100%;border-radius:6px;object-fit:cover" />
                       </Show>
                     </div>
-                    <div class="mod-card-name">{mod.title || mod.filename}</div>
+                    <div class="mod-card-name-wrap">
+                      <div class="mod-card-name">{mod.title || mod.filename}</div>
+                      <Show when={(mod as any).author}>
+                        <div class="mod-card-author">by {(mod as any).author}</div>
+                      </Show>
+                    </div>
                   </div>
                   <div class="mod-card-desc">{mod.description || ""}</div>
                   {/* Installed cards show the instance's loader + MC version
@@ -1088,13 +1190,13 @@ const InstanceMods: Component = () => {
                       <div class={`toggle ${mod.enabled ? "on" : ""}`} style="transform:scale(0.8)" onClick={async () => {
                         const inst = instance();
                         if (!inst) return;
-                        await toggleModInInstance(inst.id, mod.project_id);
+                        await toggleModInInstance(inst.id, mod.id);
                         await refetchInstances();
                       }} />
                       <button class="btn" style="font-size:9px;padding:2px 5px;color:#e05252;border-color:#e05252" onClick={async () => {
                         const inst = instance();
                         if (!inst) return;
-                        await removeModFromInstance(inst.id, mod.project_id);
+                        await removeModFromInstance(inst.id, mod.id);
                         await refetchInstances();
                       }}>✕</button>
                     </div>
@@ -1165,7 +1267,12 @@ const InstanceMods: Component = () => {
                           <img src={mod.icon_url!} style="width:100%;height:100%;border-radius:6px;object-fit:cover" />
                         </Show>
                       </div>
-                      <div class="mod-card-name">{mod.title}</div>
+                      <div class="mod-card-name-wrap">
+                        <div class="mod-card-name">{mod.title}</div>
+                        <Show when={mod.author}>
+                          <div class="mod-card-author">by {mod.author}</div>
+                        </Show>
+                      </div>
                     </div>
                     <div class="mod-card-desc">{mod.description}</div>
                     {/* Loader + MC-version badges. We render every supported
@@ -1305,12 +1412,16 @@ const InstanceMods: Component = () => {
       {/* ═══ LOGS TAB ═══ */}
       <Show when={mainTab() === "logs"}>
         {(() => {
-          // Viewer ref + jump helpers — declared once per render, captured by
-          // the closure below. Using `let` instead of a signal because we
-          // never react to it; we just need a stable handle for the buttons.
+          // Stable handle to the scrollable log element for the jump buttons.
           let viewerEl: HTMLDivElement | undefined;
-          const jumpToTop = () => viewerEl?.scrollTo({ top: 0, behavior: "smooth" });
+          const jumpToTop = () => {
+            // Reading earlier output → stop following new lines.
+            setAutoScrollLogs(false);
+            viewerEl?.scrollTo({ top: 0, behavior: "smooth" });
+          };
           const jumpToBottom = () => {
+            // Returning to latest → resume following.
+            setAutoScrollLogs(true);
             if (viewerEl) viewerEl.scrollTo({ top: viewerEl.scrollHeight, behavior: "smooth" });
           };
           return (
@@ -1358,39 +1469,51 @@ const InstanceMods: Component = () => {
               <div
                 class="log-viewer-frame"
                 ref={(el) => {
-                  // Auto-scroll to bottom when new logs arrive — only if the
-                  // user is already near the bottom, so manual scroll-up
-                  // (e.g. reading earlier lines) isn't disrupted.
-                  //
-                  // Observer is attached to the scrollable child rather than
-                  // the frame itself, so it picks up new log-line nodes
-                  // without triggering on the (static) backdrop element.
                   const scroller = el.querySelector<HTMLDivElement>(".log-viewer");
                   if (!scroller) return;
                   viewerEl = scroller;
+
+                  // Track whether the user is at the bottom. When they scroll
+                  // up to read earlier output we stop following; when they
+                  // return to the bottom we resume. A small threshold absorbs
+                  // sub-pixel rounding and the in-flight smooth-scroll.
+                  const onScroll = () => {
+                    const atBottom =
+                      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40;
+                    setAutoScrollLogs(atBottom);
+                  };
+                  scroller.addEventListener("scroll", onScroll, { passive: true });
+
+                  // On new log lines, snap to bottom only while following.
                   const observer = new MutationObserver(() => {
-                    const isNearBottom =
-                      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 100;
-                    if (isNearBottom) scroller.scrollTop = scroller.scrollHeight;
+                    if (autoScrollLogs()) {
+                      scroller.scrollTop = scroller.scrollHeight;
+                    }
                   });
                   observer.observe(scroller, { childList: true });
+
+                  // Start pinned to the bottom.
+                  scroller.scrollTop = scroller.scrollHeight;
                 }}
               >
                 {/* Log placeholder — Feather-style terminal icon (MIT).
-                    Pinned to the frame so it stays centered regardless of log scroll. */}
-                <div class="log-ascii-backdrop">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="url(#log-grad)" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round">
-                    <defs>
-                      <linearGradient id="log-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="var(--accent-cyan)" />
-                        <stop offset="100%" stop-color="var(--accent)" />
-                      </linearGradient>
-                    </defs>
-                    <rect x="2" y="3" width="20" height="18" rx="2" />
-                    <polyline points="7 8 10 11 7 14" />
-                    <line x1="13" y1="14" x2="17" y2="14" />
-                  </svg>
-                </div>
+                    Pinned to the frame so it stays centered regardless of log scroll.
+                    Disappears as soon as any log line is present. */}
+                <Show when={filteredLogs().length === 0}>
+                  <div class="log-ascii-backdrop">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="url(#log-grad)" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round">
+                      <defs>
+                        <linearGradient id="log-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="var(--accent-cyan)" />
+                          <stop offset="100%" stop-color="var(--accent)" />
+                        </linearGradient>
+                      </defs>
+                      <rect x="2" y="3" width="20" height="18" rx="2" />
+                      <polyline points="7 8 10 11 7 14" />
+                      <line x1="13" y1="14" x2="17" y2="14" />
+                    </svg>
+                  </div>
+                </Show>
 
                 <div class="log-viewer">
                   <Show when={filteredLogs().length === 0}>

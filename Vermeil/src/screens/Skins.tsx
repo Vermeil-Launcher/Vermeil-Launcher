@@ -359,7 +359,7 @@ const Skins: Component = () => {
         }
       >
         <div class="section-label">
-          Skins & capes <span class="beta-pill">Beta</span>
+          Skins & capes
         </div>
 
         {/* Hidden file picker driven by the Upload button. Stays mounted so
@@ -373,7 +373,7 @@ const Skins: Component = () => {
         />
 
         <div class="skins-layout">
-          {/* Left column: 3D preview + actions */}
+          {/* Main area: 3D preview (spans most of the width) */}
           <div class="skins-preview-col">
             <div class="skins-canvas-wrap">
               <canvas ref={viewerCanvas} class="skins-canvas" />
@@ -385,7 +385,10 @@ const Skins: Component = () => {
                 {showElytra() ? "Cape" : "Elytra"}
               </button>
             </div>
+          </div>
 
+          {/* Right sidebar: variant + actions */}
+          <div class="skins-side-col">
             <div class="skins-variant-row">
               <div class="field-label">Model variant</div>
               <div class="choice-row">
@@ -420,10 +423,11 @@ const Skins: Component = () => {
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Right column: library + capes */}
-          <div class="skins-side-col">
-            <div class="section-label">Saved skins</div>
+        {/* Below the viewer: Saved skins (horizontal scrollable row) */}
+        <div style="margin-top:16px">
+          <div class="section-label">Saved skins</div>
             <Show
               when={(localSkins() ?? []).length > 0}
               fallback={
@@ -470,7 +474,7 @@ const Skins: Component = () => {
               </div>
             </Show>
 
-            <div class="section-label" style="margin-top:18px">Capes</div>
+            <div class="section-label" style="margin-top:16px">Capes</div>
             <Show
               when={(profile()?.capes ?? []).length > 0}
               fallback={
@@ -508,7 +512,6 @@ const Skins: Component = () => {
                 </For>
               </div>
             </Show>
-          </div>
         </div>
       </Show>
     </div>

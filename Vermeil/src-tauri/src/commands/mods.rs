@@ -25,6 +25,10 @@ pub struct ModHit {
     /// Surfaced so the frontend can display "1.20.1 – 1.21.4" badges on cards.
     pub versions: Vec<String>,
     pub latest_version: Option<String>,
+    /// Primary author display name. Modrinth: search hit's `author`.
+    /// CurseForge: first entry of `authors[]`. None when the source doesn't
+    /// expose an author (rare).
+    pub author: Option<String>,
 }
 
 #[tauri::command]
@@ -73,6 +77,7 @@ pub async fn search_mods(
                 categories: h.categories,
                 versions: h.versions,
                 latest_version: h.latest_version,
+                author: h.author,
             })
             .collect(),
     })
@@ -113,6 +118,7 @@ pub async fn search_modpacks(
                 categories: h.categories,
                 versions: h.versions,
                 latest_version: h.latest_version,
+                author: h.author,
             })
             .collect(),
     })
@@ -179,6 +185,7 @@ pub async fn search_curseforge(
                 categories: h.categories,
                 versions: h.versions,
                 latest_version: h.latest_version,
+                author: h.author,
             })
             .collect(),
     })

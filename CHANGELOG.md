@@ -1,13 +1,18 @@
-## 0.2.6
+## 0.2.7
 
 ### Added
 
-- Floating bottom-centered dock replaces the left sidebar. The center button is state-aware: shows "+" by default, "▶" when viewing an instance, and "■" when the game is running.
-- Pin selector — press Ctrl+P (rebindable) to transform the dock into a horizontal scrollable carousel of pinned instances. Click a pin to open it.
-- Settings → Keybinds tab for customizing keyboard shortcuts. Click a binding and press a new combination.
+- Loader auto-bump: modpack installs scan their mods for the loader version they require and update the loader to a compatible build automatically.
+- Author names now appear on mod cards, the installed list, download history, and modpacks.
 
 ### Changed
 
-- Logo moved from the sidebar to the titlebar.
-- Play / Stop button removed from the instance context bar — now lives on the floating dock.
-- Modal overlays now fill the full viewport instead of being offset by the sidebar width.
+- Skins screen redesigned — wider 3D viewer, dedicated actions sidebar, and a horizontal row of saved skins.
+- Categories a loader can't use (mods and shaders on Vanilla) are now hidden instead of shown.
+- Scrollbars use the accent color so scrollable areas are easier to spot.
+- Logs tab: placeholder art clears once output appears, the dock auto-hides while reading (reveals on hover), and auto-scroll follows new lines until you scroll up.
+
+### Fixed
+
+- CurseForge modpacks now install mods whose download URLs are withheld by the API, using a direct CDN fallback.
+- Re-installing the same CurseForge modpack now appends "(2)", "(3)" to the instance name and is tracked the same way as Modrinth.

@@ -120,6 +120,22 @@ effort. New ideas welcome via GitHub Issues.
 - Task Manager subprocess icon fixed (BMP-DIB format ICO)
 - Sidebar tooltips no longer hidden behind 3D skin viewer
 
+### 0.2.6 — Floating dock, keybinds
+- Floating bottom-centered dock replaces the left sidebar with a state-aware center button
+- Pin selector carousel opens via Ctrl+P (rebindable)
+- Settings → Keybinds tab for customizing keyboard shortcuts
+- Modal overlays fill the full viewport; logo moved to the titlebar
+
+### 0.2.7 — Loader auto-bump, skins redesign, modpack fixes
+- Loader auto-bump scans modpack mods and updates the loader to a compatible build on install
+- Author names shown on mod cards, installed list, download history, and modpacks
+- Skins screen redesigned with a wider 3D viewer, actions sidebar, and horizontal saved-skins row
+- Categories a loader can't use (mods/shaders on Vanilla) are hidden instead of shown
+- Scrollbars use the accent color across all screens
+- Logs tab: placeholder clears on output, dock auto-hides while reading, auto-scroll follows new lines until you scroll up
+- CurseForge modpacks install mods with withheld download URLs via a direct CDN fallback
+- Re-installing a CurseForge modpack appends "(2)", "(3)" and is tracked like Modrinth
+
 ---
 
 ## Planned

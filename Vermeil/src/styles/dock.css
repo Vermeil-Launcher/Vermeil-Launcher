@@ -19,11 +19,22 @@
   transform: translateX(-50%);
   z-index: 30;
   pointer-events: none;
-  animation: dockSlideUp 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) 0.1s both;
+  animation: dockSlideUp 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) 0.1s backwards;
+  transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.25s ease;
 }
 @keyframes dockSlideUp {
   from { opacity: 0; transform: translate(-50%, 24px); }
   to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Auto-hidden state (e.g. on the Logs tab). Slides fully off the bottom
+   edge. The dock reveals itself again when the cursor nears the bottom of
+   the window (handled in FloatingDock via a mousemove listener). */
+.dock-wrap.dock-hidden {
+  transform: translate(-50%, calc(100% + 40px));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.25s ease;
 }
 
 /* The dock pill — single rounded container. Width animates between
@@ -258,7 +269,7 @@
   width: calc(50% - 40px);
 }
 .dock-pin-track::-webkit-scrollbar { height: 4px; }
-.dock-pin-track::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 2px; }
+.dock-pin-track::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 .dock-pin-track::-webkit-scrollbar-track { background: transparent; }
 
 /* Tiles in the carousel — larger than dock buttons, with name visible. */

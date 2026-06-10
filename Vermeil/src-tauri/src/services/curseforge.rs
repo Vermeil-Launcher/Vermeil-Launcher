@@ -79,8 +79,18 @@ struct CfMod {
     thumbs_up_count: u32,
     logo: Option<CfLogo>,
     categories: Vec<CfCategory>,
+    /// Author list. CurseForge always returns at least one for published
+    /// projects. We only display the first one to match Modrinth's
+    /// single-author display.
+    #[serde(default)]
+    authors: Vec<CfAuthor>,
     #[serde(rename = "latestFilesIndexes")]
     latest_files_indexes: Vec<CfFileIndex>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfAuthor {
+    name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,6 +128,8 @@ pub struct CfHit {
     pub categories: Vec<String>,
     pub versions: Vec<String>,
     pub latest_version: Option<String>,
+    /// Primary author display name (first entry in CurseForge's authors array).
+    pub author: Option<String>,
 }
 
 pub struct CfSearchResult {
@@ -232,6 +244,7 @@ pub async fn search(
             categories,
             versions,
             latest_version,
+            author: m.authors.into_iter().next().map(|a| a.name),
         }
     }).collect();
 
@@ -280,19 +293,33 @@ pub async fn get_project_files(
         .await
         .map_err(|e| format!("CurseForge files parse: {}", e))?;
 
-    Ok(wrapper.data.into_iter().map(|f| CfFileInfo {
-        file_id: f.id,
-        file_name: f.file_name,
-        download_url: f.download_url,
-        file_length: f.file_length,
-        hashes: f.hashes.into_iter()
-            .filter(|h| h.algo == 1) // SHA-1
-            .map(|h| h.value)
-            .collect(),
-        dependencies: f.dependencies.into_iter()
+    Ok(wrapper.data.into_iter().map(|f| {
+        // Reconstruct the CDN URL when CurseForge withholds it (author opted
+        // out of third-party API distribution). The file still lives on the
+        // CDN at a path derived from its numeric ID. Same workaround used by
+        // every third-party launcher; prevents mods silently failing to install.
+        let download_url = f.download_url.clone().or_else(|| {
+            Some(format!(
+                "https://edge.forgecdn.net/files/{}/{}/{}",
+                f.id / 1000,
+                f.id % 1000,
+                f.file_name.replace(' ', "%20")
+            ))
+        });
+        CfFileInfo {
+            file_id: f.id,
+            file_name: f.file_name,
+            download_url,
+            file_length: f.file_length,
+            hashes: f.hashes.into_iter()
+                .filter(|h| h.algo == 1) // SHA-1
+                .map(|h| h.value)
+                .collect(),
+            dependencies: f.dependencies.into_iter()
             .filter(|d| d.relation_type == 3) // RequiredDependency
             .map(|d| d.mod_id.to_string())
             .collect(),
+        }
     }).collect())
 }
 

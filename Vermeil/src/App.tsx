@@ -110,6 +110,10 @@ export interface DownloadEntry {
   iconUrl?: string;
   loader?: string;
   gameVersion?: string;
+  /** Primary author display name. Cached when the user installs from
+   *  search results so we can show "by Author" in the Downloads history
+   *  card without re-fetching project metadata. */
+  author?: string;
 }
 const [downloads, setDownloads] = createSignal<DownloadEntry[]>([]);
 const [bulkBatchSize, setBulkBatchSize] = createSignal(0); // Track bulk install total
@@ -137,7 +141,7 @@ function persistDownloads() {
 export function trackDownload(
   name: string,
   category: string,
-  meta?: { iconUrl?: string | null; loader?: string; gameVersion?: string },
+  meta?: { iconUrl?: string | null; loader?: string; gameVersion?: string; author?: string | null },
 ): string {
   const id = Math.random().toString(36).slice(2);
   const entry: DownloadEntry = {
@@ -149,6 +153,7 @@ export function trackDownload(
     iconUrl: meta?.iconUrl ?? undefined,
     loader: meta?.loader,
     gameVersion: meta?.gameVersion,
+    author: meta?.author ?? undefined,
   };
   setDownloads(prev => [entry, ...prev].slice(0, 200));
   return id;
@@ -247,6 +252,13 @@ export { pinnedInstanceIds };
 // button while in selector mode.
 const [pinSelectorOpen, setPinSelectorOpen] = createSignal(false);
 export { pinSelectorOpen, setPinSelectorOpen };
+
+// Dock auto-hide. Set true to slide the floating dock out of view (used on
+// the instance Logs tab so it doesn't cover log output). The dock reveals
+// itself when the cursor nears the bottom of the window regardless of this
+// flag, and screens reset it to false when they unmount.
+const [dockHidden, setDockHidden] = createSignal(false);
+export { dockHidden, setDockHidden };
 
 // Active skin URL for the currently signed-in Microsoft account. Populated
 // lazily from `getSkinProfile()` whenever the active account changes; cleared

@@ -1,4 +1,4 @@
-import { Component, Show, For, createMemo } from "solid-js";
+import { Component, Show, For, createMemo, createSignal, onMount, onCleanup } from "solid-js";
 import {
   activeScreen,
   setActiveScreen,
@@ -14,6 +14,7 @@ import {
   pinSelectorOpen,
   setPinSelectorOpen,
   setInitialInstanceTab,
+  dockHidden,
 } from "../App";
 import {
   IconHome,
@@ -47,6 +48,21 @@ import { openPinInstancesModal } from "../modals/PinInstancesModal";
 
 const FloatingDock: Component = () => {
   const isActive = (screens: Screen[]) => screens.includes(activeScreen());
+
+  // Cursor-proximity reveal: even when `dockHidden` is true (Logs tab), the
+  // dock pops back up when the pointer nears the bottom edge of the window.
+  const [nearBottom, setNearBottom] = createSignal(false);
+  onMount(() => {
+    const handler = (e: MouseEvent) => {
+      setNearBottom(window.innerHeight - e.clientY < 90);
+    };
+    window.addEventListener("mousemove", handler);
+    onCleanup(() => window.removeEventListener("mousemove", handler));
+  });
+
+  // The dock is visually hidden only when the screen requested it AND the
+  // cursor isn't near the bottom AND the pin selector isn't open.
+  const hidden = () => dockHidden() && !nearBottom() && !pinSelectorOpen();
 
   const DockBtn = (props: { screens: Screen[]; target: Screen; icon: any; label: string }) => (
     <button
@@ -139,7 +155,7 @@ const FloatingDock: Component = () => {
   };
 
   return (
-    <div class={`dock-wrap ${pinSelectorOpen() ? "pin-mode" : ""}`}>
+    <div class={`dock-wrap ${pinSelectorOpen() ? "pin-mode" : ""} ${hidden() ? "dock-hidden" : ""}`}>
       <div class="dock">
         {/* NAV MODE — the default 6-button layout. */}
         <Show when={!pinSelectorOpen()}>

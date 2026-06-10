@@ -54,6 +54,9 @@ export interface ModHit {
   versions?: string[];
   /** Latest version ID (Modrinth's `latest_version`). */
   latest_version?: string | null;
+  /** Primary author display name. Modrinth: search hit's `author`.
+   *  CurseForge: first entry of the project's `authors[]` array. */
+  author?: string | null;
 }
 
 export interface ModSearchResult {
@@ -198,8 +201,8 @@ export const installModToInstance = (instanceId: string, projectId: string, load
   invoke<string>("install_mod_to_instance", { instanceId, projectId, loader, gameVersion, category });
 export const installCfModToInstance = (instanceId: string, modId: string, loader: string, gameVersion: string, category?: string) =>
   invoke<string>("install_cf_mod_to_instance", { instanceId, modId, loader, gameVersion, category });
-export const removeModFromInstance = (instanceId: string, projectId: string) =>
-  invoke<void>("remove_mod_from_instance", { instanceId, projectId });
+export const removeModFromInstance = (instanceId: string, entryId: string) =>
+  invoke<void>("remove_mod_from_instance", { instanceId, entryId });
 export const removeAllContent = (instanceId: string, category: string) =>
   invoke<number>("remove_all_content", { instanceId, category });
 
@@ -225,8 +228,8 @@ export const checkModUpdates = (instanceId: string) =>
  *  installModToInstance: { mod_entry, deps_installed, dep_titles, issues }. */
 export const applyModUpdate = (instanceId: string, projectId: string) =>
   invoke<string>("apply_mod_update", { instanceId, projectId });
-export const toggleModInInstance = (instanceId: string, projectId: string) =>
-  invoke<boolean>("toggle_mod_in_instance", { instanceId, projectId });
+export const toggleModInInstance = (instanceId: string, entryId: string) =>
+  invoke<boolean>("toggle_mod_in_instance", { instanceId, entryId });
 export const stopInstance = () => invoke<void>("stop_instance");
 export const minimizeToTray = () => invoke<void>("minimize_to_tray");
 

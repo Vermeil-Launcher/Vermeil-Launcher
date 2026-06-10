@@ -23,6 +23,11 @@ pub struct ModrinthProject {
     pub versions: Vec<String>,
     pub latest_version: Option<String>,
     pub project_type: String,
+    /// Username of the project's primary author (Modrinth's `author` field
+    /// in search hits — populated for /search responses, NOT for
+    /// /project/{id} where it's named `team` instead).
+    #[serde(default)]
+    pub author: Option<String>,
     #[serde(default)]
     pub client_side: Option<String>,
     #[serde(default)]

@@ -77,9 +77,14 @@ pub struct CfHash {
 /// Import a CurseForge modpack from a .zip file.
 /// Extracts manifest.json, resolves mod URLs, writes instance.json, then runs
 /// the unified prepare flow (game files + Java + mod content + overrides).
+///
+/// `source_project_id` ties the resulting instance back to its CurseForge
+/// project so the modpack browser's "already installed" tracker can match it.
+/// Direct zip imports (from the Import modal) pass `None`.
 pub async fn import_zip(
     zip_path: &str,
     api_key: &str,
+    source_project_id: Option<String>,
     window: Option<tauri::WebviewWindow>,
 ) -> Result<Instance, String> {
     let zip_path_buf = PathBuf::from(zip_path);
@@ -102,6 +107,11 @@ pub async fn import_zip(
     // Parse loader info
     let (loader_type, loader_version) = parse_loader(&manifest.minecraft.mod_loaders);
 
+    // Resolve a non-conflicting display name. Reuses the Modrinth dedup helper
+    // so importing the same CurseForge modpack twice yields "Name (2)", "(3)",
+    // etc. instead of two identically-named instances.
+    let instance_name = crate::services::modpack::unique_instance_name(&manifest.name)?;
+
     // Create the instance
     let instance_id = uuid::Uuid::new_v4().to_string();
     let instance_dir = paths::instances_dir().join(&instance_id);
@@ -117,7 +127,7 @@ pub async fn import_zip(
     let instance = Instance {
         format_version: 1,
         id: instance_id.clone(),
-        name: manifest.name.clone(),
+        name: instance_name,
         icon: "cube".to_string(),
         icon_custom: None,
         game_version: manifest.minecraft.version.clone(),
@@ -140,7 +150,7 @@ pub async fn import_zip(
         last_played: None,
         total_play_seconds: 0,
         created_at: chrono::Utc::now().to_rfc3339(),
-        source_project_id: None,
+        source_project_id,
     };
 
     // Save instance.json
@@ -164,13 +174,24 @@ pub async fn import_zip(
     // Run the unified prepare flow: MC libs/assets/client + loader libs + Java + mods + overrides
     // On failure, delete the partially-created instance directory so no broken
     // instance shows up in the library.
+    let window_for_revalidate = window.clone();
     if let Err(e) = prepare_with_extras(&instance, mod_tasks, Some(post), window).await {
         tracing::error!("CurseForge import prepare failed, cleaning up instance {}: {}", instance_id, e);
         let _ = fs::remove_dir_all(&instance_dir);
         return Err(e);
     }
 
-    Ok(instance)
+    // Loader-version validation — bump the loader if any mod needs a newer
+    // one than the manifest declared, then re-prepare loader libs.
+    if let Err(e) = crate::services::modpack::revalidate_loader(&instance_id, window_for_revalidate).await {
+        tracing::warn!("Loader revalidation failed for {} (non-fatal): {}", instance_id, e);
+    }
+
+    let final_instance = crate::services::instance_service::get_by_id(&instance_id)
+        .await
+        .unwrap_or(instance);
+
+    Ok(final_instance)
 }
 
 // === Import from profile code ===
@@ -215,6 +236,8 @@ pub async fn import_profile_code(
                 .and_then(|v| v.as_str())
                 .unwrap_or("Imported Pack")
                 .to_string();
+            // Dedupe against existing instances so re-importing yields "Name (2)".
+            let name = crate::services::modpack::unique_instance_name(&name)?;
 
             let game_version = data.get("gameVersion")
                 .or(data.get("minecraft").and_then(|m| m.get("version")))
@@ -342,46 +365,72 @@ async fn build_mod_tasks(
     let mut mod_entries: Vec<ModEntry> = Vec::new();
 
     for info in &file_infos {
-        if let Some(ref url) = info.download_url {
-            let dest = mods_dir.join(&info.file_name);
-            let sha1 = info
-                .hashes
-                .iter()
-                .find(|h| h.algo == 1)
-                .map(|h| h.value.clone());
+        // CurseForge returns `download_url: null` when a mod author opts out of
+        // third-party API distribution. The file still exists on CurseForge's
+        // CDN, though — we reconstruct the direct URL from the file ID using
+        // the well-known forgecdn path scheme. This is the standard workaround
+        // every third-party launcher uses; without it those mods silently
+        // vanish from the install and the modpack crashes with NoClassDefFound.
+        let url = match &info.download_url {
+            Some(u) => u.clone(),
+            None => forgecdn_fallback_url(info.id, &info.file_name),
+        };
 
-            tasks.push(DownloadTask {
-                url: url.clone(),
-                dest: dest.clone(),
-                expected_sha1: sha1,
-                expected_size: Some(info.file_length),
-            });
+        let dest = mods_dir.join(&info.file_name);
+        let sha1 = info
+            .hashes
+            .iter()
+            .find(|h| h.algo == 1)
+            .map(|h| h.value.clone());
 
-            // Find the corresponding project ID
-            let project_id = files
-                .iter()
-                .find(|f| f.file_id == info.id)
-                .map(|f| f.project_id.to_string())
-                .unwrap_or_default();
+        tasks.push(DownloadTask {
+            url,
+            dest: dest.clone(),
+            expected_sha1: sha1,
+            expected_size: Some(info.file_length),
+        });
 
-            mod_entries.push(ModEntry {
-                id: uuid::Uuid::new_v4().to_string(),
-                source: "curseforge".to_string(),
-                project_id,
-                version_id: info.id.to_string(),
-                filename: info.file_name.clone(),
-                enabled: true,
-                pinned: false,
-                title: None,
-                icon_url: None,
-                local_icon_path: None,
-                description: None,
-                category: "mod".to_string(),
-            });
-        }
+        // Find the corresponding project ID
+        let project_id = files
+            .iter()
+            .find(|f| f.file_id == info.id)
+            .map(|f| f.project_id.to_string())
+            .unwrap_or_default();
+
+        mod_entries.push(ModEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            source: "curseforge".to_string(),
+            project_id,
+            version_id: info.id.to_string(),
+            filename: info.file_name.clone(),
+            enabled: true,
+            pinned: false,
+            title: None,
+            icon_url: None,
+            local_icon_path: None,
+            description: None,
+            category: "mod".to_string(),
+            author: None,
+        });
     }
 
     Ok((tasks, mod_entries))
+}
+
+/// Construct a CurseForge CDN download URL from a file ID + filename.
+///
+/// CurseForge's CDN lays files out at:
+///   `https://edge.forgecdn.net/files/{id/1000}/{id%1000}/{filename}`
+///
+/// This works even when the API returns `downloadUrl: null` (author disabled
+/// third-party distribution) because the CDN path is derived purely from the
+/// numeric file ID. Spaces in the filename become `%20`; other characters in
+/// CurseForge filenames are CDN-safe.
+fn forgecdn_fallback_url(file_id: u64, file_name: &str) -> String {
+    let a = file_id / 1000;
+    let b = file_id % 1000;
+    let encoded = file_name.replace(' ', "%20");
+    format!("https://edge.forgecdn.net/files/{}/{}/{}", a, b, encoded)
 }
 
 /// Resolve file download URLs from CurseForge API (batch endpoint).

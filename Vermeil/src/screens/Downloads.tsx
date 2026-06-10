@@ -66,6 +66,9 @@ const DownloadCard: Component<{ entry: DownloadEntry; timeAgo: (ts: number) => s
       <div class="dl-card-body">
         <div class="dl-card-header">
           <span class="dl-card-name">{dl().name}</span>
+          <Show when={dl().author}>
+            <span class="dl-card-author">by {dl().author}</span>
+          </Show>
           <span class={`dl-card-status ${failed() ? "failed" : "success"}`}>
             {failed() ? "✕" : "✓"}
           </span>

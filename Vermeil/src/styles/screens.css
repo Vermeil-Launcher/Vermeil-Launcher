@@ -8,14 +8,14 @@
 .skins-screen { padding-bottom: 24px; }
 .skins-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 1fr 240px;
+  gap: 16px;
   margin-top: 12px;
 }
 .skins-preview-col {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-direction: row;
+  gap: 16px;
 }
 .skins-canvas-wrap {
   background: var(--bg3);
@@ -25,10 +25,13 @@
   align-items: center;
   justify-content: center;
   padding: 12px;
+  flex: 1;
+  min-width: 0;
 }
 .skins-canvas {
-  width: 280px;
-  height: 360px;
+  width: 100%;
+  max-width: 300px;
+  height: 400px;
   display: block;
   border-radius: 8px;
   cursor: grab;
@@ -39,6 +42,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 .skins-actions .btn {
   width: 100%;
@@ -48,6 +52,7 @@
 .skins-side-col {
   display: flex;
   flex-direction: column;
+  gap: 8px;
   min-width: 0;
 }
 .skins-empty-row {
@@ -60,20 +65,28 @@
   line-height: 1.5;
 }
 
-/* Library grid */
+/* Library — horizontal scrollable row */
 .skins-library {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x mandatory;
 }
+.skins-library::-webkit-scrollbar { height: 4px; }
+.skins-library::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 .skins-library-item {
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-width: 130px;
+  max-width: 130px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
 }
 .skins-library-thumb-wrap {
   background: var(--bg1);
@@ -81,7 +94,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 96px;
+  height: 100px;
+  padding-top: 8px;
   overflow: hidden;
 }
 .skins-library-thumb {
@@ -499,7 +513,7 @@
   padding-right: 4px;
 }
 .pin-instances-list::-webkit-scrollbar { width: 4px; }
-.pin-instances-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.pin-instances-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 .pin-instances-list::-webkit-scrollbar-track { background: transparent; }
 .pin-instance-card {
   display: flex;

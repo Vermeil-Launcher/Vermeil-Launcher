@@ -62,8 +62,8 @@ pub async fn install_cf_mod(
     };
     download_file(&crate::util::http::HTTP, &task).await?;
 
-    // 5. Fetch project metadata for icon/title
-    let (title, icon_url) = fetch_cf_project_meta(api_key, mod_id).await;
+    // 5. Fetch project metadata for icon/title/author
+    let (title, icon_url, author) = fetch_cf_project_meta(api_key, mod_id).await;
     let local_icon_path = match icon_url.as_deref() {
         Some(u) => icon_cache::cache_remote_icon(u).await,
         None => None,
@@ -83,6 +83,7 @@ pub async fn install_cf_mod(
         local_icon_path,
         description: None,
         category: category.to_string(),
+        author,
     };
 
     // 7. Save to instance.json
@@ -181,7 +182,7 @@ async fn install_cf_dep(
     download_file(&crate::util::http::HTTP, &task).await?;
 
     // Metadata
-    let (title, icon_url) = fetch_cf_project_meta(api_key, mod_id).await;
+    let (title, icon_url, author) = fetch_cf_project_meta(api_key, mod_id).await;
     let local_icon_path = match icon_url.as_deref() {
         Some(u) => icon_cache::cache_remote_icon(u).await,
         None => None,
@@ -203,6 +204,7 @@ async fn install_cf_dep(
         local_icon_path,
         description: None,
         category: category.to_string(),
+        author,
     };
     instance.mods.push(entry);
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
@@ -211,8 +213,10 @@ async fn install_cf_dep(
     Ok(title.unwrap_or_else(|| mod_id.to_string()))
 }
 
-/// Fetch project name and icon URL from CurseForge.
-async fn fetch_cf_project_meta(api_key: &str, mod_id: &str) -> (Option<String>, Option<String>) {
+/// Fetch project name, icon URL, and primary author from CurseForge.
+/// All three come from the same `/v1/mods/{id}` response so this is a
+/// single API call.
+async fn fetch_cf_project_meta(api_key: &str, mod_id: &str) -> (Option<String>, Option<String>, Option<String>) {
     let url = format!("https://api.curseforge.com/v1/mods/{}", mod_id);
     let resp = match crate::util::http::HTTP
         .get(&url)
@@ -221,7 +225,7 @@ async fn fetch_cf_project_meta(api_key: &str, mod_id: &str) -> (Option<String>, 
         .await
     {
         Ok(r) if r.status().is_success() => r,
-        _ => return (None, None),
+        _ => return (None, None, None),
     };
 
     #[derive(serde::Deserialize)]
@@ -230,15 +234,24 @@ async fn fetch_cf_project_meta(api_key: &str, mod_id: &str) -> (Option<String>, 
     struct ProjectData {
         name: Option<String>,
         logo: Option<Logo>,
+        #[serde(default)]
+        authors: Vec<Author>,
     }
     #[derive(serde::Deserialize)]
     struct Logo {
         #[serde(rename = "thumbnailUrl")]
         thumbnail_url: String,
     }
+    #[derive(serde::Deserialize)]
+    struct Author {
+        name: String,
+    }
 
     match resp.json::<Wrapper>().await {
-        Ok(w) => (w.data.name, w.data.logo.map(|l| l.thumbnail_url)),
-        Err(_) => (None, None),
+        Ok(w) => {
+            let author = w.data.authors.into_iter().next().map(|a| a.name);
+            (w.data.name, w.data.logo.map(|l| l.thumbnail_url), author)
+        }
+        Err(_) => (None, None, None),
     }
 }

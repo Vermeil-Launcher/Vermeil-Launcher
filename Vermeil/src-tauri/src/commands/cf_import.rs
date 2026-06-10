@@ -9,7 +9,7 @@ pub async fn import_cf_zip(
     window: tauri::WebviewWindow,
 ) -> Result<Instance, String> {
     let settings = settings_service::load().await.map_err(|e| e.to_string())?;
-    cf_import::import_zip(&zip_path, &settings.curseforge_api_key, Some(window)).await
+    cf_import::import_zip(&zip_path, &settings.curseforge_api_key, None, Some(window)).await
 }
 
 /// Import a CurseForge profile using a share code.

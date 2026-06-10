@@ -26,7 +26,7 @@
   user-select: text; -webkit-user-select: text;
 }
 .log-viewer::-webkit-scrollbar { width: 4px; }
-.log-viewer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.log-viewer::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 .log-line { color: var(--muted); padding: 1px 0; white-space: pre-wrap; word-break: break-all; position: relative; z-index: 1; }
 .log-line.log-error { color: #e05252; }
 .log-line.log-warn { color: #f4bf4f; }
@@ -160,7 +160,7 @@
   padding: 16px; max-height: 300px; overflow-y: auto;
 }
 .article-body::-webkit-scrollbar { width: 4px; }
-.article-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.article-body::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 .article-body p { margin-bottom: 10px; }
 .article-body ul, .article-body ol { padding-left: 20px; margin-bottom: 10px; }
 .article-body li { margin-bottom: 4px; }

@@ -231,6 +231,9 @@ const BrowseModpacks: Component = () => {
                     </div>
                     <div class="mod-details">
                       <div class="mod-name">{pack.title}</div>
+                      <Show when={pack.author}>
+                        <div class="mod-author">by {pack.author}</div>
+                      </Show>
                       <div class="mod-desc">{pack.description}</div>
                       <div class="mod-card-tags" style="margin-top:4px">
                         <Show when={extractLoader(pack)}>

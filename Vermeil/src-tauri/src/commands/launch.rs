@@ -142,9 +142,9 @@ pub async fn install_cf_mod_to_instance(
 #[tauri::command]
 pub async fn remove_mod_from_instance(
     instance_id: String,
-    project_id: String,
+    entry_id: String,
 ) -> Result<(), String> {
-    crate::services::mod_install::remove_mod(&instance_id, &project_id).await
+    crate::services::mod_install::remove_mod(&instance_id, &entry_id).await
 }
 
 /// Detect available Modrinth updates for every Modrinth-sourced mod in the
@@ -192,9 +192,9 @@ pub async fn remove_all_content(
 #[tauri::command]
 pub async fn toggle_mod_in_instance(
     instance_id: String,
-    project_id: String,
+    entry_id: String,
 ) -> Result<bool, String> {
-    crate::services::mod_install::toggle_mod(&instance_id, &project_id).await
+    crate::services::mod_install::toggle_mod(&instance_id, &entry_id).await
 }
 
 #[tauri::command]

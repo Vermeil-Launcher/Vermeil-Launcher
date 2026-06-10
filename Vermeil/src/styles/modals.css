@@ -346,7 +346,7 @@
   margin-top: 14px;
 }
 .onboarding-java-slots::-webkit-scrollbar { width: 6px; }
-.onboarding-java-slots::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.onboarding-java-slots::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
 .onboarding-java-slots::-webkit-scrollbar-track { background: transparent; }
 
 

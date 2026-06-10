@@ -38,7 +38,7 @@ Using Vermeil means making HTTPS requests to the following providers. Vermeil se
 
 ## Microsoft account tokens
 
-When you sign in with a Microsoft account, Vermeil receives an access token from Microsoft that authorizes you to play Minecraft. This token (and a refresh token used to mint new access tokens) is stored on your device in `accounts.json` along with your Minecraft player UUID and username. Tokens are not encrypted at rest; they rely on operating system file permissions in your user data directory. The token's scope is limited to Xbox Live and Minecraft Services — it does not grant access to your Microsoft email, OneDrive, or any other Microsoft property.
+When you sign in with a Microsoft account, Vermeil receives an access token from Microsoft that authorizes you to play Minecraft. This token (and a refresh token used to mint new access tokens) is stored on your device in `accounts.json` along with your Minecraft player UUID and username. On Windows, tokens are encrypted at rest using DPAPI (tied to your Windows user session). On Linux, tokens rely on operating system file permissions in your user data directory. The token's scope is limited to Xbox Live and Minecraft Services — it does not grant access to your Microsoft email, OneDrive, or any other Microsoft property.
 
 You can sign out at any time from the Account screen. Signing out removes the tokens from your device. Vermeil does not separately revoke the token on Microsoft's servers — the token expires naturally, or you can revoke it manually from your Microsoft account settings.
 

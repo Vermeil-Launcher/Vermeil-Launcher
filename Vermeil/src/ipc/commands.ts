@@ -123,6 +123,12 @@ export interface LauncherSettings {
     fov: number | null;
     fov_effects: number | null;
   };
+  /**
+   * User-customizable keyboard shortcuts. Map of action ID → key combo
+   * (e.g. "Ctrl+P"). The action registry lives in `src/lib/keybinds.ts`;
+   * missing entries fall back to that file's hardcoded defaults.
+   */
+  keybinds: Record<string, string>;
 }
 
 // Instance commands

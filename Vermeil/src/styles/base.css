@@ -1,0 +1,72 @@
+/* base.css — Reset, variables, body, app shell, resize handles, offline banner */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+:root {
+  --bg: #111214;
+  --bg2: #18191c;
+  --bg3: #1e2024;
+  --bg4: #25272c;
+  --border: #2e3035;
+  --text: #e3e5e8;
+  --muted: #8b8f98;
+  --accent: #8B5CF6;
+  --accent2: #7C4DDE;
+  --accent-tint: #1a1428;
+  --accent-cyan: #38BDF8;
+  --blue: #5b8af0;
+  --orange: #e8834a;
+  --purple: #c084e8;
+  --yellow: #f4d04f;
+  --sidebar: 52px;
+  --radius: 10px;
+  --font: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Frameless window resize handles — invisible edge zones that trigger
+   startResizeDragging on Linux/Wayland where native decorations are absent. */
+.resize-handle {
+  position: fixed;
+  z-index: 9999;
+}
+.resize-n { top: 0; left: 5px; right: 5px; height: 5px; cursor: n-resize; }
+.resize-s { bottom: 0; left: 5px; right: 5px; height: 5px; cursor: s-resize; }
+.resize-e { top: 5px; right: 0; bottom: 5px; width: 5px; cursor: e-resize; }
+.resize-w { top: 5px; left: 0; bottom: 5px; width: 5px; cursor: w-resize; }
+.resize-ne { top: 0; right: 0; width: 8px; height: 8px; cursor: ne-resize; }
+.resize-nw { top: 0; left: 0; width: 8px; height: 8px; cursor: nw-resize; }
+.resize-se { bottom: 0; right: 0; width: 8px; height: 8px; cursor: se-resize; }
+.resize-sw { bottom: 0; left: 0; width: 8px; height: 8px; cursor: sw-resize; }
+
+.offline-banner {
+  background: #e05252;
+  color: white;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 0;
+  letter-spacing: 0.3px;
+}

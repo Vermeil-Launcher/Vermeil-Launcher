@@ -42,6 +42,14 @@ pub struct LauncherSettings {
     /// When a field is `None`, the launcher leaves that setting untouched in options.txt.
     #[serde(default)]
     pub video_settings: GlobalVideoSettings,
+
+    /// User-customizable keyboard shortcuts. Map of action ID → key combo
+    /// (e.g. `"Ctrl+P"`). Action IDs are defined in `Vermeil/src/lib/keybinds.ts`
+    /// (frontend is the source of truth for the action registry; settings just
+    /// store user overrides). Missing entries fall back to hardcoded defaults
+    /// in the frontend, so a partial / empty map still works.
+    #[serde(default)]
+    pub keybinds: HashMap<String, String>,
 }
 
 /// Video settings that get written into each instance's options.txt before launch.
@@ -86,6 +94,7 @@ impl Default for LauncherSettings {
             java_paths: HashMap::new(),
             sidebar_pinned_instances: Vec::new(),
             video_settings: GlobalVideoSettings::default(),
+            keybinds: HashMap::new(),
         }
     }
 }

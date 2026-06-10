@@ -1,0 +1,169 @@
+/* logs.css — Log viewer, log toolbar, continue/news/article views (Home + Logs tabs) */
+
+/* Log viewer.
+   The viewer is wrapped in a non-scrolling `.log-viewer-frame` so the
+   ASCII backdrop can be pinned to the visible area. Without this wrap, the
+   backdrop would sit in the scroll container's content area and scroll
+   away as new log lines pushed it up. */
+.log-viewer-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.log-viewer {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.6;
+  user-select: text; -webkit-user-select: text;
+}
+.log-viewer::-webkit-scrollbar { width: 4px; }
+.log-viewer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.log-line { color: var(--muted); padding: 1px 0; white-space: pre-wrap; word-break: break-all; position: relative; z-index: 1; }
+.log-line.log-error { color: #e05252; }
+.log-line.log-warn { color: #f4bf4f; }
+
+/* Anime girl backdrop ASCII — pinned to the (non-scrolling) frame so it
+   stays centered on the visible viewport regardless of how many log lines
+   have piled up. The accent gradient (cyan → purple) is clipped to the
+   text so the art stands out clearly in the dark theme without overwhelming
+   the foreground logs. */
+.log-ascii-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 0;
+}
+.log-ascii-backdrop pre, .log-ascii-backdrop svg {
+  user-select: none;
+  margin: 0;
+  opacity: 0.4;
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.2));
+}
+.log-empty-hint {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: var(--muted);
+  padding: 16px;
+  font-size: 12px;
+}
+
+.log-filter-btn {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 5px;
+  padding: 3px 10px; font-size: 11px; font-weight: 500; color: var(--muted);
+  cursor: pointer; transition: all .12s;
+}
+.log-filter-btn:hover { color: var(--text); }
+.log-filter-btn.active { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
+.log-filter-btn.error.active { background: #1a1214; border-color: #e05252; color: #e05252; }
+.log-filter-btn.warn.active { background: #1a1812; border-color: #f4bf4f; color: #f4bf4f; }
+
+/* Toggle switch */
+.toggle {
+  width: 36px; height: 20px; background: var(--bg4); border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0;
+}
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+.toggle::after {
+  content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff;
+  top: 2px; left: 2px; transition: left .2s;
+}
+.toggle.on::after { left: 18px; }
+
+/* Instance settings panel */
+.instance-settings-panel {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; margin-bottom: 14px;
+}
+
+/* Log placeholder ASCII art */
+.log-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  padding: 30px; min-height: 200px;
+}
+.log-ascii {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  line-height: 1.3; white-space: pre; text-align: left;
+}
+
+/* Context bar action group */
+.ctx-action-group {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 4px;
+}
+
+/* Continue grid */
+.continue-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+.continue-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  cursor: pointer; transition: border-color .12s;
+}
+.continue-card:hover { border-color: var(--accent); }
+.continue-icon { font-size: 20px; flex-shrink: 0; }
+.continue-info { flex: 1; min-width: 0; }
+.continue-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.continue-meta { font-size: 11px; color: var(--muted); }
+
+/* News grid */
+.news-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.news-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; cursor: pointer; transition: border-color .12s, transform .12s;
+}
+.news-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.news-thumb {
+  /* Bumped from 130px so the screenshot is the focus of the card. Using
+     aspect-ratio so the height tracks the card width — full-bleed on a
+     wide window, still proportional on narrow ones. */
+  aspect-ratio: 16 / 9;
+  background-size: cover; background-position: center;
+  background-color: var(--bg4);
+}
+.news-card-info { padding: 10px 12px; }
+.news-card-title {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.news-card-version { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* Article detail */
+.article-detail { animation: fadeIn .15s ease; }
+.article-header { margin-bottom: 16px; }
+.article-hero {
+  width: 100%; height: 180px; object-fit: cover; border-radius: 10px;
+  border: 1px solid var(--border); margin-bottom: 12px;
+}
+.article-title-section { display: flex; align-items: baseline; gap: 10px; }
+.article-title { font-size: 18px; font-weight: 600; color: var(--text); margin: 0; }
+.article-version {
+  font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+  background: var(--bg4); padding: 2px 8px; border-radius: 4px;
+}
+.article-body {
+  font-size: 13px; line-height: 1.7; color: var(--text);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; max-height: 300px; overflow-y: auto;
+}
+.article-body::-webkit-scrollbar { width: 4px; }
+.article-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.article-body p { margin-bottom: 10px; }
+.article-body ul, .article-body ol { padding-left: 20px; margin-bottom: 10px; }
+.article-body li { margin-bottom: 4px; }
+.article-body h1, .article-body h2, .article-body h3 { color: var(--text); margin: 12px 0 8px; }
+.article-body a { color: var(--accent); text-decoration: none; }
+.article-body a:hover { text-decoration: underline; }

@@ -1,0 +1,948 @@
+/* screens.css — Skins, home, account, pin instances, download history, modpack browser */
+
+/* ============================================================
+   Skins & capes screen (screens/Skins.tsx).
+   Two-column layout: 3D preview + actions on the left, saved
+   skins library + cape grid on the right.
+   ============================================================ */
+.skins-screen { padding-bottom: 24px; }
+.skins-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 12px;
+}
+.skins-preview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.skins-canvas-wrap {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.skins-canvas {
+  width: 280px;
+  height: 360px;
+  display: block;
+  border-radius: 8px;
+  cursor: grab;
+}
+.skins-canvas:active { cursor: grabbing; }
+.skins-variant-row { display: flex; flex-direction: column; gap: 6px; }
+.skins-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skins-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.skins-side-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.skins-empty-row {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+
+/* Library grid */
+.skins-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.skins-library-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skins-library-thumb-wrap {
+  background: var(--bg1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96px;
+  overflow: hidden;
+}
+.skins-library-thumb {
+  /* Pixel-art skins look terrible smoothed. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+.skins-library-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.skins-library-name {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.skins-library-variant {
+  font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.skins-library-actions { display: flex; gap: 6px; }
+.skins-library-actions .btn { flex: 1; justify-content: center; font-size: 11px; padding: 5px 8px; }
+.skins-library-remove { flex: 0 0 auto !important; padding: 5px 8px !important; }
+.skins-library-remove svg { width: 13px; height: 13px; }
+
+/* Cape carousel */
+.skins-cape-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.skins-cape-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  color: var(--text);
+  transition: border-color 0.12s, background 0.12s;
+}
+.skins-cape-card:hover { border-color: #4a4d55; }
+.skins-cape-card.active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.skins-cape-card:disabled { opacity: 0.6; cursor: not-allowed; }
+.skins-cape-thumb {
+  height: 90px;
+  border-radius: 6px;
+  background-color: var(--bg1);
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+}
+.skins-cape-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+.skins-cape-name {
+  font-size: 11px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Empty state for offline accounts */
+.skins-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skins-empty-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 540px;
+}
+.skins-empty-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.skins-empty-body {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+
+/* ============================================================
+   Player head avatar (components/PlayerHead.tsx).
+   Renders the 8×8 face block of a Minecraft skin onto a tiny
+   canvas, with a colored-initial fallback for offline accounts
+   or pre-load states.
+   ============================================================ */
+.player-head {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+.player-head-canvas {
+  /* Pixel-art skins must not be smoothed. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 100%;
+  height: 100%;
+  display: block;
+  transition: opacity 0.12s;
+}
+.player-head-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+/* Titlebar account pill — slot a tiny head in next to the username. */
+.account-pill-head {
+  margin-right: 0;
+}
+
+
+/* When PlayerHead is nested inside .account-row-avatar (Account screen
+   account list), drop the parent's gradient + border so the head's own
+   colored block / canvas is the visible surface. */
+.account-row-avatar:has(.player-head) {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+
+/* ============================================================
+   Home greeting block (screens/Home.tsx).
+   Sits above the Continue / News sections and personalizes the
+   page with the active skin head, time-of-day greeting, and a
+   one-line summary of instances.
+   ============================================================ */
+.home-greeting {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  background: linear-gradient(135deg, var(--bg3), var(--bg2));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.home-greeting-head {
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.home-greeting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.home-greeting-line {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.home-greeting-name {
+  background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.home-greeting-meta {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+
+/* "Beta" pill rendered next to a section label.
+   Used on the Skins screen header — Mojang's profile API isn't a stable
+   public contract, so we flag the feature as beta to set expectations
+   when something occasionally goes sideways outside our control. */
+.beta-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-tint);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+
+/* ============================================================
+   Logs tab toolbar — filter chips, search input, and the new
+   jump-to-top / jump-to-bottom controls.
+   ============================================================ */
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: nowrap;
+}
+.log-toolbar-filters {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.log-toolbar-search {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0 8px;
+  height: 28px;
+  min-width: 0;
+  max-width: 320px;
+  transition: border-color 0.12s;
+}
+.log-toolbar-search:focus-within {
+  border-color: var(--accent);
+}
+.log-toolbar-search-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.log-toolbar-search-icon svg {
+  width: 13px;
+  height: 13px;
+}
+.log-toolbar-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 11px;
+  font-family: var(--font);
+  padding: 0 8px;
+  min-width: 0;
+}
+.log-toolbar-search-input::placeholder {
+  color: var(--muted);
+}
+.log-toolbar-search-clear {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.log-toolbar-search-clear:hover { color: var(--text); }
+.log-toolbar-jump {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.log-toolbar-jump:hover {
+  background: var(--bg4);
+  color: var(--text);
+  border-color: #4a4d55;
+}
+.log-toolbar-jump svg { width: 13px; height: 13px; }
+.log-toolbar-count {
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+
+/* ============================================================
+   Account screen — 2-column card grid (replaces the old single-
+   column .account-row list). Each card shows the player's skin
+   head, name, and account type.
+   ============================================================ */
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 720px) {
+  .account-grid { grid-template-columns: 1fr; }
+}
+.account-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.account-card:hover { border-color: #4a4d55; }
+.account-card.active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  cursor: default;
+}
+.account-card-avatar {
+  flex-shrink: 0;
+}
+.account-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.account-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-card-type {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.account-card-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.account-card:hover .account-card-remove {
+  opacity: 1;
+}
+.account-card-remove:hover {
+  color: #e05252;
+  background: rgba(224, 82, 82, 0.1);
+}
+
+
+/* ============================================================
+   Pin-instances modal — sidebar quick-launch picker.
+   The user picks up to 3 instances to pin as sidebar icons.
+   List is scrollable; selected rows get an accent-tint glow.
+   ============================================================ */
+.pin-instances-modal {
+  width: 480px;
+  max-width: calc(100vw - 80px);
+}
+.pin-instances-help {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.pin-instances-empty {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  padding: 24px 12px;
+  background: var(--bg3);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+.pin-instances-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.pin-instances-list::-webkit-scrollbar { width: 4px; }
+.pin-instances-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.pin-instances-list::-webkit-scrollbar-track { background: transparent; }
+.pin-instance-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.pin-instance-card:hover { background: var(--bg4); }
+.pin-instance-card.checked {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+.pin-instance-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg4);
+}
+.pin-instance-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pin-instance-icon-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--bg4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+}
+.pin-instance-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pin-instance-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pin-instance-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.pin-instance-loader {
+  text-transform: capitalize;
+  font-weight: 500;
+}
+.pin-instance-ram {
+  opacity: 0.8;
+}
+.pin-instance-mods {
+  opacity: 0.8;
+}
+.pin-instances-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.pin-instances-count {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: right;
+  margin-top: 10px;
+}
+
+/* ============================================================
+   Sidebar pinned-instance shortcuts.
+   Rendered between Skins and the manage-pins button. Each pin
+   is a colored tile carrying the first letter of the instance
+   name and tinted by its loader (matches Library banner colors).
+   The manage button below uses .nav-icon styling.
+   ============================================================ */
+.nav-pin-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid transparent;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  user-select: none;
+}
+.nav-pin-icon:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.nav-pin-icon.active {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 1px var(--accent-cyan);
+}
+.nav-pin-icon[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg4);
+  color: var(--text);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.nav-pin-icon[data-tooltip]:hover::after { opacity: 1; }
+/* Loader-tinted backgrounds — mirror Library .inst-banner palette so the
+   sidebar shortcut visually matches the instance card it represents. */
+.nav-pin-icon.loader-vanilla { background: linear-gradient(135deg, #2a4a30, #1f3a26); }
+.nav-pin-icon.loader-fabric  { background: linear-gradient(135deg, #5a4a30, #3f3220); }
+.nav-pin-icon.loader-quilt   { background: linear-gradient(135deg, #4a3a5a, #322240); }
+.nav-pin-icon.loader-forge   { background: linear-gradient(135deg, #5a3520, #402415); }
+.nav-pin-icon.loader-neoforge { background: linear-gradient(135deg, #2a3a5a, #1c2a40); }
+
+
+/* ============================================================
+   Pin manager toggle button — plus that morphs into a minus on
+   hover. The vertical bar of the SVG collapses via a transform
+   so the user perceives a single icon animating. Always active
+   regardless of pin count — the morph signals "open the picker"
+   which works for both adding and removing pins.
+   ============================================================ */
+.nav-pin-toggle svg :first-child {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.nav-pin-toggle:hover svg :first-child {
+  transform: scaleY(0);
+  opacity: 0;
+}
+
+
+
+
+/* Sidebar pin tile that uses an instance's cached icon instead of the
+   first-letter fallback. Fills the tile completely, rounded with the
+   tile's own radius. */
+.nav-pin-icon-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+
+/* ============================================================
+   Instance icon picker preview (Settings tab → Instance options).
+   56×56 tile that mirrors the Library banner footprint so users
+   can see roughly how the icon will look in cards and on the
+   sidebar pin. Falls back to a colored block with the instance's
+   first letter when no custom icon is set.
+   ============================================================ */
+.instance-icon-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.instance-icon-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+.instance-icon-placeholder {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--muted);
+  font-family: var(--font);
+  line-height: 1;
+}
+
+
+/* ============================================================
+   Download history cards — full card layout with icon, name,
+   loader/version badges, category, and timestamp.
+   ============================================================ */
+.dl-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.12s;
+}
+.dl-card-failed { border-color: #3a1a1a; }
+.dl-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--bg4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dl-card-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dl-card-icon-fallback {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.dl-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dl-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dl-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dl-card-status {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.dl-card-status.success { color: var(--accent); }
+.dl-card-status.failed { color: #e05252; }
+.dl-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dl-card-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg4);
+  color: var(--muted);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.dl-card-badge.loader-fabric { color: #dbb98f; background: rgba(219,185,143,0.1); }
+.dl-card-badge.loader-forge { color: #e07040; background: rgba(224,112,64,0.1); }
+.dl-card-badge.loader-neoforge { color: #6fa8dc; background: rgba(111,168,220,0.1); }
+.dl-card-badge.loader-quilt { color: #c49bdb; background: rgba(196,155,219,0.1); }
+.dl-card-time {
+  font-size: 9px;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+
+/* ============================================================
+   Modpack browse pagination indicator — sits in the modal
+   footer, centered, with translucent prev/next buttons.
+   ============================================================ */
+.modpack-page-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+.modpack-page-label {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.modpack-page-btn {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, opacity 0.12s;
+}
+.modpack-page-btn:hover:not(:disabled) { background: var(--bg3); }
+.modpack-page-btn:disabled { opacity: 0.3; cursor: default; }
+
+
+/* ============================================================
+   Modpack browse filters — compact dropdowns in the modal
+   header, to the right of the title.
+   ============================================================ */
+.modpack-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 12px;
+}
+
+
+
+/* Modpack browse inline spinner — sits next to the title in the header. */
+.modpack-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: modpack-spin 0.6s linear infinite;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+@keyframes modpack-spin {
+  to { transform: rotate(360deg); }
+}
+
+
+/* Mod source toggle button — switches between Modrinth and CurseForge
+   in the Browse tab search bar. Shows a compact text badge. */
+.mod-source-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.12s, transform 0.12s;
+}
+.mod-source-toggle:hover {
+  transform: scale(1.05);
+}
+.mod-source-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.mod-source-badge svg {
+  width: 16px;
+  height: 16px;
+}
+.mod-source-badge.mr {
+  color: #1bd96a;
+  background: rgba(27, 217, 106, 0.12);
+}
+.mod-source-badge.cf {
+  color: #f16436;
+  background: rgba(241, 100, 54, 0.12);
+}
+
+
+/* Elytra/cape toggle inside the skin viewer canvas wrapper.
+   Positioned bottom-left with padding so it doesn't overlap the model. */
+.skins-canvas-wrap {
+  position: relative;
+}
+.skins-elytra-toggle {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  backdrop-filter: blur(4px);
+}
+.skins-elytra-toggle:hover {
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--text);
+}
+.skins-elytra-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+
+/* Instance card icon loader-tinted backgrounds */
+.inst-card-icon.green { background: linear-gradient(135deg, #1a3a2a, #1f4a30); }
+.inst-card-icon.fabric { background: linear-gradient(135deg, #3a2e1a, #4a3820); }
+.inst-card-icon.blue { background: linear-gradient(135deg, #1a2a4a, #203560); }
+.inst-card-icon.orange { background: linear-gradient(135deg, #3a2218, #4a2a1a); }
+.inst-card-icon.quilt { background: linear-gradient(135deg, #2a1a3a, #352240); }
+.inst-card-icon.purple { background: linear-gradient(135deg, #2a1a3a, #352240); }

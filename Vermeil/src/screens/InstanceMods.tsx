@@ -1,9 +1,9 @@
 import { Component, createSignal, createEffect, createResource, For, Show, onMount, onCleanup } from "solid-js";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameLaunched, setGameLaunched, gameRunning, setGameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, ensureAccountOrPrompt, showToast, gameLogsFor, appendGameLog, clearGameLogs } from "../App";
+import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, launchInstance, stopInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
-import { IconArrowLeft, IconPlay, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
+import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
+import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
 import PageSlider from "../components/PageSlider";
 
 const SORT_OPTIONS = [
@@ -157,7 +157,6 @@ const InstanceMods: Component = () => {
   const [modSource, setModSource] = createSignal<"modrinth" | "curseforge">("modrinth");
   const [installing, setInstalling] = createSignal<string | null>(null);
   const [localInstalled, setLocalInstalled] = createSignal<Set<string>>(new Set());
-  const [launching, setLaunching] = createSignal(false);
   const [deleteConfirm, setDeleteConfirm] = createSignal(false);
   const [deleteCountdown, setDeleteCountdown] = createSignal(5);
   const [cloning, setCloning] = createSignal(false);
@@ -505,21 +504,9 @@ const InstanceMods: Component = () => {
     }
   };
 
-  const handleLaunch = async () => {
-    const inst = instance();
-    if (!inst || gameRunning()) return;
-    if (!ensureAccountOrPrompt()) return;
-    setLaunching(true);
-    clearGameLogs(inst.id);
-    setGameLaunched(true);
-    setGameRunning(true);
-    try {
-      await launchInstance(inst.id);
-    } catch (e: any) {
-      appendGameLog(inst.id, `[ERROR] ${typeof e === "string" ? e : "Launch failed"}`);
-      setGameRunning(false);
-    } finally { setLaunching(false); }
-  };
+  // Note: launching/stopping is now handled by the floating dock's center
+  // button (`FloatingDock.tsx`). The previous inline play/stop button on
+  // the instance context bar has been removed.
 
   const isModInstalled = (projectId: string): boolean => localInstalled().has(projectId) || (instance()?.mods.some(m => m.project_id === projectId) || false);
   const formatDownloads = (n: number): string => {
@@ -631,18 +618,9 @@ const InstanceMods: Component = () => {
             <div class={`ctx-tab ${mainTab() === "logs" ? "active" : ""}`} onClick={() => setMainTab("logs")}>Logs</div>
             <div class={`ctx-tab ${mainTab() === "settings" ? "active" : ""}`} onClick={() => setMainTab("settings")}>⚙</div>
           </div>
-          <Show when={!gameRunning()} fallback={
-            <button class="stop-btn" style="font-size:11px;padding:5px 14px" onClick={async () => {
-              await stopInstance();
-              setGameRunning(false);
-            }}>
-              ■ Stop
-            </button>
-          }>
-            <button class="play-btn" style="font-size:11px;padding:5px 14px" onClick={handleLaunch} disabled={launching()}>
-              <IconPlay /> {launching() ? "Launching..." : "Play"}
-            </button>
-          </Show>
+          {/* Play/Stop control lives in the floating dock now (the center
+              FAB). Removed from here to avoid duplicating the action and
+              freeing up horizontal space in the context bar. */}
         </div>
       </div>
 

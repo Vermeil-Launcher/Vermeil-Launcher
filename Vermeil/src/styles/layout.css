@@ -1,0 +1,98 @@
+/* layout.css — Titlebar, content area, section labels, generic tooltips.
+ *
+ * The old left-sidebar (`.sidebar`) was replaced by `<FloatingDock />`.
+ * Sidebar-specific styles live in `dock.css`. The legacy `.nav-icon` /
+ * `.nav-pin-icon` styles below are kept so any third-party code still
+ * referencing them via inline class strings doesn't crash — they just
+ * never render anywhere now.
+ */
+
+/* Generic tooltip (appears above element) — used by [data-tip] outside the dock. */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+  font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 5px;
+  white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .12s;
+  z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+[data-tip]:hover::after { opacity: 1; }
+.tip-below[data-tip]::after { bottom: auto; top: calc(100% + 6px); }
+.tip-left[data-tip]::after { left: 0; transform: none; }
+
+/* Main area — fills the window now that the sidebar is gone. */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg2); min-width: 0; }
+
+/* Titlebar */
+.titlebar {
+  height: 38px; background: var(--bg); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 14px; gap: 10px; flex-shrink: 0;
+  cursor: default;
+}
+.win-btns { display: flex; gap: 6px; }
+.win-btn {
+  width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  background: transparent; color: transparent; transition: all .12s;
+}
+.win-btn svg { width: 10px; height: 10px; }
+.win-btn:hover { color: var(--text); }
+.win-close { background: #ed6a5e; }
+.win-close:hover { background: #e5453a; color: #fff; }
+.win-minimize { background: #f4bf4f; }
+.win-minimize:hover { background: #e0a520; color: #fff; }
+.win-maximize { background: #61c554; }
+.win-maximize:hover { background: #4aad3d; color: #fff; }
+
+/* Logo in the titlebar — replaces the old sidebar logo now that the
+   sidebar is gone. Sits to the right of the window controls so it
+   doesn't cover the macOS-style traffic lights. */
+.titlebar-logo {
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  pointer-events: none;
+}
+.titlebar-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-user-drag: none;
+}
+
+.titlebar-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; text-align: center; }
+.account-pill { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.dot-green {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent));
+  animation: dotPulse 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(139, 92, 246, 0.4); transform: scale(1); }
+  50% { box-shadow: 0 0 10px rgba(56, 189, 248, 0.6); transform: scale(1.2); }
+}
+
+/* Content — adds bottom padding so the floating dock at the bottom of the
+   window doesn't cover scrolled content. The dock is ~76px tall (56 center
+   button + 18px gap from edge); 110px gives breathing room. */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 110px;
+  scroll-behavior: smooth;
+}
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Section label */
+.section-label {
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px;
+}

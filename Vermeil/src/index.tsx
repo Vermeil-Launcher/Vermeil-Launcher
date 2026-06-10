@@ -1,7 +1,14 @@
 /* @refresh reload */
 import { render } from "solid-js/web";
 import App from "./App";
-import "./styles/global.css";
+import "./styles/base.css";
+import "./styles/layout.css";
+import "./styles/components.css";
+import "./styles/logs.css";
+import "./styles/notifications.css";
+import "./styles/modals.css";
+import "./styles/screens.css";
+import "./styles/dock.css";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 // Native app behavior: suppress browser shortcuts and context menu in production

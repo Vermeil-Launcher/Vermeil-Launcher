@@ -8,8 +8,10 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { IconDownload, IconSearch, IconFolderOpen } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
 import Dropdown from "../components/Dropdown";
+import KeybindCapture from "../components/KeybindCapture";
+import { KEYBINDS, resolveBinding } from "../lib/keybinds";
 
-type SettingsTab = "general" | "resources" | "instances";
+type SettingsTab = "general" | "resources" | "instances" | "keybinds";
 
 /// Clamp a concurrency setting to a per-field range. The download semaphore is
 /// capped at 10 because most CDNs throttle individual clients past that point;
@@ -149,6 +151,11 @@ const Settings: Component = () => {
     try {
       await saveSettings(updated);
       await refetch();
+      // Notify the global keydown handler that the keybind cache is stale.
+      // App.tsx listens for this event and re-reads settings.keybinds.
+      if (key === "keybinds") {
+        window.dispatchEvent(new CustomEvent("vermeil-keybinds-changed"));
+      }
     } catch (e) {
       console.error("Failed to save setting:", e);
     }
@@ -169,6 +176,7 @@ const Settings: Component = () => {
         <div class={`src-tab ${tab() === "general" ? "active" : ""}`} onClick={() => setTab("general")}>General</div>
         <div class={`src-tab ${tab() === "resources" ? "active" : ""}`} onClick={() => setTab("resources")}>Resources</div>
         <div class={`src-tab ${tab() === "instances" ? "active" : ""}`} onClick={() => setTab("instances")}>Global Instance</div>
+        <div class={`src-tab ${tab() === "keybinds" ? "active" : ""}`} onClick={() => setTab("keybinds")}>Keybinds</div>
       </div>
 
       <Show when={settings()}>
@@ -679,6 +687,45 @@ const Settings: Component = () => {
                   );
                 }}
               </For>
+            </div>
+          </div>
+        </Show>
+
+        {/* ═══ KEYBINDS ═══ */}
+        <Show when={tab() === "keybinds"}>
+          <div class="settings-section">
+            <div class="section-label" style="margin-bottom:8px">Keyboard shortcuts</div>
+            <div class="settings-group">
+              <For each={KEYBINDS}>
+                {(action) => (
+                  <div class="settings-row">
+                    <div>
+                      <div class="settings-key">{action.label}</div>
+                      <Show when={action.description}>
+                        <div class="settings-val">{action.description}</div>
+                      </Show>
+                    </div>
+                    <KeybindCapture
+                      binding={resolveBinding(action.id, settings()?.keybinds)}
+                      defaultBinding={action.default}
+                      onChange={(newBinding) => {
+                        const current = { ...(settings()?.keybinds ?? {}) };
+                        if (!newBinding) {
+                          // Reset → remove override so default kicks in
+                          delete current[action.id];
+                        } else {
+                          current[action.id] = newBinding;
+                        }
+                        updateSetting("keybinds", current);
+                      }}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:10px;padding:0 4px">
+              Click a binding and press the new key combination. Escape cancels capture.
+              The reset arrow restores the default.
             </div>
           </div>
         </Show>

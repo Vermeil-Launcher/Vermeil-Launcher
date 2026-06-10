@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, createEffect, Show, onMount, lazy } from "solid-js";
-import Sidebar from "./components/Sidebar";
+import FloatingDock from "./components/FloatingDock";
 import Titlebar from "./components/Titlebar";
 import ResizeHandles from "./components/ResizeHandles";
 import Home from "./screens/Home";
@@ -28,6 +28,7 @@ import { pinInstancesModalOpen, closePinInstancesModal } from "./modals/PinInsta
 import { listInstances, getActiveAccount, getSettings, getSkinProfile, showWindow, loadDownloadHistory, saveDownloadHistory } from "./ipc/commands";
 import { listen } from "@tauri-apps/api/event";
 import { checkForUpdates } from "./services/updater";
+import { matchesKeybind, resolveBinding } from "./lib/keybinds";
 
 export type Screen =
   | "home"
@@ -240,6 +241,13 @@ refreshPinnedInstanceIds().catch(() => {});
 
 export { pinnedInstanceIds };
 
+// Pin selector overlay — when true, the floating dock transforms into a
+// scrollable horizontal carousel of pinned instances. Toggled by the
+// `toggle_pin_selector` keybind (default Ctrl+P) or by the dock's center
+// button while in selector mode.
+const [pinSelectorOpen, setPinSelectorOpen] = createSignal(false);
+export { pinSelectorOpen, setPinSelectorOpen };
+
 // Active skin URL for the currently signed-in Microsoft account. Populated
 // lazily from `getSkinProfile()` whenever the active account changes; cleared
 // for offline accounts since they have no Mojang profile to fetch.
@@ -371,32 +379,63 @@ const App: Component = () => {
     // Show window after initialization is complete (window starts hidden)
     await showWindow();
 
-    // Global keyboard shortcuts
+    // Global keyboard shortcuts.
+    //
+    // Bindings are sourced from `LauncherSettings.keybinds` (user-customizable
+    // via Settings → Keybinds) with fallbacks defined in `lib/keybinds.ts`.
+    // We cache the user bindings here and refresh them whenever settings
+    // change. The cache is invalidated by listening on a custom DOM event
+    // (`vermeil-keybinds-changed`) that the Settings tab fires after save.
+    let userBindings: Record<string, string> = {};
+    const refreshBindings = async () => {
+      try {
+        const s = await getSettings();
+        userBindings = s.keybinds ?? {};
+      } catch {
+        userBindings = {};
+      }
+    };
+    refreshBindings();
+    window.addEventListener("vermeil-keybinds-changed", () => {
+      refreshBindings();
+    });
+
     document.addEventListener("keydown", (e) => {
-      // Escape — close the topmost open modal or tool, in priority order.
-      // Each branch returns early so only one thing closes per press.
+      // Escape is hardcoded — closes the topmost open modal/tool. Not
+      // user-rebindable because users expect Escape to "back out" of UI
+      // and remapping it would brick recovery from a stuck modal.
       if (e.key === "Escape") {
-        // Pin instances modal
+        if (pinSelectorOpen()) {
+          setPinSelectorOpen(false);
+          return;
+        }
         if (pinInstancesModalOpen()) {
           closePinInstancesModal();
           return;
         }
-        // Create-instance flow modals (screens rendered as overlays)
         const screen = activeScreen();
         if (screen === "create-choose" || screen === "create-custom" || screen === "create-modpack" || screen === "create-import") {
           setActiveScreen("library");
           return;
         }
       }
-      // Ctrl+N — create instance
-      if (e.ctrlKey && e.key === "n") {
+
+      // Customizable shortcuts. Each lookup resolves to either the user's
+      // override or the action's default.
+      if (matchesKeybind(e, resolveBinding("create_instance", userBindings))) {
         e.preventDefault();
         setActiveScreen("create-choose");
+        return;
       }
-      // Ctrl+, — settings
-      if (e.ctrlKey && e.key === ",") {
+      if (matchesKeybind(e, resolveBinding("open_settings", userBindings))) {
         e.preventDefault();
         setActiveScreen("settings");
+        return;
+      }
+      if (matchesKeybind(e, resolveBinding("toggle_pin_selector", userBindings))) {
+        e.preventDefault();
+        setPinSelectorOpen((v) => !v);
+        return;
       }
     });
   });
@@ -404,7 +443,6 @@ const App: Component = () => {
   return (
     <div class="app">
       <ResizeHandles />
-      <Sidebar />
       <div class="main">
         <Show when={offline()}>
           <div class="offline-banner">No internet connection</div>
@@ -423,6 +461,7 @@ const App: Component = () => {
           <Show when={activeScreen() === "create-modpack"}><BrowseModpacks /></Show>
           <Show when={activeScreen() === "create-import"}><ImportCurseForge /></Show>
         </div>
+        <FloatingDock />
       </div>
       <NoAccountModal open={showNoAccountModal()} onClose={() => setShowNoAccountModal(false)} />
       <InstallProgress />

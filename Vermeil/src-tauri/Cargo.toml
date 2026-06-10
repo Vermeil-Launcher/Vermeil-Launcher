@@ -50,7 +50,7 @@ tar = "0.4"
 [target.'cfg(windows)'.dependencies]
 # Used by services::java to enumerate JRE installs from the Windows Registry.
 # Bundled on Windows targets only.
-winreg = "0.55"
+winreg = "0.56"
 # DPAPI wrapper for encrypting sensitive credentials (access_token, refresh_token)
 # at rest in accounts.json. Tied to the current Windows user session.
 windows-dpapi = "0.2"

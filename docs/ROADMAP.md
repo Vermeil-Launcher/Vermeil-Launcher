@@ -136,6 +136,13 @@ effort. New ideas welcome via GitHub Issues.
 - CurseForge modpacks install mods with withheld download URLs via a direct CDN fallback
 - Re-installing a CurseForge modpack appends "(2)", "(3)" and is tracked like Modrinth
 
+### 0.2.8 — Dock pagination, CF content fix
+- iOS-style dot pagination island above the dock with scroll-wheel navigation and hold-to-type page jump
+- CurseForge shaders, resource packs, and datapacks install correctly (loader filter skipped for non-mod content)
+- Center FAB centered within the dock pill with glow-scale hover effect
+- Pin carousel compacted (smaller tiles, hidden scrollbar, edge fade mask)
+- Browse mode no longer auto-scrolls to top on page change
+
 ---
 
 ## Planned

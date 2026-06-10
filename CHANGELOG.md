@@ -1,18 +1,17 @@
-## 0.2.7
+## 0.2.8
 
 ### Added
 
-- Loader auto-bump: modpack installs scan their mods for the loader version they require and update the loader to a compatible build automatically.
-- Author names now appear on mod cards, the installed list, download history, and modpacks.
+- Dock pagination island: iOS-style dot indicator above the dock shows page state, with scroll-wheel navigation and hold-to-type page jump.
+- CurseForge shaders, resource packs, and datapacks now install correctly (loader filter skipped for loader-agnostic content).
 
 ### Changed
 
-- Skins screen redesigned — wider 3D viewer, dedicated actions sidebar, and a horizontal row of saved skins.
-- Categories a loader can't use (mods and shaders on Vanilla) are now hidden instead of shown.
-- Scrollbars use the accent color so scrollable areas are easier to spot.
-- Logs tab: placeholder art clears once output appears, the dock auto-hides while reading (reveals on hover), and auto-scroll follows new lines until you scroll up.
+- Center FAB moved from raised above the dock to vertically centered within it; hover scales with a glow ring instead of lifting.
+- Pin carousel made more compact (smaller tiles, narrower width, hidden scrollbar, edge fade mask).
+- Page controls removed from inline screens and moved into the dock pagination island.
 
 ### Fixed
 
-- CurseForge modpacks now install mods whose download URLs are withheld by the API, using a direct CDN fallback.
-- Re-installing the same CurseForge modpack now appends "(2)", "(3)" to the instance name and is tracked the same way as Modrinth.
+- Pin carousel close button no longer clipped by the dock pill.
+- Browse mode no longer auto-scrolls to the top on page change.

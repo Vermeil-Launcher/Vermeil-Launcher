@@ -59,8 +59,21 @@
 /* When pin selector is open, give the pill more breathing room to
    accommodate the carousel and use a slightly different surface tint. */
 .dock-wrap.pin-mode .dock {
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: rgba(28, 30, 34, 0.92);
+}
+
+/* In pin mode, raise the FAB above the pill like before so it reads
+   as a close button sitting on top, not buried in the carousel. */
+.dock-wrap.pin-mode .dock-center {
+  top: -22px;
+  transform: translateX(-50%);
+}
+.dock-wrap.pin-mode .dock-center:hover {
+  transform: translateX(-50%) scale(1.08);
+}
+.dock-wrap.pin-mode .dock-center:active {
+  transform: translateX(-50%) scale(0.95);
 }
 
 /* Left/right nav groups — each holds 3 buttons. */
@@ -77,7 +90,7 @@
 
 /* Notch — a transparent spacer sized to the FAB diameter. */
 .dock-notch {
-  width: 64px;
+  width: 54px;
   flex-shrink: 0;
 }
 
@@ -135,15 +148,15 @@
 }
 
 /* ============================================================
-   Center FAB — raised above the pill, state-aware.
+   Center FAB — centered vertically within the pill, state-aware.
    ============================================================ */
 .dock-center {
   position: absolute;
-  top: -16px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 56px;
-  height: 56px;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   border: 3px solid var(--bg2);
   background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -154,23 +167,23 @@
   justify-content: center;
   flex-shrink: 0;
   box-shadow:
-    0 8px 24px rgba(124, 92, 252, 0.45),
+    0 4px 16px rgba(124, 92, 252, 0.4),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
   transition:
-    background 0.25s ease,
-    box-shadow 0.25s ease,
+    box-shadow 0.2s ease,
     transform 0.15s ease;
   pointer-events: auto;
   z-index: 1;
   padding: 0;
 }
 .dock-center:hover {
-  transform: translateX(-50%) translateY(-2px);
+  transform: translate(-50%, -50%) scale(1.08);
   box-shadow:
-    0 12px 28px rgba(124, 92, 252, 0.55),
+    0 6px 24px rgba(124, 92, 252, 0.6),
+    0 0 0 4px rgba(124, 92, 252, 0.15),
     0 1px 0 rgba(255, 255, 255, 0.2) inset;
 }
-.dock-center:active { transform: translateX(-50%) scale(0.95); }
+.dock-center:active { transform: translate(-50%, -50%) scale(0.95); }
 
 .dock-center-icon {
   display: flex;
@@ -192,12 +205,13 @@
 .dock-center-stop {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   box-shadow:
-    0 8px 24px rgba(239, 68, 68, 0.45),
+    0 4px 16px rgba(239, 68, 68, 0.4),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 .dock-center-stop:hover {
   box-shadow:
-    0 12px 28px rgba(239, 68, 68, 0.55),
+    0 6px 24px rgba(239, 68, 68, 0.6),
+    0 0 0 4px rgba(239, 68, 68, 0.15),
     0 1px 0 rgba(255, 255, 255, 0.2) inset;
 }
 
@@ -205,12 +219,13 @@
 .dock-center-close {
   background: linear-gradient(135deg, #4a4d55, #34363c);
   box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.4),
+    0 4px 14px rgba(0, 0, 0, 0.35),
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 .dock-center-close:hover {
   box-shadow:
-    0 12px 24px rgba(0, 0, 0, 0.5),
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    0 0 0 4px rgba(255, 255, 255, 0.05),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 
@@ -237,7 +252,7 @@
 .dock-pin-carousel {
   display: flex;
   align-items: center;
-  width: min(720px, calc(100vw - 80px));
+  width: min(480px, calc(100vw - 80px));
   animation: pinCarouselIn 0.25s ease-out;
 }
 @keyframes pinCarouselIn {
@@ -254,36 +269,32 @@
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   width: 100%;
-  /* Empty space in the middle so the FAB doesn't land on top of a tile.
-     The FAB is 56px + halo; 80px gap accounts for it plus margin. */
   padding: 0 calc(50% - 40px) 0 0;
   scroll-snap-type: x mandatory;
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 .dock-pin-track::after {
-  /* Mirrored padding on the right side of the FAB, achieved via a
-     pseudo-element to avoid extra DOM. */
   content: "";
   flex-shrink: 0;
   width: calc(50% - 40px);
 }
-.dock-pin-track::-webkit-scrollbar { height: 4px; }
-.dock-pin-track::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
-.dock-pin-track::-webkit-scrollbar-track { background: transparent; }
+.dock-pin-track::-webkit-scrollbar { display: none; }
 
-/* Tiles in the carousel — larger than dock buttons, with name visible. */
+/* Tiles in the carousel — compact with name visible. */
 .dock-pin-tile {
   flex-shrink: 0;
-  width: 84px;
+  width: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 6px;
+  gap: 4px;
+  padding: 4px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   scroll-snap-align: center;
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -302,25 +313,25 @@
 .dock-pin-tile:active { transform: translateY(0) scale(0.97); }
 
 .dock-pin-tile-img {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
   user-select: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 .dock-pin-tile-img img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 10px;
   -webkit-user-drag: none;
   pointer-events: none;
 }
@@ -332,10 +343,10 @@
   height: 100%;
 }
 .dock-pin-tile-name {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--text-secondary, var(--muted));
   text-align: center;
-  max-width: 80px;
+  max-width: 60px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -358,7 +369,7 @@
   border: 1.5px dashed rgba(255, 255, 255, 0.18);
   color: var(--muted);
 }
-.dock-pin-tile-manage .dock-pin-tile-img svg { width: 22px; height: 22px; }
+.dock-pin-tile-manage .dock-pin-tile-img svg { width: 18px; height: 18px; }
 .dock-pin-tile-manage:hover .dock-pin-tile-img {
   border-color: var(--accent);
   color: var(--accent);
@@ -388,6 +399,97 @@
   transition: background 0.12s;
 }
 .dock-pin-empty-btn:hover { background: var(--accent2); }
+
+/* ============================================================
+   Pagination island — iOS-style dot indicator pill above the dock.
+   ============================================================ */
+.dock-page-island {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  padding: 6px 12px;
+  width: fit-content;
+  background: rgba(28, 30, 34, 0.85);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  pointer-events: auto;
+  animation: dockPagIslandIn 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.3s ease;
+}
+@keyframes dockPagIslandIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Hold animation — removed. Just show the input directly. */
+
+/* When input is showing, subtle border. */
+.dock-page-island.holding {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dot row */
+.dock-page-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Individual dot */
+.dock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  cursor: pointer;
+}
+.dock-dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+.dock-dot:hover:not(.active) {
+  background: var(--text);
+  opacity: 0.8 !important;
+}
+
+/* Page number input (shown on hold) — shows input / total */
+.dock-page-hold-input {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-family: var(--font);
+}
+.dock-page-input {
+  width: 32px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg4);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  font-family: var(--font);
+  padding: 0;
+}
+.dock-page-total {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
 
 /* ============================================================
    Tooltips for dock buttons — appear ABOVE.

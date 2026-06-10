@@ -120,7 +120,7 @@
 .continue-meta { font-size: 11px; color: var(--muted); }
 
 /* News grid */
-.news-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.news-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 80px; }
 .news-card {
   background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
   overflow: hidden; cursor: pointer; transition: border-color .12s, transform .12s;

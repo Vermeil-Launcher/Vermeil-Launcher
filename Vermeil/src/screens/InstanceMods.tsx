@@ -1,10 +1,9 @@
 import { Component, createSignal, createEffect, createResource, For, Show, onMount, onCleanup } from "solid-js";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden } from "../App";
+import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
-import PageSlider from "../components/PageSlider";
 
 const SORT_OPTIONS = [
   { value: "relevance", label: "Relevance" },
@@ -235,6 +234,9 @@ const InstanceMods: Component = () => {
   });
   onCleanup(() => setDockHidden(false));
 
+  // Dock pagination is set up after goToPage is defined (see below).
+  onCleanup(() => setDockPagination(null));
+
   const instance = () => {
     const list = instances();
     const id = activeInstanceId();
@@ -403,8 +405,17 @@ const InstanceMods: Component = () => {
     pageTimeout = window.setTimeout(() => {
       doSearch(page);
     }, 150); // Debounce rapid slider changes
-    document.querySelector('.content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Push pagination state into the dock when the browse tab is active and
+  // there are multiple pages. Clear it otherwise so the dock hides the controls.
+  createEffect(() => {
+    if (mainTab() === "content" && contentTab() === "browse" && totalPages() > 1) {
+      setDockPagination({ current: currentPage(), total: totalPages(), onPageChange: goToPage });
+    } else {
+      setDockPagination(null);
+    }
+  });
 
   const handleInstallMod = async (mod: ModHit) => {
     const inst = instance();
@@ -1251,9 +1262,6 @@ const InstanceMods: Component = () => {
                 <>Version: <input class="search-input" style="width:80px;padding:2px 6px;font-size:10px;display:inline-block;margin:0 4px" placeholder={instance()?.game_version || "any"} value={browseVersion()} onInput={(e) => { setBrowseVersion(e.currentTarget.value); setCurrentPage(1); clearTimeout(searchTimeout); searchTimeout = window.setTimeout(() => doSearch(1), 400); }} /> <span style="color:var(--muted);font-size:10px">(leave empty for any)</span></>
               </Show>
             </div>
-            <Show when={totalPages() > 1}>
-              <PageSlider currentPage={currentPage()} totalPages={totalPages()} onPageChange={goToPage} />
-            </Show>
             <Show when={searching()}><div style="text-align:center;color:var(--muted);padding:20px;font-size:12px">Searching...</div></Show>
             <div class="mod-grid">
               <For each={searchResults()}>
@@ -1326,13 +1334,6 @@ const InstanceMods: Component = () => {
                 )}
               </For>
             </div>
-            <Show when={totalPages() > 1}>
-              <PageSlider
-                currentPage={currentPage()}
-                totalPages={totalPages()}
-                onPageChange={goToPage}
-              />
-            </Show>
             {/* Bulk install floating bar */}
             <Show when={selectMode() && selectedItems().size > 0 && !bulkInstalling()}>
               <div class="bulk-install-bar">

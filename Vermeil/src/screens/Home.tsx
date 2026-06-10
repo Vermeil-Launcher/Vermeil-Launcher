@@ -1,8 +1,7 @@
-import { Component, createSignal, createResource, createMemo, For, Show } from "solid-js";
-import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl } from "../App";
+import { Component, createSignal, createEffect, createResource, createMemo, For, Show, onCleanup } from "solid-js";
+import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination } from "../App";
 import { launchInstance, listInstanceWorlds, getJavaNews, getArticleBody, NewsArticle } from "../ipc/commands";
 import { IconPlay } from "../components/Icons";
-import PageSlider from "../components/PageSlider";
 import PlayerHead from "../components/PlayerHead";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -61,6 +60,16 @@ const Home: Component = () => {
     const start = (newsPage() - 1) * NEWS_PER_PAGE;
     return all.slice(start, start + NEWS_PER_PAGE);
   };
+
+  // Push news pagination into the dock when there are multiple pages.
+  createEffect(() => {
+    if (totalNewsPages() > 1) {
+      setDockPagination({ current: newsPage(), total: totalNewsPages(), onPageChange: setNewsPage });
+    } else {
+      setDockPagination(null);
+    }
+  });
+  onCleanup(() => setDockPagination(null));
 
   const [recentWorlds] = createResource(async () => {
     const insts = instances();
@@ -224,9 +233,6 @@ const Home: Component = () => {
               )}
             </For>
           </div>
-          <Show when={totalNewsPages() > 1}>
-            <PageSlider currentPage={newsPage()} totalPages={totalNewsPages()} onPageChange={setNewsPage} />
-          </Show>
         </Show>
       </Show>
     </div>

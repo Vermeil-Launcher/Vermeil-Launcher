@@ -260,6 +260,17 @@ export { pinSelectorOpen, setPinSelectorOpen };
 const [dockHidden, setDockHidden] = createSignal(false);
 export { dockHidden, setDockHidden };
 
+// Dock pagination. Screens that need page navigation set this to a descriptor
+// object; the floating dock renders the page controls inline. When the screen
+// unmounts or no longer needs paging, it sets this back to null.
+export interface DockPaginationState {
+  current: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}
+const [dockPagination, setDockPagination] = createSignal<DockPaginationState | null>(null);
+export { dockPagination, setDockPagination };
+
 // Active skin URL for the currently signed-in Microsoft account. Populated
 // lazily from `getSkinProfile()` whenever the active account changes; cleared
 // for offline accounts since they have no Mojang profile to fetch.

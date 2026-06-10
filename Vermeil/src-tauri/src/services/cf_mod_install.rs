@@ -26,8 +26,15 @@ pub async fn install_cf_mod(
     let mut deps_installed: Vec<String> = Vec::new();
     let mut dep_titles: Vec<String> = Vec::new();
 
-    // 1. Get available files for this project
-    let files = curseforge::get_project_files(api_key, mod_id, game_version, loader).await?;
+    // 1. Get available files for this project.
+    // Shaders, resource packs, and datapacks are loader-agnostic on CurseForge —
+    // their files aren't tagged with a modLoaderType. Passing a loader filter
+    // returns 0 results, so we skip it for non-mod categories.
+    let effective_loader = match category {
+        "resourcepack" | "shader" | "datapack" => "",
+        _ => loader,
+    };
+    let files = curseforge::get_project_files(api_key, mod_id, game_version, effective_loader).await?;
 
     if files.is_empty() {
         return Err(format!("No compatible files found for CurseForge project {}", mod_id));
@@ -152,8 +159,12 @@ async fn install_cf_dep(
         return Ok(title);
     }
 
-    // Get files
-    let files = curseforge::get_project_files(api_key, mod_id, game_version, loader).await?;
+    // Get files — same loader-skip logic as the main install path.
+    let effective_loader = match category {
+        "resourcepack" | "shader" | "datapack" => "",
+        _ => loader,
+    };
+    let files = curseforge::get_project_files(api_key, mod_id, game_version, effective_loader).await?;
     if files.is_empty() {
         return Err("No compatible file found".to_string());
     }

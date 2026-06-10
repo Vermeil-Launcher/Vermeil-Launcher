@@ -143,6 +143,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 10px;
+  margin-bottom: 80px;
 }
 .mod-card {
   background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;

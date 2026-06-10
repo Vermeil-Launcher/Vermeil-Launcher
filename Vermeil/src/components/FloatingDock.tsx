@@ -15,6 +15,7 @@ import {
   setPinSelectorOpen,
   setInitialInstanceTab,
   dockHidden,
+  dockPagination,
 } from "../App";
 import {
   IconHome,
@@ -33,24 +34,13 @@ import { openPinInstancesModal } from "../modals/PinInstancesModal";
  * Bottom-centered floating dock — single unified pill with a FAB-style
  * center action button raised above it.
  *
- * Two modes:
- *
- * 1. NAV (default): shows the 6 navigation buttons split around a notch
- *    that the FAB sits over. The FAB is state-aware: "+" when no instance
- *    is selected, "▶" when viewing one, "■" when the game is running.
- *
- * 2. PIN SELECTOR: when the user presses the `toggle_pin_selector`
- *    keybind (default Ctrl+P), the nav buttons fade out and a horizontal
- *    scrollable carousel of pinned instances takes their place. The FAB
- *    morphs into a "✕" close button. Clicking a pin opens that instance
- *    and closes the selector.
+ * When pagination is active a second mini floating pill appears above the
+ * dock with ‹ page/total › controls.
  */
 
 const FloatingDock: Component = () => {
   const isActive = (screens: Screen[]) => screens.includes(activeScreen());
 
-  // Cursor-proximity reveal: even when `dockHidden` is true (Logs tab), the
-  // dock pops back up when the pointer nears the bottom edge of the window.
   const [nearBottom, setNearBottom] = createSignal(false);
   onMount(() => {
     const handler = (e: MouseEvent) => {
@@ -60,8 +50,6 @@ const FloatingDock: Component = () => {
     onCleanup(() => window.removeEventListener("mousemove", handler));
   });
 
-  // The dock is visually hidden only when the screen requested it AND the
-  // cursor isn't near the bottom AND the pin selector isn't open.
   const hidden = () => dockHidden() && !nearBottom() && !pinSelectorOpen();
 
   const DockBtn = (props: { screens: Screen[]; target: Screen; icon: any; label: string }) => (
@@ -78,7 +66,6 @@ const FloatingDock: Component = () => {
     </button>
   );
 
-  /** Resolve pin IDs to live instances, filtering out deletions. */
   const pinnedInstances = () => {
     const list = instances();
     if (!list) return [];
@@ -95,14 +82,6 @@ const FloatingDock: Component = () => {
     setPinSelectorOpen(false);
   };
 
-  /**
-   * Center button state — drives icon, color, and click action.
-   * Order of precedence (highest first):
-   *   1. Pin selector open  → "✕" close
-   *   2. Game running       → "■" stop
-   *   3. Viewing an instance → "▶" play
-   *   4. Default            → "+" create
-   */
   type CenterMode = "close" | "stop" | "play" | "create";
   const centerMode = createMemo<CenterMode>(() => {
     if (pinSelectorOpen()) return "close";
@@ -141,7 +120,6 @@ const FloatingDock: Component = () => {
       }
       return;
     }
-    // mode === "play"
     if (!ensureAccountOrPrompt()) return;
     const id = activeInstanceId();
     if (!id) return;
@@ -156,8 +134,111 @@ const FloatingDock: Component = () => {
 
   return (
     <div class={`dock-wrap ${pinSelectorOpen() ? "pin-mode" : ""} ${hidden() ? "dock-hidden" : ""}`}>
+      {/* Pagination island — iOS-style dot indicator.
+          Shows a window of dots; current is bright/large, neighbors fade.
+          Scroll wheel navigates. Hold to type a page number. */}
+      <Show when={dockPagination() && !pinSelectorOpen()}>
+        {(() => {
+          const [holding, setHolding] = createSignal(false);
+          const [inputValue, setInputValue] = createSignal("");
+          let holdTimer: number | undefined;
+          let islandEl: HTMLDivElement | undefined;
+
+          const startHold = () => {
+            holdTimer = window.setTimeout(() => {
+              setHolding(true);
+              setInputValue(dockPagination()!.current.toString());
+              setTimeout(() => {
+                const input = islandEl?.querySelector<HTMLInputElement>(".dock-page-input");
+                if (input) { input.focus(); input.select(); }
+              }, 20);
+            }, 500);
+          };
+          const cancelHold = () => {
+            clearTimeout(holdTimer);
+          };
+          const submitInput = () => {
+            const val = parseInt(inputValue());
+            const pag = dockPagination();
+            if (pag && val >= 1 && val <= pag.total) pag.onPageChange(val);
+            setHolding(false);
+          };
+
+          // Build the visible dot window (max 7 dots centered on current page).
+          const MAX_DOTS = 7;
+          const dots = () => {
+            const pag = dockPagination()!;
+            const total = pag.total;
+            const current = pag.current;
+            const count = Math.min(MAX_DOTS, total);
+            let start = Math.max(1, current - Math.floor(count / 2));
+            if (start + count - 1 > total) start = Math.max(1, total - count + 1);
+            const arr: number[] = [];
+            for (let i = start; i < start + count; i++) arr.push(i);
+            return arr;
+          };
+
+          return (
+            <div
+              class={`dock-page-island ${holding() ? "holding" : ""}`}
+              ref={(el) => {
+                islandEl = el;
+                const handler = (e: WheelEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const pag = dockPagination();
+                  if (!pag) return;
+                  if (e.deltaY < 0 && pag.current < pag.total) {
+                    pag.onPageChange(pag.current + 1);
+                    if (holding()) setInputValue((pag.current + 1).toString());
+                  } else if (e.deltaY > 0 && pag.current > 1) {
+                    pag.onPageChange(pag.current - 1);
+                    if (holding()) setInputValue((pag.current - 1).toString());
+                  }
+                };
+                el.addEventListener("wheel", handler, { passive: false });
+              }}
+              onMouseDown={startHold}
+              onMouseUp={cancelHold}
+              onMouseLeave={cancelHold}
+            >
+              <Show when={!holding()}>
+                <div class="dock-page-dots">
+                  <For each={dots()}>
+                    {(page) => {
+                      const pag = () => dockPagination()!;
+                      const dist = () => Math.abs(page - pag().current);
+                      return (
+                        <div
+                          class={`dock-dot ${page === pag().current ? "active" : ""}`}
+                          style={`opacity: ${Math.max(0.2, 1 - dist() * 0.2)}; transform: scale(${page === pag().current ? 1 : Math.max(0.5, 1 - dist() * 0.15)})`}
+                          onClick={() => pag().onPageChange(page)}
+                        />
+                      );
+                    }}
+                  </For>
+                </div>
+              </Show>
+              <Show when={holding()}>
+                <div class="dock-page-hold-input">
+                  <input
+                    class="dock-page-input"
+                    type="text"
+                    value={inputValue()}
+                    onInput={(e) => setInputValue(e.currentTarget.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitInput(); if (e.key === "Escape") setHolding(false); }}
+                    onBlur={submitInput}
+                  />
+                  <span class="dock-page-total">/ {dockPagination()!.total}</span>
+                </div>
+              </Show>
+            </div>
+          );
+        })()}
+      </Show>
+
       <div class="dock">
-        {/* NAV MODE — the default 6-button layout. */}
+        {/* NAV MODE */}
         <Show when={!pinSelectorOpen()}>
           <div class="dock-group dock-group-left">
             <DockBtn screens={["home"]} target="home" icon={<IconHome />} label="Home" />
@@ -179,7 +260,7 @@ const FloatingDock: Component = () => {
           </div>
         </Show>
 
-        {/* PIN SELECTOR MODE — horizontal scrollable carousel of pins. */}
+        {/* PIN SELECTOR MODE */}
         <Show when={pinSelectorOpen()}>
           <div class="dock-pin-carousel">
             <Show
@@ -200,8 +281,6 @@ const FloatingDock: Component = () => {
                 </div>
               }
             >
-              {/* Scrollable row. The center FAB sits above the middle so we
-                  give horizontal padding on both sides to not crowd it. */}
               <div class="dock-pin-track">
                 <For each={pinnedInstances()}>
                   {(inst, i) => {
@@ -251,14 +330,14 @@ const FloatingDock: Component = () => {
           </div>
         </Show>
 
-        {/* Center FAB — visible in both modes, swaps action via centerMode. */}
+        {/* Center FAB */}
         <button
           type="button"
           class={`dock-center dock-center-${centerMode()}`}
           onClick={handleCenterClick}
           data-tooltip={centerLabel()}
         >
-          <span class="dock-center-icon" key={centerMode()}>
+          <span class="dock-center-icon">
             <Show when={centerMode() === "play"}>
               <IconPlay />
             </Show>

@@ -192,16 +192,30 @@ export const IconMinus: Component = () => (
   </svg>
 );
 
-// Modrinth logo — simplified from Modrinth brand assets. Used for source toggle.
+// Modrinth wordmark — official "M" curl glyph from Modrinth's brand assets.
+// We keep the original two-path structure but swap the baked `#1bd96a` fill
+// for `currentColor` so the surrounding badge can tint it (the badge sets
+// `color: #1bd96a` to match Modrinth's brand green).
+// Source: https://modrinth.com/legal/branding (used under nominative fair use
+// to identify Modrinth as a content source).
 export const IconModrinth: Component = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12.252.004a11.78 11.78 0 0 0-8.92 4.18 11.77 11.77 0 0 0-2.55 6.09 11.81 11.81 0 0 0 1.07 6.45l.09.16a11.75 11.75 0 0 0 7.05 5.63 11.74 11.74 0 0 0 8.86-1.22l.15-.09a11.76 11.76 0 0 0 5.02-7.39 11.77 11.77 0 0 0-1.24-8.22l-.1-.16A11.73 11.73 0 0 0 12.252.004zM10.01 4.65a1.47 1.47 0 0 1 2.13.57l2.56 5.39a1.47 1.47 0 0 1-1.34 2.1h-5.7a1.47 1.47 0 0 1-1.17-2.35l3.52-5.71z"/>
+  <svg viewBox="0 0 514 514" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M504.16 323.56c11.39-42.09 12.16-87.65.04-132.8C467.57 54.23 327.04-26.8 190.33 9.78 84.81 38.02 12.39 128.07 1.69 230.47h43.3c10.3-83.14 69.75-155.74 155.76-178.76 106.3-28.45 215.38 28.96 253.42 129.67l-42.14 11.27c-19.39-46.85-58.46-81.2-104.73-95.83l-7.74 43.84c36.53 13.47 66.16 43.84 77 84.25 15.8 58.89-13.62 119.23-67 144.26l11.53 42.99c70.16-28.95 112.31-101.86 102.34-177.02l41.98-11.23a210.2 210.2 0 0 1-3.86 84.16z"
+      fill-rule="evenodd"
+    />
+    <path d="M322.99 504.22C186.27 540.8 45.75 459.77 9.11 323.24A257.6 257.6 0 0 1 1 275.46h43.27c1.09 11.91 3.2 23.89 6.41 35.83 3.36 12.51 7.77 24.46 13.11 35.78l38.59-23.15a169 169 0 0 1-8.17-23.45c-24.04-89.6 29.2-181.7 118.92-205.71 17-4.55 34.1-6.32 50.8-5.61L256.19 133c-10.46.05-21.08 1.42-31.66 4.25-66.22 17.73-105.52 85.7-87.78 151.84 1.1 4.07 2.38 8.04 3.84 11.9l49.35-29.61-14.87-39.43 46.6-47.87 58.9-12.69 17.05 20.99-27.15 27.5-23.68 7.45-16.92 17.39 8.29 23.07s16.79 17.84 16.82 17.85l23.72-6.31 16.88-18.54 36.86-11.67 10.98 24.7-38.03 46.63-63.73 20.18-28.58-31.82-49.82 29.89c25.54 29.08 63.94 45.23 103.75 41.86l11.53 42.99c-59.41 7.86-117.44-16.73-153.49-61.91l-38.41 23.04c50.61 66.49 138.2 99.43 223.97 76.48 61.74-16.52 109.79-58.6 135.81-111.78l42.64 15.5c-30.89 66.28-89.84 118.94-166.07 139.34" />
   </svg>
 );
 
-// CurseForge logo — simplified anvil mark. Used for source toggle.
+// CurseForge anvil glyph — official mark from Overwolf's CurseForge brand
+// kit. Path is preserved verbatim; fill is swapped from `#130700` to
+// `currentColor` so the badge's `color: #f16436` (CurseForge orange) tints
+// it appropriately on dark backgrounds.
+// Source: https://www.curseforge.com (used under nominative fair use to
+// identify CurseForge as a content source).
 export const IconCurseForge: Component = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.4 4.8H5.6c-.5 0-.9.2-1.2.5L2 8.4v1.2h2.4l1.2 9.6h12.8l1.2-9.6H22V8.4l-2.4-3.1c-.3-.3-.7-.5-1.2-.5zM12 16.8c-1.8 0-3.2-1.4-3.2-3.2s1.4-3.2 3.2-3.2 3.2 1.4 3.2 3.2-1.4 3.2-3.2 3.2z"/>
+  <svg viewBox="0 0 260 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M196.422 98.77S247.874 90.623 256 66.858h-78.819V48H4l21.334 24.862v25.473s53.83-2.811 74.653 13.047c28.502 26.532-32.058 62.397-32.058 62.397l-10.384 34.512c16.239-15.529 47.188-35.618 103.933-34.65-21.594 6.854-43.307 17.56-60.211 34.65h114.71l-10.802-34.512s-83.139-49.235-8.753-75.005v-.004Z" />
   </svg>
 );

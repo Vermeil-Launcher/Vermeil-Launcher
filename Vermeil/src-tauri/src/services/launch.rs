@@ -851,18 +851,34 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     let global_vs = global_settings.as_ref().map(|s| &s.video_settings);
     let win_fullscreen = global_vs.and_then(|v| v.fullscreen).unwrap_or(instance.window.fullscreen);
     let win_maximized = global_vs.and_then(|v| v.start_maximized).unwrap_or(false);
-    // If maximized is enabled (and not fullscreen), Minecraft launches with
-    // --width/--height set to a very large value so it fills the screen.
-    // Minecraft itself clamps this to the monitor bounds on startup.
-    let win_width = if win_maximized && !win_fullscreen {
-        7680 // large enough for any monitor; MC clamps internally
+    // If maximized is enabled (and not fullscreen), detect the launcher's
+    // current monitor and use its size minus a margin for window chrome
+    // (title bar) and the OS taskbar/menu bar. Minecraft's GLFW window
+    // doesn't have a `--maximized` flag — passing absurd dimensions like
+    // monitor*2 would push the window off-screen, since MC sizes the
+    // window literally. This produces a window that fills the visible
+    // work area without going out of bounds.
+    let (win_width, win_height) = if win_maximized && !win_fullscreen {
+        let monitor_size = window
+            .as_ref()
+            .and_then(|w| w.current_monitor().ok().flatten())
+            .map(|m| {
+                let s = m.size();
+                (s.width, s.height)
+            })
+            .unwrap_or((1920, 1080));
+        // Reserve space for window chrome + OS bars. ~80px on Windows
+        // (Win11 taskbar ~48px + title bar ~32px), ~60px elsewhere.
+        let chrome_h: u32 = if cfg!(windows) { 80 } else { 60 };
+        let chrome_w: u32 = 0;
+        (
+            monitor_size.0.saturating_sub(chrome_w).max(640),
+            monitor_size.1.saturating_sub(chrome_h).max(480),
+        )
     } else {
-        global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width)
-    };
-    let win_height = if win_maximized && !win_fullscreen {
-        4320
-    } else {
-        global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height)
+        let w = global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width);
+        let h = global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height);
+        (w, h)
     };
 
     let mut game_args: Vec<String> = if let Some(ref arguments) = version.arguments {

@@ -190,16 +190,13 @@ pub async fn import_zip(
     }
 
     // Enrich mod metadata in the background so the install completes
-    // immediately. The frontend listens for `instance-enriched` events
-    // and refetches when it fires.
+    // immediately. Two-phase: metadata first (cards populate), icons
+    // second (cards swap to local copies). The function emits
+    // `instance-enriched` itself after each phase.
     let id_for_enrichment = instance_id.clone();
     tokio::spawn(async move {
-        if let Err(e) = crate::services::modpack::enrich_mod_metadata(&id_for_enrichment).await {
+        if let Err(e) = crate::services::modpack::enrich_mod_metadata(&id_for_enrichment, window_for_enrichment).await {
             tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", id_for_enrichment, e);
-        }
-        if let Some(w) = window_for_enrichment {
-            use tauri::Emitter;
-            let _ = w.emit("instance-enriched", id_for_enrichment.clone());
         }
     });
 

@@ -388,18 +388,14 @@ pub async fn install_from_mrpack_file(
 
     // Enrich mod metadata (titles, icons, authors) from APIs in the
     // background so the install completes (and the Library card appears)
-    // immediately. The frontend listens for the `instance-enriched` event
-    // and re-fetches instances when it fires.
+    // immediately. Two-phase emit: metadata first (cards populate),
+    // then icons (cards swap to local copies). The function emits
+    // `instance-enriched` itself after each phase.
     let id_for_enrichment = id.clone();
     let window_for_enrichment = window_for_enrichment_outer;
     tokio::spawn(async move {
-        if let Err(e) = enrich_mod_metadata(&id_for_enrichment).await {
+        if let Err(e) = enrich_mod_metadata(&id_for_enrichment, window_for_enrichment).await {
             tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", id_for_enrichment, e);
-        }
-        // Notify the frontend so it can refresh instance metadata.
-        if let Some(w) = window_for_enrichment {
-            use tauri::Emitter;
-            let _ = w.emit("instance-enriched", id_for_enrichment.clone());
         }
     });
 
@@ -451,15 +447,29 @@ pub async fn revalidate_loader(
     crate::services::prepare::prepare(&bumped, window).await
 }
 
-/// Enrich mod entries in a modpack instance with metadata (title, icon, author)
-/// from their respective APIs. Called after modpack install completes. Mods
-/// without a `project_id` (Modrinth .mrpack path) get looked up via the hash
-/// endpoint; CurseForge mods are batched via the `/v1/mods` endpoint.
+/// Enrich mod entries in a modpack instance with metadata (title, icon URL,
+/// author) from their respective APIs, then cache icons to disk for offline
+/// use. Called after modpack install completes. Mods without a `project_id`
+/// (Modrinth .mrpack path) get looked up via the hash endpoint; CurseForge
+/// mods are batched via the `/v1/mods` endpoint.
+///
+/// Two-phase to keep the UI responsive on big packs:
+///   1. **Metadata** — batch API calls, write titles/descriptions/icon URLs
+///      back to instance.json, emit `instance-enriched` so the frontend
+///      renders cards immediately (icons load from the remote CDN via
+///      `<img>` while phase 2 runs).
+///   2. **Icon caching** — parallel downloads (fixed concurrency 8, see the
+///      cdn-vs-api note in coding-standards) write each icon to the local
+///      `icons/` cache. Once done, save again and re-emit so the UI swaps
+///      to local files.
 ///
 /// This is best-effort — enrichment failures don't break the instance, they
-/// just leave cards with filename-only display. On success, writes the updated
-/// metadata back to instance.json.
-pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
+/// just leave cards with filename-only display (or with remote icon URLs
+/// that won't survive offline).
+pub async fn enrich_mod_metadata(
+    instance_id: &str,
+    window: Option<tauri::WebviewWindow>,
+) -> Result<(), String> {
     let meta_path = paths::instances_dir().join(instance_id).join("instance.json");
     let content = std::fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
     let mut instance: Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
@@ -472,6 +482,12 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
     } else {
         settings.curseforge_api_key.clone()
     };
+
+    // ─── Phase 1: metadata ───────────────────────────────────────────────
+    // Hit the batch APIs once each, write titles/descriptions/icon URLs.
+    // Icon downloads are deferred to phase 2 so the user sees populated
+    // cards within ~1s of install completion instead of waiting for every
+    // icon to round-trip serially.
 
     // Collect CurseForge project IDs that need enrichment
     let cf_ids: Vec<String> = instance.mods.iter()
@@ -511,17 +527,13 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
                                 .and_then(|n| n.as_str())
                                 .map(|s| s.to_string());
 
-                            // Update matching entries
+                            // Write metadata only — icon caching happens in phase 2.
                             for entry in instance.mods.iter_mut() {
                                 if entry.project_id == project_id && entry.title.is_none() {
                                     entry.title = title.clone();
                                     entry.icon_url = icon.clone();
                                     entry.author = author.clone();
                                     entry.description = description.clone();
-                                    // Cache icon locally
-                                    if let Some(ref url) = icon {
-                                        entry.local_icon_path = crate::services::icon_cache::cache_remote_icon(url).await;
-                                    }
                                 }
                             }
                         }
@@ -619,9 +631,6 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
                                                 entry.title = title.clone();
                                                 entry.icon_url = icon.clone();
                                                 entry.description = description.clone();
-                                                if let Some(ref url) = icon {
-                                                    entry.local_icon_path = crate::services::icon_cache::cache_remote_icon(url).await;
-                                                }
                                             }
                                         }
                                     }
@@ -634,11 +643,82 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
         }
     }
 
+    // ─── Phase 1 commit: write metadata + emit so the UI populates ──────
+    // The frontend's `instance-enriched` listener calls `refetchInstances`,
+    // and `resolveIconUrl` falls back to `icon_url` (the CDN URL we just
+    // wrote) when `local_icon_path` is empty — so cards render with remote
+    // icons immediately while phase 2 runs.
+    {
+        let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
+        crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
+        if let Some(ref w) = window {
+            use tauri::Emitter;
+            let _ = w.emit("instance-enriched", instance_id.to_string());
+        }
+        tracing::info!("Enriched mod metadata (phase 1) for instance {}", instance_id);
+    }
+
+    // ─── Phase 2: parallel icon caching ──────────────────────────────────
+    // Sequential `cache_remote_icon().await` per mod (the previous shape)
+    // serialized N icon downloads on a single TLS connection — ~20s for a
+    // 50-mod pack. Bounded parallel cuts that to ~2s without raising any
+    // resource ceiling worth caring about.
+    //
+    // Concurrency cap is hardcoded (8) because these requests target
+    // static-asset CDNs (cdn.modrinth.com, media.forgecdn.net), not
+    // rate-limited APIs. The user-tunable `concurrent_downloads` setting
+    // is reserved for install-blocking download batches; see the HTTP
+    // section of coding-standards for the API-vs-CDN policy split.
+    const ICON_CACHE_CONCURRENCY: usize = 8;
+    let icon_jobs: Vec<(usize, String)> = instance.mods.iter().enumerate()
+        .filter_map(|(idx, m)| {
+            // Skip entries that already have a cached icon (subsequent
+            // enrichment passes, e.g. after loader revalidation, shouldn't
+            // re-download).
+            if m.local_icon_path.is_some() { return None; }
+            m.icon_url.as_ref().filter(|s| !s.is_empty()).map(|u| (idx, u.clone()))
+        })
+        .collect();
+
+    if !icon_jobs.is_empty() {
+        use futures_util::stream::{FuturesUnordered, StreamExt};
+        use std::sync::Arc;
+        use tokio::sync::Semaphore;
+
+        let sem = Arc::new(Semaphore::new(ICON_CACHE_CONCURRENCY));
+        let mut futures = FuturesUnordered::new();
+        for (idx, url) in icon_jobs {
+            let sem = Arc::clone(&sem);
+            futures.push(async move {
+                let _permit = sem.acquire().await.ok()?;
+                let cached = crate::services::icon_cache::cache_remote_icon(&url).await;
+                Some((idx, cached))
+            });
+        }
+
+        // Drain results into a Vec first so we can mutate `instance.mods`
+        // without juggling overlapping borrows inside the stream loop.
+        let mut results: Vec<(usize, Option<String>)> = Vec::new();
+        while let Some(item) = futures.next().await {
+            if let Some(pair) = item { results.push(pair); }
+        }
+        for (idx, path) in results {
+            if let Some(p) = path {
+                if let Some(entry) = instance.mods.get_mut(idx) {
+                    entry.local_icon_path = Some(p);
+                }
+            }
+        }
+    }
+
     // Cross-platform detection: if this instance was installed from one
     // platform, check if the same modpack (by title) is also published on
     // the other. If so, append the other platform to source_platforms so
     // the UI can show both source badges. Best-effort — failures are
     // silent and just leave the single-platform badge.
+    //
+    // Runs in phase 2 because it's another network round trip and doesn't
+    // need to block the first card render.
     if instance.source_platforms.len() == 1 && !instance.name.is_empty() {
         let installed_platform = instance.source_platforms[0].clone();
         let other = match installed_platform.as_str() {
@@ -654,10 +734,14 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
         }
     }
 
-    // Write enriched instance back
+    // ─── Phase 2 commit: write cached icon paths + emit so cards swap ────
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
     crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
-    tracing::info!("Enriched mod metadata for instance {}", instance_id);
+    if let Some(ref w) = window {
+        use tauri::Emitter;
+        let _ = w.emit("instance-enriched", instance_id.to_string());
+    }
+    tracing::info!("Enriched mod metadata (phase 2) for instance {}", instance_id);
     Ok(())
 }
 

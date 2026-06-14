@@ -5,16 +5,71 @@ description: Release a new version of Vermeil. Use when shipping, tagging, bumpi
 
 # Release Process
 
-When the user asks to push an update, release a new version, or bump the version, follow this exact process.
+## Day-to-Day Commit Workflow (Always-On)
 
-## Files to Update Before Tagging
+Every meaningful change is committed and pushed immediately as its own conventional commit. Do not batch unrelated changes into one commit. Do not wait for a release to push.
+
+After completing any change, verify it builds, then:
+
+1. Stage the change: `git -C <repo> add <files>` (or `-A` if everything in working tree belongs to this change)
+2. Commit with a conventional prefix: `git -C <repo> commit -m "<type>(<scope>): <imperative summary>"`
+3. Push immediately: `git -C <repo> push`
+
+Never push without an explicit user request? **No** — push is automatic and immediate for normal commits. The exception is `release: X.Y.Z` commits and version tags, which require explicit user approval (see below).
+
+### Conventional Commit Types
+
+| Type | When to use |
+|------|-------------|
+| `feat:` | New user-visible functionality |
+| `fix:` | Bug fix (user-visible defect resolved) |
+| `refactor:` | Code restructure, no behavior change |
+| `perf:` | Performance improvement, no behavior change |
+| `style:` | Formatting, whitespace, lint fixes only |
+| `docs:` | Documentation, comments, README, CHANGELOG |
+| `chore:` | Dependency bumps, CI, build config, housekeeping |
+| `test:` | Adding or updating tests |
+| `revert:` | Reverting a prior commit |
+| `release:` | Version bump + changelog (only on release flow, requires approval) |
+
+### Scope (optional but encouraged)
+
+Use a short scope in parentheses to indicate the affected area:
+
+- `fix(settings): live slider values during drag`
+- `feat(curseforge): modpack name deduplication`
+- `refactor(launch): split options.txt patcher into helper`
+- `chore(deps): bump tauri to 2.1`
+
+### Commit Message Rules
+
+- Imperative mood: "add X", "fix Y", not "added" or "fixes"
+- Summary line under ~70 chars
+- Lead with user-visible change, not implementation detail
+- Never mention other launcher projects by name
+- No emojis in subject lines
+
+## Releasing a New Version
+
+A release happens **only when the user explicitly asks** ("release", "ship", "tag", "push a release", "next version", etc.).
+
+### Pre-Release Checklist
+
+1. Frontend builds clean: `pnpm run build` from `Vermeil/`
+2. Rust compiles clean (zero warnings): `cargo check` from `Vermeil/src-tauri/`
+3. No diagnostics errors on key files
+4. All recent changes already committed and pushed (they should be — that's the daily workflow)
+5. Auto-updater endpoint URL in `tauri.conf.json` is correct
+6. Updater pubkey in `tauri.conf.json` matches the signing key used in CI
+
+### Files to Update Before Tagging
 
 Both files MUST have matching version numbers:
 
 1. `Vermeil/package.json` → `"version"` field
 2. `Vermeil/src-tauri/tauri.conf.json` → `"version"` field
 
-## Version Increment Rules (semver)
+### Version Increment Rules (semver)
 
 - **PATCH** (`0.1.0` → `0.1.1`): Bug fixes only, no new features, no breaking changes
 - **MINOR** (`0.1.5` → `0.2.0`): New features, backwards compatible
@@ -22,43 +77,50 @@ Both files MUST have matching version numbers:
 
 While in pre-1.0 development, anything goes — use MINOR for any meaningful change. Reserve `1.0.0` for production-ready milestone.
 
-## Commit Message Convention
+### Step-by-Step Release Flow
 
-| Type | Format | When to use |
-|------|--------|-------------|
-| Release | `release: X.Y.Z` | Version bump + changelog commit (the one that gets tagged) |
-| Feature | `feat: short description` | New user-visible functionality |
-| Fix | `fix: short description` | Bug fix |
-| Chore | `chore: short description` | Housekeeping, deps, CI changes |
-| Docs | `docs: short description` | Documentation only |
-| Refactor | `refactor: short description` | Code restructure, no behavior change |
+1. Confirm working tree is clean and pushed (`git status`, `git log origin/main..HEAD` should be empty)
+2. Bump version in `Vermeil/package.json` and `Vermeil/src-tauri/tauri.conf.json`
+3. Generate `CHANGELOG.md` from the conventional commits since the last tag:
+   - Run `git log <last-tag>..HEAD --oneline` to list commits
+   - Group by type into `### Added` (feat), `### Changed` (refactor/perf), `### Fixed` (fix)
+   - Replace `CHANGELOG.md` contents with the new section (don't prepend)
+4. Commit: `release: X.Y.Z` (this is the one commit that uses the `release:` prefix)
+5. Push: `git push`
+6. Tag: `git tag vX.Y.Z`
+7. Push tag: `git push origin vX.Y.Z`
 
-## Pre-Release Checklist
+### Changelog Generation Rules
 
-1. Frontend builds clean: `pnpm run build` from `Vermeil/`
-2. Rust compiles clean (zero warnings): `cargo check` from `Vermeil/src-tauri/`
-3. No diagnostics errors on key files
-4. Recent changes were committed and pushed
-5. Auto-updater endpoint URL in `tauri.conf.json` is correct
-6. Updater pubkey in `tauri.conf.json` matches the signing key used in CI
+When generating the changelog from conventional commits since the last tag:
 
-## Step-by-Step Release Flow
+- Map `feat:` → `### Added`
+- Map `fix:` → `### Fixed`
+- Map `refactor:` / `perf:` → `### Changed`
+- Skip `chore:`, `style:`, `docs:` unless user-visible (e.g. user-facing docs)
+- Rewrite the summary to be user-facing (no implementation jargon)
+- One line per bullet
+- No marketing language, no emojis, no other launcher mentions
 
-1. Check git status — confirm working tree is clean
-2. If uncommitted changes exist — stage and commit with appropriate prefix
-3. Bump version in both files
-4. Write `CHANGELOG.md` — replace contents with the new release section
-5. Commit: `release: X.Y.Z`
-6. Push
-7. Tag: `git tag vX.Y.Z`
-8. Push tag: `git push origin vX.Y.Z`
+### Changelog Format
 
-## Changelog Format
+```markdown
+## X.Y.Z
 
-- Replace file contents each release (don't prepend)
-- `## X.Y.Z` header + `### Added` / `### Changed` / `### Fixed` / `### Notes`
-- One line per bullet. Lead with user-visible change, not implementation.
-- No marketing language, no emojis, no other launcher mentions.
+### Added
+
+- New user-visible thing (from feat: commits)
+
+### Changed
+
+- Behavior tweak (from refactor:/perf: commits)
+
+### Fixed
+
+- Bug fix (from fix: commits)
+```
+
+Replace file contents on each release. Don't prepend.
 
 ## Version Cadence
 
@@ -68,5 +130,5 @@ While in pre-1.0 development, anything goes — use MINOR for any meaningful cha
 ## Tagging Rules
 
 - Always `v` prefix: `v0.2.3`
-- Never bump/tag without explicit user approval
-- Tags are immutable — never reuse
+- Never bump/tag without explicit user approval (the `release:` commit requires confirmation)
+- Tags are immutable — never reuse a tag once pushed

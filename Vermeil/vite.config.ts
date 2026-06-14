@@ -38,8 +38,9 @@ export default defineConfig(async () => ({
   // - `target` is set to the webview engine that Tauri actually ships, so we
   //   skip transpiling for browsers we'll never run in. Windows uses WebView2
   //   (Chromium ≥105). macOS Big Sur (Tauri 2's minimum) ships Safari 14, and
-  //   webkit2gtk 2.32+ on Linux is roughly equivalent — so `safari14` is the
-  //   conservative non-Windows target.
+  //   webkit2gtk 2.32+ on Linux is roughly equivalent — but esbuild 0.28
+  //   removed destructuring transforms for safari14, so we use `esnext` for
+  //   all platforms (Tauri's webview always supports modern ES).
   // - `minify` / `sourcemap` flip on `TAURI_ENV_DEBUG` so debug builds keep
   //   readable stack traces without paying the cost in release.
   // - `chunkSizeWarningLimit` is raised to 1000 because we ship as an MSI
@@ -47,9 +48,20 @@ export default defineConfig(async () => ({
   //   exceeds Vite's default is the lazy-loaded `Skins` chunk containing
   //   skinview3d + three.js — already split off the main bundle.
   build: {
-    target: platform === "windows" ? "chrome105" : "esnext",
+    target: "esnext",
     minify: !isDebug,
     sourcemap: isDebug,
     chunkSizeWarningLimit: 1000,
+  },
+
+  // esbuild target for dev mode (HMR transform + dependency pre-bundling).
+  // Must match build.target so dev and production use identical syntax rules.
+  esbuild: {
+    target: "esnext",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "esnext",
+    },
   },
 }));

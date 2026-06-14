@@ -1,21 +1,20 @@
-## 0.2.9
+## 0.3.0
 
 ### Added
 
-- Sound settings in global instance options: master and music volume sliders applied to options.txt before launch.
+- Window options (fullscreen, maximized, resolution) moved out of per-instance settings into Global Instance Settings. Resolution offers dropdown presets from 720p through 4K.
+- Official Modrinth and CurseForge brand marks now appear on the source toggle, with each button surface tinted in the matching brand color.
 
 ### Changed
 
-- Global instance settings redesigned into a responsive grid that auto-flows into 1, 2, or 3 columns based on window width.
-- Skin & cape changer redesigned: slimmer 3D viewport, capes and saved skins fit without scrolling, wider canvas so elytra wings don't clip at any rotation angle.
-- Individual "Reset" buttons in global instance settings consolidated into a single "Reset All" button.
+- Stop button now closes the game gracefully — sends WM_CLOSE on Windows / SIGTERM elsewhere so worlds save and chunks flush before exit. The "game crashed" toast no longer fires for user-initiated stops.
+- Logs clear automatically when re-launching an instance, instead of appending to the previous session's output.
+- Source toggle button restyled so the brand-colored icon fills the button without a constraining inner badge.
 
 ### Fixed
 
-- Slider values across the launcher (memory, FPS, FOV, volume, concurrency) now update live during drag with no visual lag or thumb distortion.
-- Memory slider in per-instance settings no longer triggers "EOF while parsing" errors when scrubbed quickly.
-- Instance settings JSON writes are now atomic, preventing race-induced corruption from concurrent saves.
-
-### Notes
-
-- Dependency hygiene: pinned esbuild ≥ 0.28.1 to address GHSA-gv7w-rqvm-qjhr (Deno-only RCE; Vermeil's Node-based build was never exposed). All Rust crates updated to latest compatible versions.
+- Maximize toggle now properly maximizes the Minecraft window via Win32 `ShowWindow(SW_MAXIMIZE)` once the GLFW window appears, instead of pushing it off-screen with absurd dimensions.
+- CurseForge icons render correctly when only the full-size `url` field is populated (some projects leave `thumbnailUrl` empty).
+- CurseForge CDN domains (`edge.forgecdn.net`, `mediafilez.forgecdn.net`) added to CSP `img-src` so all icon URLs load.
+- CurseForge loader filter now applies to modpack search — selecting "Fabric" actually narrows the results instead of being silently ignored.
+- "Follows" sort on CurseForge now maps to popularity sort instead of falling through to relevance (CurseForge has no follower count concept).

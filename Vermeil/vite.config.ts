@@ -36,7 +36,10 @@ export default defineConfig(async () => ({
 
   // Mirrors the recommended Tauri 2 vite config:
   // - `target` is set to the webview engine that Tauri actually ships, so we
-  //   skip transpiling for browsers we'll never run in.
+  //   skip transpiling for browsers we'll never run in. Windows uses WebView2
+  //   (Chromium ≥105). macOS Big Sur (Tauri 2's minimum) ships Safari 14, and
+  //   webkit2gtk 2.32+ on Linux is roughly equivalent — so `safari14` is the
+  //   conservative non-Windows target.
   // - `minify` / `sourcemap` flip on `TAURI_ENV_DEBUG` so debug builds keep
   //   readable stack traces without paying the cost in release.
   // - `chunkSizeWarningLimit` is raised to 1000 because we ship as an MSI
@@ -44,7 +47,7 @@ export default defineConfig(async () => ({
   //   exceeds Vite's default is the lazy-loaded `Skins` chunk containing
   //   skinview3d + three.js — already split off the main bundle.
   build: {
-    target: platform === "windows" ? "chrome105" : "safari13",
+    target: platform === "windows" ? "chrome105" : "esnext",
     minify: !isDebug,
     sourcemap: isDebug,
     chunkSizeWarningLimit: 1000,

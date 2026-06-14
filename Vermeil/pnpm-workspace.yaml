@@ -3,3 +3,9 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+# Pin esbuild >= 0.28.1 to address GHSA-gv7w-rqvm-qjhr (missing SHA-256
+# integrity check in the Deno install path). Vite 6 still pulls 0.25.x
+# transitively; this override forces the patched version.
+overrides:
+  esbuild: ">=0.28.1"

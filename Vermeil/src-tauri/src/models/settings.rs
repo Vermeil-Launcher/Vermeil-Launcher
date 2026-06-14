@@ -70,6 +70,14 @@ pub struct GlobalVideoSettings {
     /// FOV Effects scale (0.0 to 1.0). Controls how much speed/slowness affects
     /// the field of view (accessibility setting: fovEffectScale). None = don't override.
     pub fov_effects: Option<f64>,
+    /// Master volume (0.0 to 1.0). Maps to `soundCategory_master` in options.txt.
+    /// None = don't override.
+    #[serde(default)]
+    pub master_volume: Option<f64>,
+    /// Music volume (0.0 to 1.0). Maps to `soundCategory_music` in options.txt.
+    /// None = don't override.
+    #[serde(default)]
+    pub music_volume: Option<f64>,
 }
 
 fn default_concurrent_downloads() -> u8 { 10 }

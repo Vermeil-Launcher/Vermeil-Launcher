@@ -935,7 +935,9 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 || vs.view_bobbing.is_some()
                 || vs.gui_scale.is_some()
                 || vs.fov.is_some()
-                || vs.fov_effects.is_some();
+                || vs.fov_effects.is_some()
+                || vs.master_volume.is_some()
+                || vs.music_volume.is_some();
 
             if has_overrides {
                 let mut content = fs::read_to_string(&options_path).unwrap_or_default();
@@ -974,6 +976,12 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 }
                 if let Some(fov_effects) = vs.fov_effects {
                     patch(&mut content, "fovEffectScale", &format!("{:.6}", fov_effects));
+                }
+                if let Some(master) = vs.master_volume {
+                    patch(&mut content, "soundCategory_master", &format!("{:.6}", master));
+                }
+                if let Some(music) = vs.music_volume {
+                    patch(&mut content, "soundCategory_music", &format!("{:.6}", music));
                 }
 
                 let _ = fs::create_dir_all(&game_dir);

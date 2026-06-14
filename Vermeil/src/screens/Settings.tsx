@@ -467,84 +467,73 @@ const Settings: Component = () => {
         {/* ═══ INSTANCE OPTIONS ═══ */}
         <Show when={tab() === "instances"}>
           <div class="settings-section">
-            <div class="section-label" style="margin-bottom:8px">Video Settings</div>
-            <div class="settings-val" style="margin-bottom:12px">Applied to all instances on launch. Leave a setting on "Default" to keep whatever is set in-game.</div>
-            <div class="settings-group">
-              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
-                <div style="display:flex;align-items:center;justify-content:space-between">
-                  <div>
-                    <div class="settings-key">Max Framerate</div>
-                    <div class="settings-val">{settings()!.video_settings.max_fps === null ? "Default (in-game setting)" : settings()!.video_settings.max_fps === 260 ? "Unlimited" : `${settings()!.video_settings.max_fps} FPS`}</div>
-                  </div>
-                  <Show when={settings()!.video_settings.max_fps !== null}>
-                    <button class="btn" style="font-size:9px;padding:2px 8px" onClick={() => {
-                      const vs = { ...settings()!.video_settings, max_fps: null };
-                      updateSetting("video_settings", vs);
-                    }}>Reset</button>
-                  </Show>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <span style="font-size:10px;color:var(--muted);min-width:24px">10</span>
-                  <input
-                    type="range"
-                    min="10"
-                    max="260"
-                    step="10"
-                    value={settings()!.video_settings.max_fps ?? 120}
-                    class="memory-slider"
-                    style={`flex:1;--slider-pct:${((settings()!.video_settings.max_fps ?? 120) - 10) / 250 * 100}%`}
-                    onInput={(e) => {
-                      const val = parseInt(e.currentTarget.value);
-                      // Update fill immediately for smooth visual feedback
-                      e.currentTarget.style.setProperty('--slider-pct', `${(val - 10) / 250 * 100}%`);
-                      const vs = { ...settings()!.video_settings, max_fps: val };
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div class="section-label" style="margin-bottom:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Video</div>
+              <button class="btn" style="font-size:9px;padding:3px 10px" onClick={() => {
+                const vs = { max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null };
+                updateSetting("video_settings", vs);
+              }}>Reset All</button>
+            </div>
+            <div class="settings-group" style="gap:6px">
+              {/* Max Framerate — inline slider */}
+              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
+                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">Max FPS</div>
+                <input
+                  type="range"
+                  min="10"
+                  max="260"
+                  step="10"
+                  value={settings()!.video_settings.max_fps ?? 120}
+                  class="memory-slider"
+                  style={`flex:1;--slider-pct:${((settings()!.video_settings.max_fps ?? 120) - 10) / 250 * 100}%`}
+                  onInput={(e) => {
+                    const val = parseInt(e.currentTarget.value);
+                    e.currentTarget.style.setProperty('--slider-pct', `${(val - 10) / 250 * 100}%`);
+                    const vs = { ...settings()!.video_settings, max_fps: val };
+                    updateSetting("video_settings", vs);
+                  }}
+                />
+                <span style="font-size:9px;color:var(--muted);min-width:52px;text-align:right">{settings()!.video_settings.max_fps === null ? "Default" : settings()!.video_settings.max_fps === 260 ? "Unlimited" : `${settings()!.video_settings.max_fps} FPS`}</span>
+              </div>
+
+              {/* VSync + View Bobbing — 2-column grid */}
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div class="settings-row" style="padding:6px 10px;align-items:center">
+                  <div class="settings-key" style="font-size:11px;flex:1">VSync</div>
+                  <Dropdown
+                    value={settings()!.video_settings.vsync === null ? "default" : settings()!.video_settings.vsync ? "true" : "false"}
+                    options={[
+                      { value: "default", label: "Default" },
+                      { value: "true", label: "On" },
+                      { value: "false", label: "Off" },
+                    ]}
+                    onChange={(val) => {
+                      const vs = { ...settings()!.video_settings, vsync: val === "default" ? null : val === "true" };
                       updateSetting("video_settings", vs);
                     }}
                   />
-                  <span style="font-size:10px;color:var(--muted);min-width:24px">260</span>
+                </div>
+                <div class="settings-row" style="padding:6px 10px;align-items:center">
+                  <div class="settings-key" style="font-size:11px;flex:1">View Bobbing</div>
+                  <Dropdown
+                    value={settings()!.video_settings.view_bobbing === null ? "default" : settings()!.video_settings.view_bobbing ? "true" : "false"}
+                    options={[
+                      { value: "default", label: "Default" },
+                      { value: "true", label: "On" },
+                      { value: "false", label: "Off" },
+                    ]}
+                    onChange={(val) => {
+                      const vs = { ...settings()!.video_settings, view_bobbing: val === "default" ? null : val === "true" };
+                      updateSetting("video_settings", vs);
+                    }}
+                  />
                 </div>
               </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">VSync</div>
-                  <div class="settings-val">{settings()!.video_settings.vsync === null ? "Default (in-game setting)" : settings()!.video_settings.vsync ? "On" : "Off"}</div>
-                </div>
-                <Dropdown
-                  value={settings()!.video_settings.vsync === null ? "default" : settings()!.video_settings.vsync ? "true" : "false"}
-                  options={[
-                    { value: "default", label: "Default" },
-                    { value: "true", label: "On" },
-                    { value: "false", label: "Off" },
-                  ]}
-                  onChange={(val) => {
-                    const vs = { ...settings()!.video_settings, vsync: val === "default" ? null : val === "true" };
-                    updateSetting("video_settings", vs);
-                  }}
-                />
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">View Bobbing</div>
-                  <div class="settings-val">{settings()!.video_settings.view_bobbing === null ? "Default (in-game setting)" : settings()!.video_settings.view_bobbing ? "On" : "Off"}</div>
-                </div>
-                <Dropdown
-                  value={settings()!.video_settings.view_bobbing === null ? "default" : settings()!.video_settings.view_bobbing ? "true" : "false"}
-                  options={[
-                    { value: "default", label: "Default" },
-                    { value: "true", label: "On" },
-                    { value: "false", label: "Off" },
-                  ]}
-                  onChange={(val) => {
-                    const vs = { ...settings()!.video_settings, view_bobbing: val === "default" ? null : val === "true" };
-                    updateSetting("video_settings", vs);
-                  }}
-                />
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">GUI Scale</div>
-                  <div class="settings-val">{settings()!.video_settings.gui_scale === null ? "Default (in-game setting)" : settings()!.video_settings.gui_scale === 0 ? "Auto" : ["Auto", "Small", "Normal", "Large", "Huge"][settings()!.video_settings.gui_scale!]}</div>
-                </div>
+
+              {/* GUI Scale — inline */}
+              <div class="settings-row" style="padding:6px 10px;align-items:center">
+                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">GUI Scale</div>
+                <div style="flex:1" />
                 <Dropdown
                   value={settings()!.video_settings.gui_scale === null ? "default" : String(settings()!.video_settings.gui_scale)}
                   options={[
@@ -561,75 +550,99 @@ const Settings: Component = () => {
                   }}
                 />
               </div>
-              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
-                <div style="display:flex;align-items:center;justify-content:space-between">
-                  <div>
-                    <div class="settings-key">FOV</div>
-                    <div class="settings-val">{settings()!.video_settings.fov === null ? "Default (in-game setting)" : `${Math.round(40 * settings()!.video_settings.fov! + 70)}°`}</div>
-                  </div>
-                  <Show when={settings()!.video_settings.fov !== null}>
-                    <button class="btn" style="font-size:9px;padding:2px 8px" onClick={() => {
-                      const vs = { ...settings()!.video_settings, fov: null };
-                      updateSetting("video_settings", vs);
-                    }}>Reset</button>
-                  </Show>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <span style="font-size:10px;color:var(--muted);min-width:28px">30°</span>
-                  <input
-                    type="range"
-                    min="30"
-                    max="110"
-                    step="1"
-                    value={settings()!.video_settings.fov === null ? 70 : Math.round(40 * settings()!.video_settings.fov + 70)}
-                    class="memory-slider"
-                    style={`flex:1;--slider-pct:${((settings()!.video_settings.fov === null ? 70 : Math.round(40 * settings()!.video_settings.fov + 70)) - 30) / 80 * 100}%`}
-                    onInput={(e) => {
-                      const degrees = parseInt(e.currentTarget.value);
-                      // Update fill immediately for smooth visual feedback
-                      e.currentTarget.style.setProperty('--slider-pct', `${(degrees - 30) / 80 * 100}%`);
-                      const fovValue = (degrees - 70) / 40;
-                      const vs = { ...settings()!.video_settings, fov: fovValue };
-                      updateSetting("video_settings", vs);
-                    }}
-                  />
-                  <span style="font-size:10px;color:var(--muted);min-width:32px">110°</span>
-                </div>
+
+              {/* FOV — inline slider */}
+              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
+                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">FOV</div>
+                <input
+                  type="range"
+                  min="30"
+                  max="110"
+                  step="1"
+                  value={settings()!.video_settings.fov === null ? 70 : Math.round(40 * settings()!.video_settings.fov + 70)}
+                  class="memory-slider"
+                  style={`flex:1;--slider-pct:${((settings()!.video_settings.fov === null ? 70 : Math.round(40 * settings()!.video_settings.fov + 70)) - 30) / 80 * 100}%`}
+                  onInput={(e) => {
+                    const degrees = parseInt(e.currentTarget.value);
+                    e.currentTarget.style.setProperty('--slider-pct', `${(degrees - 30) / 80 * 100}%`);
+                    const fovValue = (degrees - 70) / 40;
+                    const vs = { ...settings()!.video_settings, fov: fovValue };
+                    updateSetting("video_settings", vs);
+                  }}
+                />
+                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.fov === null ? "Default" : `${Math.round(40 * settings()!.video_settings.fov! + 70)}°`}</span>
               </div>
-              <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
-                <div style="display:flex;align-items:center;justify-content:space-between">
-                  <div>
-                    <div class="settings-key">FOV Effects</div>
-                    <div class="settings-val">{settings()!.video_settings.fov_effects === null ? "Default (in-game setting)" : `${Math.round(settings()!.video_settings.fov_effects! * 100)}%`}</div>
-                  </div>
-                  <Show when={settings()!.video_settings.fov_effects !== null}>
-                    <button class="btn" style="font-size:9px;padding:2px 8px" onClick={() => {
-                      const vs = { ...settings()!.video_settings, fov_effects: null };
-                      updateSetting("video_settings", vs);
-                    }}>Reset</button>
-                  </Show>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <span style="font-size:10px;color:var(--muted);min-width:24px">0%</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={settings()!.video_settings.fov_effects === null ? 100 : Math.round(settings()!.video_settings.fov_effects * 100)}
-                    class="memory-slider"
-                    style={`flex:1;--slider-pct:${(settings()!.video_settings.fov_effects === null ? 100 : Math.round(settings()!.video_settings.fov_effects * 100))}%`}
-                    onInput={(e) => {
-                      const pct = parseInt(e.currentTarget.value);
-                      e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
-                      const vs = { ...settings()!.video_settings, fov_effects: pct / 100 };
-                      updateSetting("video_settings", vs);
-                    }}
-                  />
-                  <span style="font-size:10px;color:var(--muted);min-width:32px">100%</span>
-                </div>
+
+              {/* FOV Effects — inline slider */}
+              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
+                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">FOV Effects</div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={settings()!.video_settings.fov_effects === null ? 100 : Math.round(settings()!.video_settings.fov_effects * 100)}
+                  class="memory-slider"
+                  style={`flex:1;--slider-pct:${(settings()!.video_settings.fov_effects === null ? 100 : Math.round(settings()!.video_settings.fov_effects * 100))}%`}
+                  onInput={(e) => {
+                    const pct = parseInt(e.currentTarget.value);
+                    e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
+                    const vs = { ...settings()!.video_settings, fov_effects: pct / 100 };
+                    updateSetting("video_settings", vs);
+                  }}
+                />
+                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.fov_effects === null ? "Default" : `${Math.round(settings()!.video_settings.fov_effects! * 100)}%`}</span>
               </div>
             </div>
+          </div>
+
+          {/* Sound section */}
+          <div class="settings-section">
+            <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Sound</div>
+            <div class="settings-group" style="gap:6px">
+              {/* Master Volume — inline slider */}
+              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
+                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">Master</div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={settings()!.video_settings.master_volume === null ? 100 : Math.round(settings()!.video_settings.master_volume * 100)}
+                  class="memory-slider"
+                  style={`flex:1;--slider-pct:${(settings()!.video_settings.master_volume === null ? 100 : Math.round(settings()!.video_settings.master_volume * 100))}%`}
+                  onInput={(e) => {
+                    const pct = parseInt(e.currentTarget.value);
+                    e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
+                    const vs = { ...settings()!.video_settings, master_volume: pct / 100 };
+                    updateSetting("video_settings", vs);
+                  }}
+                />
+                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.master_volume === null ? "Default" : `${Math.round(settings()!.video_settings.master_volume! * 100)}%`}</span>
+              </div>
+
+              {/* Music Volume — inline slider */}
+              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
+                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">Music</div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={settings()!.video_settings.music_volume === null ? 100 : Math.round(settings()!.video_settings.music_volume * 100)}
+                  class="memory-slider"
+                  style={`flex:1;--slider-pct:${(settings()!.video_settings.music_volume === null ? 100 : Math.round(settings()!.video_settings.music_volume * 100))}%`}
+                  onInput={(e) => {
+                    const pct = parseInt(e.currentTarget.value);
+                    e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
+                    const vs = { ...settings()!.video_settings, music_volume: pct / 100 };
+                    updateSetting("video_settings", vs);
+                  }}
+                />
+                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.music_volume === null ? "Default" : `${Math.round(settings()!.video_settings.music_volume! * 100)}%`}</span>
+              </div>
+            </div>
+            <div class="settings-val" style="margin-top:8px;font-size:9px">Applied to all instances on launch. "Default" keeps whatever is set in-game.</div>
           </div>
 
           <div class="settings-section">

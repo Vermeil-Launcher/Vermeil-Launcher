@@ -125,6 +125,8 @@ export interface LauncherSettings {
     gui_scale: number | null;
     fov: number | null;
     fov_effects: number | null;
+    master_volume: number | null;
+    music_volume: number | null;
   };
   /**
    * User-customizable keyboard shortcuts. Map of action ID → key combo

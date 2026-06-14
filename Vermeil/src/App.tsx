@@ -345,6 +345,14 @@ const App: Component = () => {
       setGameRunning(false);
     });
 
+    // Re-fetch instances when modpack metadata enrichment completes in the
+    // background. The install command returns immediately for snappy UX;
+    // the backend then enriches mod metadata + checks cross-platform
+    // availability and emits this event so cards can update.
+    listen<string>("instance-enriched", () => {
+      refetchInstances();
+    });
+
     listen<string | null>("game-crashed", (event) => {
       setGameRunning(false);
       const crashPath = event.payload;

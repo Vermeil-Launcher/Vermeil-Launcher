@@ -1,7 +1,7 @@
 import { Component, For, Show, createSignal, onMount, onCleanup } from "solid-js";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, refetchInstances, refreshPinnedInstanceIds } from "../App";
 import { Instance, deleteInstance, renameInstance, getSettings } from "../ipc/commands";
-import { IconPlus } from "../components/Icons";
+import { IconPlus, IconModrinth, IconCurseForge } from "../components/Icons";
 
 function loaderBadgeClass(loader: string): string {
   switch (loader) {
@@ -204,6 +204,12 @@ const Library: Component = () => {
                       {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
                     </span>
                     <span class="inst-badge badge-ram">{inst.java.memory_max_mb} MB</span>
+                    <Show when={(inst.source_platforms || []).includes("modrinth")}>
+                      <span class="inst-badge badge-source-mr" title="Available on Modrinth"><IconModrinth /></span>
+                    </Show>
+                    <Show when={(inst.source_platforms || []).includes("curseforge")}>
+                      <span class="inst-badge badge-source-cf" title="Available on CurseForge"><IconCurseForge /></span>
+                    </Show>
                   </div>
                 </div>
               </div>

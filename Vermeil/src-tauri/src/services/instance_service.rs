@@ -71,7 +71,7 @@ pub async fn create(config: CreateInstanceConfig) -> Result<Instance, Box<dyn st
         window: WindowConfig::default(),
         mods: Vec::new(),
         source_project_id: None,
-        source_platform: None,
+        source_platforms: Vec::new(),
     };
 
     // Write instance.json

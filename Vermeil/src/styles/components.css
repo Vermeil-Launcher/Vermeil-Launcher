@@ -130,6 +130,10 @@
   background: var(--bg4); border: 1px solid var(--border); border-radius: 20px;
   padding: 2px 9px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px;
 }
+.ctx-badge.badge-source-mr { background: rgba(27, 217, 106, 0.12); border-color: rgba(27, 217, 106, 0.3); color: #1bd96a; padding: 2px 7px; }
+.ctx-badge.badge-source-mr svg { width: 13px; height: 13px; }
+.ctx-badge.badge-source-cf { background: rgba(241, 100, 54, 0.12); border-color: rgba(241, 100, 54, 0.3); color: #f16436; padding: 2px 7px; }
+.ctx-badge.badge-source-cf svg { width: 13px; height: 13px; }
 .ctx-tabs {
   display: flex; gap: 4px; margin-left: 12px;
 }

@@ -783,10 +783,10 @@ const Settings: Component = () => {
                             <Show when={inst.window.fullscreen}>
                               <span class="inst-badge" style="background:var(--bg4);color:var(--accent-cyan)">Fullscreen</span>
                             </Show>
-                            <Show when={inst.source_platform === "modrinth"}>
+                            <Show when={(inst.source_platforms || []).includes("modrinth")}>
                               <span class="inst-badge badge-source-mr"><IconModrinth /></span>
                             </Show>
-                            <Show when={inst.source_platform === "curseforge"}>
+                            <Show when={(inst.source_platforms || []).includes("curseforge")}>
                               <span class="inst-badge badge-source-cf"><IconCurseForge /></span>
                             </Show>
                           </div>

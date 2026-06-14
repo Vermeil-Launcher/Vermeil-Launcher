@@ -792,6 +792,12 @@ const InstanceMods: Component = () => {
           </span>
         </Show>
         <span class="ctx-badge" style="background:var(--bg4);color:var(--muted)">{instance()?.game_version}</span>
+        <Show when={(instance()?.source_platforms || []).includes("modrinth")}>
+          <span class="ctx-badge badge-source-mr" title="Available on Modrinth"><IconModrinth /></span>
+        </Show>
+        <Show when={(instance()?.source_platforms || []).includes("curseforge")}>
+          <span class="ctx-badge badge-source-cf" title="Available on CurseForge"><IconCurseForge /></span>
+        </Show>
 
         <div class="ctx-action-group">
           <div class="ctx-tabs">

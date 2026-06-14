@@ -118,11 +118,13 @@ pub struct Instance {
     /// Modrinth or CurseForge project ID if this instance was created from a modpack
     #[serde(default)]
     pub source_project_id: Option<String>,
-    /// Which platform the instance (modpack) was installed from: "modrinth",
-    /// "curseforge", or None for custom-created instances. Used to render a
-    /// source badge on the Library card.
+    /// Which platform(s) this modpack is available on. `["modrinth"]`,
+    /// `["curseforge"]`, or both if the same pack is published on both.
+    /// Empty for custom-created instances. Populated at install time and
+    /// extended during the post-install enrichment pass when a
+    /// cross-platform match is found.
     #[serde(default)]
-    pub source_platform: Option<String>,
+    pub source_platforms: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

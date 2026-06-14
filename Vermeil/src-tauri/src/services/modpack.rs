@@ -328,7 +328,7 @@ pub async fn install_from_mrpack_file(
         window: WindowConfig::default(),
         mods: mod_entries,
         source_project_id,
-        source_platform: Some("modrinth".to_string()),
+        source_platforms: vec!["modrinth".to_string()],
     };
 
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
@@ -350,6 +350,7 @@ pub async fn install_from_mrpack_file(
     // On failure, delete the partially-created instance directory so no broken
     // instance shows up in the library.
     let window_for_revalidate = window.clone();
+    let window_for_enrichment_outer = window.clone();
     if let Err(e) = prepare_with_extras(&instance, mod_tasks, Some(post), window).await {
         tracing::error!("Modpack prepare failed, cleaning up instance {}: {}", id, e);
         let _ = fs::remove_dir_all(&instance_dir);
@@ -364,12 +365,22 @@ pub async fn install_from_mrpack_file(
         tracing::warn!("Loader revalidation failed for {} (non-fatal): {}", id, e);
     }
 
-    // Enrich mod metadata (titles, icons, authors) from APIs. Best-effort —
-    // failures just leave cards with filename-only display until the user
-    // manually installs/updates the affected mods.
-    if let Err(e) = enrich_mod_metadata(&id).await {
-        tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", id, e);
-    }
+    // Enrich mod metadata (titles, icons, authors) from APIs in the
+    // background so the install completes (and the Library card appears)
+    // immediately. The frontend listens for the `instance-enriched` event
+    // and re-fetches instances when it fires.
+    let id_for_enrichment = id.clone();
+    let window_for_enrichment = window_for_enrichment_outer;
+    tokio::spawn(async move {
+        if let Err(e) = enrich_mod_metadata(&id_for_enrichment).await {
+            tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", id_for_enrichment, e);
+        }
+        // Notify the frontend so it can refresh instance metadata.
+        if let Some(w) = window_for_enrichment {
+            use tauri::Emitter;
+            let _ = w.emit("instance-enriched", id_for_enrichment.clone());
+        }
+    });
 
     // Re-read the (possibly loader-bumped) instance so the returned value
     // reflects the final state.
@@ -464,6 +475,7 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
                         for mod_data in data {
                             let project_id = mod_data.get("id").and_then(|i| i.as_u64()).unwrap_or(0).to_string();
                             let title = mod_data.get("name").and_then(|n| n.as_str()).map(|s| s.to_string());
+                            let description = mod_data.get("summary").and_then(|s| s.as_str()).map(|s| s.to_string());
                             let icon = mod_data.get("logo")
                                 .and_then(|l| {
                                     let thumb = l.get("thumbnailUrl").and_then(|u| u.as_str()).filter(|s| !s.is_empty());
@@ -484,6 +496,7 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
                                     entry.title = title.clone();
                                     entry.icon_url = icon.clone();
                                     entry.author = author.clone();
+                                    entry.description = description.clone();
                                     // Cache icon locally
                                     if let Some(ref url) = icon {
                                         entry.local_icon_path = crate::services::icon_cache::cache_remote_icon(url).await;
@@ -565,12 +578,14 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
                                     for project in &projects {
                                         let pid = project.get("id").and_then(|i| i.as_str()).unwrap_or("");
                                         let title = project.get("title").and_then(|t| t.as_str()).map(|s| s.to_string());
+                                        let description = project.get("description").and_then(|d| d.as_str()).map(|s| s.to_string());
                                         let icon = project.get("icon_url").and_then(|u| u.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
 
                                         for entry in instance.mods.iter_mut() {
                                             if entry.project_id == pid && entry.title.is_none() {
                                                 entry.title = title.clone();
                                                 entry.icon_url = icon.clone();
+                                                entry.description = description.clone();
                                                 if let Some(ref url) = icon {
                                                     entry.local_icon_path = crate::services::icon_cache::cache_remote_icon(url).await;
                                                 }
@@ -586,11 +601,86 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
         }
     }
 
+    // Cross-platform detection: if this instance was installed from one
+    // platform, check if the same modpack (by title) is also published on
+    // the other. If so, append the other platform to source_platforms so
+    // the UI can show both source badges. Best-effort — failures are
+    // silent and just leave the single-platform badge.
+    if instance.source_platforms.len() == 1 && !instance.name.is_empty() {
+        let installed_platform = instance.source_platforms[0].clone();
+        let other = match installed_platform.as_str() {
+            "modrinth" => "curseforge",
+            "curseforge" => "modrinth",
+            _ => "",
+        };
+        if !other.is_empty() {
+            if let Some(_) = check_other_platform(&instance.name, other, &api_key).await {
+                instance.source_platforms.push(other.to_string());
+                tracing::info!("Detected '{}' is also on {}", instance.name, other);
+            }
+        }
+    }
+
     // Write enriched instance back
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
     crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
     tracing::info!("Enriched mod metadata for instance {}", instance_id);
     Ok(())
+}
+
+/// Search the given platform for a modpack matching the supplied name.
+/// Returns Some(()) when a likely match is found (case-insensitive,
+/// alphanumeric-only string equality on titles). Used by the enrichment
+/// pass to detect cross-platform availability.
+async fn check_other_platform(name: &str, platform: &str, api_key: &str) -> Option<()> {
+    // Normalize: lowercase + strip non-alphanumerics. Catches differences
+    // like "Fabulously Optimized" vs "fabulously-optimized" or "RLCraft"
+    // vs "RL Craft".
+    fn normalize(s: &str) -> String {
+        s.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect()
+    }
+    let target = normalize(name);
+    if target.is_empty() {
+        return None;
+    }
+
+    if platform == "modrinth" {
+        // Modrinth modpack search
+        let url = format!(
+            "https://api.modrinth.com/v2/search?query={}&facets=[[\"project_type:modpack\"]]&limit=5",
+            urlencoding::encode(name),
+        );
+        let resp = crate::util::http::HTTP.get(&url).send().await.ok()?;
+        let v: serde_json::Value = resp.json().await.ok()?;
+        let hits = v.get("hits")?.as_array()?;
+        for hit in hits {
+            let title = hit.get("title")?.as_str()?;
+            if normalize(title) == target {
+                return Some(());
+            }
+        }
+    } else if platform == "curseforge" {
+        // CurseForge modpack search (classId 4471)
+        let url = format!(
+            "https://api.curseforge.com/v1/mods/search?gameId=432&classId=4471&searchFilter={}&pageSize=5",
+            urlencoding::encode(name),
+        );
+        let resp = crate::util::http::HTTP
+            .get(&url)
+            .header("x-api-key", api_key)
+            .send()
+            .await
+            .ok()?;
+        let v: serde_json::Value = resp.json().await.ok()?;
+        let data = v.get("data")?.as_array()?;
+        for hit in data {
+            let title = hit.get("name")?.as_str()?;
+            if normalize(title) == target {
+                return Some(());
+            }
+        }
+    }
+    None
 }
 
 /// Generate a unique instance name by appending "(N)" if needed. Shared with

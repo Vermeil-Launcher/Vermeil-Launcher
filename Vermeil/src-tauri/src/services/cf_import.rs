@@ -151,7 +151,7 @@ pub async fn import_zip(
         total_play_seconds: 0,
         created_at: chrono::Utc::now().to_rfc3339(),
         source_project_id,
-        source_platform: Some("curseforge".to_string()),
+        source_platforms: vec!["curseforge".to_string()],
     };
 
     // Save instance.json
@@ -176,6 +176,7 @@ pub async fn import_zip(
     // On failure, delete the partially-created instance directory so no broken
     // instance shows up in the library.
     let window_for_revalidate = window.clone();
+    let window_for_enrichment = window.clone();
     if let Err(e) = prepare_with_extras(&instance, mod_tasks, Some(post), window).await {
         tracing::error!("CurseForge import prepare failed, cleaning up instance {}: {}", instance_id, e);
         let _ = fs::remove_dir_all(&instance_dir);
@@ -188,10 +189,19 @@ pub async fn import_zip(
         tracing::warn!("Loader revalidation failed for {} (non-fatal): {}", instance_id, e);
     }
 
-    // Enrich mod metadata (titles, icons, authors) from APIs.
-    if let Err(e) = crate::services::modpack::enrich_mod_metadata(&instance_id).await {
-        tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", instance_id, e);
-    }
+    // Enrich mod metadata in the background so the install completes
+    // immediately. The frontend listens for `instance-enriched` events
+    // and refetches when it fires.
+    let id_for_enrichment = instance_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::services::modpack::enrich_mod_metadata(&id_for_enrichment).await {
+            tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", id_for_enrichment, e);
+        }
+        if let Some(w) = window_for_enrichment {
+            use tauri::Emitter;
+            let _ = w.emit("instance-enriched", id_for_enrichment.clone());
+        }
+    });
 
     let final_instance = crate::services::instance_service::get_by_id(&instance_id)
         .await
@@ -301,7 +311,7 @@ pub async fn import_profile_code(
                 total_play_seconds: 0,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 source_project_id: None,
-                source_platform: Some("curseforge".to_string()),
+                source_platforms: vec!["curseforge".to_string()],
             };
 
             let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;

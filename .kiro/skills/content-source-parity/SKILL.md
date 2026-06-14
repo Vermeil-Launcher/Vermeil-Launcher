@@ -1,12 +1,13 @@
 ---
-inclusion: always
+name: content-source-parity
+description: Implement or modify any feature that flows through both Modrinth and CurseForge (search, browse, install, update checks, metadata fetches). Use when touching services/modrinth.rs, services/curseforge.rs, services/cf_*.rs, commands/mods.rs, BrowseModpacks.tsx, or the Browse tab in InstanceMods.tsx. Documents the API differences between the two sources so features don't silently break for one of them.
 ---
 
 # Content Source Parity (Modrinth ↔ CurseForge)
 
 When implementing or modifying any feature that flows through both **Modrinth** and **CurseForge** (search, browse, install, update checks, metadata fetches), the two APIs are similar but never identical. Treating them as interchangeable is how features quietly break for one of the two sources.
 
-This document is the rule for cross-source work. Read it before touching anything in `services/modrinth.rs`, `services/curseforge.rs`, `services/cf_*.rs`, `commands/mods.rs`, `BrowseModpacks.tsx`, or the Browse tab in `InstanceMods.tsx`.
+This is the reference for cross-source work. Read it before touching anything in `services/modrinth.rs`, `services/curseforge.rs`, `services/cf_*.rs`, `commands/mods.rs`, `BrowseModpacks.tsx`, or the Browse tab in `InstanceMods.tsx`.
 
 ## The Rule
 

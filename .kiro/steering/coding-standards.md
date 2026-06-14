@@ -134,6 +134,26 @@ When adding a new screen:
 4. ☐ Title added to `screenTitles` record
 5. ☐ Sidebar entry added (if applicable)
 
+## Parallel Implementations (Feature Parity)
+
+Many features in this project have **two or more parallel implementations** of the same logical concept. When you change one, the others almost always need the same change. Skipping a parallel surface is one of the easiest ways to ship a bug.
+
+Recognize these parallel groups before making changes:
+
+| Parallel group | Surfaces |
+|----------------|----------|
+| **Mod content sources** | `services/modrinth.rs`, `services/curseforge.rs`, `services/cf_*.rs`. See the `content-source-parity` skill for the full API differences cheat sheet. |
+| **Mod loaders** | `services/fabric.rs`, `services/quilt.rs`, `services/neoforge.rs` (handles Forge too). Adding a feature to one loader's installer? The others need the same. |
+| **Account types** | Microsoft (online) and offline accounts. New profile field → both paths must populate it. |
+| **Launch entry points** | `Home.tsx` and `FloatingDock.tsx` both call `launchInstance`. State setup before launch (clearing logs, setting flags, ensuring account) must match between them. |
+| **IPC contracts** | Every Rust `#[tauri::command]` has a TypeScript wrapper in `ipc/commands.ts`. Change the Rust signature → update the wrapper. New return field → update the TypeScript interface. |
+| **Tauri events** | Every backend `emit()` has a frontend `listen()`. Rename or add an event → update all subscribers. |
+| **Per-platform code** | `#[cfg(windows)]` / `#[cfg(unix)]` branches. Don't fix only one branch unless the bug is platform-specific. |
+
+**Rule:** before considering a change done, ask "what other code does the same thing for a different variant?" Locate every parallel surface, apply the same change, and verify each one before pushing.
+
+If a parallel surface genuinely can't support the feature (e.g. CurseForge has no follower count, so a "follows" sort has no direct equivalent), document the gap with a code comment naming the missing capability — and pick a sensible nearest-equivalent rather than letting the feature silently fail on that surface.
+
 ## Things That Are Never Acceptable
 
 - Creating a new `reqwest::Client` instead of using the shared one

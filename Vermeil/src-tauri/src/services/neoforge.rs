@@ -469,7 +469,9 @@ async fn ensure_installer_ran(
         }
 
         // Copy to instance dir for the installer to use (it writes files
-        // relative to its own directory)
+        // relative to its own directory). Ensure the instance dir exists —
+        // fs::copy (unlike download_file) won't create the parent.
+        fs::create_dir_all(instance_dir).map_err(|e| format!("Create instance dir: {}", e))?;
         let installer_path = instance_dir.join("loader-installer.jar");
         fs::copy(&cached_installer, &installer_path)
             .map_err(|e| format!("Copy cached installer: {}", e))?;

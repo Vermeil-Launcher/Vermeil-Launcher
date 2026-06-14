@@ -115,6 +115,12 @@ const InstanceMods: Component = () => {
   // backend is in install order (push at end), so newest = reversed list.
   const [installedSearch, setInstalledSearch] = createSignal("");
   const [installedSort, setInstalledSort] = createSignal<"newest" | "oldest">("newest");
+  // Installed-list pagination. Mirrors Browse but holds its own state so
+  // jumping between Installed and Browse doesn't reset the other tab's
+  // page. Default 24 fits roughly two screens at standard window size and
+  // matches the value the user agreed on for "feels instant on big packs".
+  const [installedPage, setInstalledPage] = createSignal(1);
+  const [installedView, setInstalledView] = createSignal(24);
 
   // Map of project_id → ModUpdate. Populated by `checkModUpdates` whenever the
   // Installed tab is opened so each card can render an "Update" pill without
@@ -593,11 +599,80 @@ const InstanceMods: Component = () => {
     }, 150); // Debounce rapid slider changes
   };
 
+  // ─── Installed tab: client-side filter + pagination ────────────────────
+  // The Installed list operates on `instance().mods` (already in memory),
+  // unlike Browse which pages a remote search. We derive the filtered +
+  // sorted list once per dependency change and slice it for the active
+  // page so `<For>` and `installedTotalPages` always see the same data.
+  const installedFiltered = (): any[] => {
+    const mods = instance()?.mods || [];
+    const f = installedFilter();
+    const q = installedSearch().trim().toLowerCase();
+    const filtered = mods.filter(m => {
+      const cat = (m as any).category || "mod";
+      if (f !== "all" && cat !== f) return false;
+      if (q) {
+        const haystack = ((m.title || m.filename) + " " + (m.description || "")).toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+    // Backend pushes new mods to the end of the Vec, so the array is
+    // already in install order (oldest → newest). Reverse for newest-first.
+    return installedSort() === "newest" ? filtered.slice().reverse() : filtered;
+  };
+
+  const installedTotalPages = (): number =>
+    Math.max(1, Math.ceil(installedFiltered().length / installedView()));
+
+  const installedPaged = (): any[] => {
+    const list = installedFiltered();
+    const start = (installedPage() - 1) * installedView();
+    return list.slice(start, start + installedView());
+  };
+
+  const goToInstalledPage = (page: number) => {
+    if (page < 1 || page > installedTotalPages()) return;
+    setInstalledPage(page);
+  };
+
+  // Reset to page 1 whenever the visible list changes shape. Mirror Browse's
+  // pattern (handleSourceToggle / handleSearch / handleViewChange all reset
+  // currentPage). For Installed we react to the underlying signals rather
+  // than wrapping every onInput in a handler, since several entry points
+  // (filter pills, search box, sort, instance switch) all need the reset.
+  createEffect(() => {
+    installedFilter();
+    installedSearch();
+    installedView();
+    installedSort();
+    activeInstanceId();
+    setInstalledPage(1);
+  });
+
+  // Clamp the active page if the underlying list shrinks (e.g. the user
+  // deletes mods until page 4 no longer exists). Without this the dock
+  // would show a current page past the new total and `installedPaged()`
+  // would return an empty slice.
+  createEffect(() => {
+    const total = installedTotalPages();
+    if (installedPage() > total) setInstalledPage(total);
+  });
+
   // Push pagination state into the dock when the browse tab is active and
   // there are multiple pages. Clear it otherwise so the dock hides the controls.
   createEffect(() => {
     if (mainTab() === "content" && contentTab() === "browse" && totalPages() > 1) {
       setDockPagination({ current: currentPage(), total: totalPages(), onPageChange: goToPage });
+    } else if (mainTab() === "content" && contentTab() === "installed" && installedTotalPages() > 1) {
+      // Installed tab pages a frontend-only array (no debounced search to
+      // call). The dock's island UI stays the same — only the page-change
+      // callback differs.
+      setDockPagination({
+        current: installedPage(),
+        total: installedTotalPages(),
+        onPageChange: goToInstalledPage,
+      });
     } else {
       setDockPagination(null);
     }
@@ -1245,6 +1320,31 @@ const InstanceMods: Component = () => {
               {checkingUpdates() ? "Checking..." : "Check updates"}
             </button>
           </div>
+          {/* Page-size selector. Mirrors the Browse tab's `.browse-controls`
+              row so styling is shared. The prev/next/jump-to-page UI lives
+              in the floating dock — pushed there by the createEffect above. */}
+          <Show when={installedFiltered().length > installedView()}>
+            <div class="browse-controls">
+              <div class="control-group">
+                <span class="control-label">View:</span>
+                <select
+                  class="control-select"
+                  value={installedView()}
+                  onChange={(e) => setInstalledView(parseInt(e.currentTarget.value))}
+                >
+                  <For each={VIEW_OPTIONS}>{(n) => <option value={n}>{n}</option>}</For>
+                </select>
+              </div>
+              <span class="control-total">
+                {(() => {
+                  const total = installedFiltered().length;
+                  const start = (installedPage() - 1) * installedView() + 1;
+                  const end = Math.min(start + installedView() - 1, total);
+                  return `${start}–${end} of ${total.toLocaleString()}`;
+                })()}
+              </span>
+            </div>
+          </Show>
         </Show>
         <Show when={contentTab() === "browse"}>
           {/* Browse category tabs. Tabs for categories that aren't usable
@@ -1321,23 +1421,7 @@ const InstanceMods: Component = () => {
             </div>
           </Show>
           <div class="mod-grid">
-            <For each={(() => {
-              const mods = instance()?.mods || [];
-              const f = installedFilter();
-              const q = installedSearch().trim().toLowerCase();
-              const filtered = mods.filter(m => {
-                const cat = (m as any).category || "mod";
-                if (f !== "all" && cat !== f) return false;
-                if (q) {
-                  const haystack = ((m.title || m.filename) + " " + (m.description || "")).toLowerCase();
-                  if (!haystack.includes(q)) return false;
-                }
-                return true;
-              });
-              // Backend pushes new mods to the end of the Vec, so the array is
-              // already in install order (oldest → newest). Reverse for newest-first.
-              return installedSort() === "newest" ? filtered.slice().reverse() : filtered;
-            })()}>
+            <For each={installedPaged()}>
               {(mod) => (
                 <div class="mod-card" style={mod.enabled ? "" : "opacity:0.5"}>
                   <div class="mod-card-header">

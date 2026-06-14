@@ -5542,6 +5542,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "windows-dpapi",
+ "windows-sys 0.61.2",
  "winreg",
  "zip 2.4.2",
 ]

@@ -8,6 +8,75 @@ use std::path::PathBuf;
 use std::process::Command;
 use tauri::Manager;
 
+/// On Windows, Minecraft's GLFW window has no `--maximized` CLI flag, so we
+/// can't tell the JVM to launch already maximized. Instead, after spawning
+/// the JVM we poll for the visible top-level window owned by our PID and
+/// call `ShowWindow(hwnd, SW_MAXIMIZE)` once it appears — same effect as
+/// the user clicking the maximize button on the title bar.
+///
+/// The poll runs on an OS thread (not a tokio task) because it makes only
+/// blocking Win32 calls and we don't want to tie up the runtime. It gives
+/// up after 30 s — that's well past Minecraft's startup time on slow disks
+/// and avoids leaking a forever-running thread if MC fails to open a window.
+#[cfg(windows)]
+fn maximize_minecraft_window_async(pid: u32) {
+    use std::time::Duration;
+    use windows_sys::Win32::Foundation::{HWND, LPARAM};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowThreadProcessId, IsWindowVisible, ShowWindow, SW_MAXIMIZE,
+    };
+
+    /// Walker state passed through `EnumWindows` via lParam. Holds the PID
+    /// we're hunting and accumulates the first matching HWND we find.
+    struct EnumData {
+        target_pid: u32,
+        found_hwnd: HWND,
+    }
+
+    extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> i32 {
+        // SAFETY: `lparam` is the pointer we passed into `EnumWindows`, valid
+        // for the duration of the enumeration.
+        unsafe {
+            let data = &mut *(lparam as *mut EnumData);
+            let mut window_pid: u32 = 0;
+            GetWindowThreadProcessId(hwnd, &mut window_pid);
+            // Match by PID and require the window to be visible — Java
+            // creates several invisible service windows during JVM startup
+            // (e.g. AWT), and we want the actual GLFW one.
+            if window_pid == data.target_pid && IsWindowVisible(hwnd) != 0 {
+                data.found_hwnd = hwnd;
+                return 0; // FALSE — stop enumeration; we found our window
+            }
+            1 // TRUE — keep enumerating
+        }
+    }
+
+    std::thread::spawn(move || {
+        // Poll up to 30 s in 500 ms increments — covers slow startups (mod
+        // initialization on first launch can take 10–20 s for big modpacks).
+        for _ in 0..60 {
+            std::thread::sleep(Duration::from_millis(500));
+            let mut data = EnumData {
+                target_pid: pid,
+                found_hwnd: std::ptr::null_mut(),
+            };
+            // SAFETY: callback signature matches WNDENUMPROC; lparam pointer
+            // outlives the enumeration call.
+            unsafe {
+                EnumWindows(Some(enum_proc), &mut data as *mut _ as LPARAM);
+                if !data.found_hwnd.is_null() {
+                    ShowWindow(data.found_hwnd, SW_MAXIMIZE);
+                    return;
+                }
+            }
+        }
+        tracing::warn!(
+            "Couldn't find a visible window for Minecraft PID {} after 30s; skipping maximize",
+            pid
+        );
+    });
+}
+
 /// Payload for the `game-log` Tauri event. Carries the originating instance
 /// ID alongside the log line so the frontend can route output into a
 /// per-instance buffer — without it, switching to a different instance and
@@ -851,14 +920,18 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     let global_vs = global_settings.as_ref().map(|s| &s.video_settings);
     let win_fullscreen = global_vs.and_then(|v| v.fullscreen).unwrap_or(instance.window.fullscreen);
     let win_maximized = global_vs.and_then(|v| v.start_maximized).unwrap_or(false);
-    // If maximized is enabled (and not fullscreen), detect the launcher's
-    // current monitor and use its size minus a margin for window chrome
-    // (title bar) and the OS taskbar/menu bar. Minecraft's GLFW window
-    // doesn't have a `--maximized` flag — passing absurd dimensions like
-    // monitor*2 would push the window off-screen, since MC sizes the
-    // window literally. This produces a window that fills the visible
-    // work area without going out of bounds.
-    let (win_width, win_height) = if win_maximized && !win_fullscreen {
+    // Initial window dimensions used by Minecraft's GLFW window. When
+    // `start_maximized` is on, the window briefly appears at this size
+    // and is then snapped to the maximized state by `maximize_minecraft_window_async`
+    // (Windows only — see below). On other platforms we fall back to a
+    // monitor-sized window since GLFW maximize requires platform-specific
+    // window-manager interaction we don't currently implement.
+    let win_width = global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width);
+    let win_height = global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height);
+    let (win_width, win_height) = if win_maximized && !win_fullscreen && !cfg!(windows) {
+        // Non-Windows fallback: launch at near-monitor size since we can't
+        // call ShowWindow(SW_MAXIMIZE) without Win32. WM/compositor decides
+        // whether to render this as maximized.
         let monitor_size = window
             .as_ref()
             .and_then(|w| w.current_monitor().ok().flatten())
@@ -867,18 +940,9 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 (s.width, s.height)
             })
             .unwrap_or((1920, 1080));
-        // Reserve space for window chrome + OS bars. ~80px on Windows
-        // (Win11 taskbar ~48px + title bar ~32px), ~60px elsewhere.
-        let chrome_h: u32 = if cfg!(windows) { 80 } else { 60 };
-        let chrome_w: u32 = 0;
-        (
-            monitor_size.0.saturating_sub(chrome_w).max(640),
-            monitor_size.1.saturating_sub(chrome_h).max(480),
-        )
+        (monitor_size.0, monitor_size.1.saturating_sub(60).max(480))
     } else {
-        let w = global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width);
-        let h = global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height);
-        (w, h)
+        (win_width, win_height)
     };
 
     let mut game_args: Vec<String> = if let Some(ref arguments) = version.arguments {
@@ -1079,6 +1143,15 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
 
     let mut child = cmd.spawn().map_err(|e| format!("Failed to launch: {}", e))?;
     let pid = child.id();
+
+    // If the user wants the game window maximized (and not fullscreen),
+    // spawn the Win32 polling helper that watches for Minecraft's GLFW
+    // window and calls ShowWindow(SW_MAXIMIZE) once it appears. On other
+    // platforms the launch dimensions already cover the screen.
+    #[cfg(windows)]
+    if win_maximized && !win_fullscreen {
+        maximize_minecraft_window_async(pid);
+    }
 
     // Spawn background task to capture logs and emit them as events
     let instance_id = instance.id.clone();

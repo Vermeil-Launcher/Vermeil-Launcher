@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getResolvedJvmArgs, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getResolvedJvmArgs, getPresetJvmArgs, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -280,20 +280,15 @@ const InstanceMods: Component = () => {
     }, 200);
   };
 
-  // Resolved JVM args — fetched from the backend so the user sees the full
-  // string (memory + GC preset + extra args) that will be passed at launch.
-  const [resolvedArgs, setResolvedArgs] = createSignal("");
-  const loadResolvedArgs = () => {
+  // Preset JVM args (memory + GC flags) for the unified args editor. Loaded
+  // from the backend so the args reflect the user's current GC preset and
+  // memory allocation. Extras come from `instance.java.extra_args` directly.
+  const [presetArgs, setPresetArgs] = createSignal<string[]>([]);
+  const loadPresetArgs = () => {
     const id = activeInstanceId();
     if (!id) return;
-    getResolvedJvmArgs(id).then(setResolvedArgs).catch(() => setResolvedArgs("(error loading)"));
+    getPresetJvmArgs(id).then(setPresetArgs).catch(() => setPresetArgs([]));
   };
-  // Refresh when we switch to the settings tab or the instance changes.
-  createEffect(() => {
-    if (mainTab() === "settings" && activeInstanceId()) {
-      loadResolvedArgs();
-    }
-  });
 
   // Extra-arguments code editor. Stored on disk as a single space-joined
   // string in `instance.java.extra_args`; displayed here one arg per line
@@ -308,12 +303,46 @@ const InstanceMods: Component = () => {
     const args = (inst.java.extra_args || []).filter((a) => a.trim());
     setExtraArgsText(args.join("\n"));
   });
-  // Line-number gutter mirrors the textarea row count. Math.max keeps the
-  // gutter from collapsing to a single number when the editor is empty.
+  // Reload preset args when the settings tab is open and anything that
+  // affects them changes (active instance, memory allocation, GC preset).
+  // Reading `inst.java.memory_max_mb` inside the effect makes Solid track it.
+  createEffect(() => {
+    const inst = instance();
+    if (mainTab() === "settings" && inst) {
+      void inst.java.memory_max_mb;
+      loadPresetArgs();
+    }
+  });
+  // Combined line numbers across the read-only preset block + the editable
+  // extras textarea. The editor body lays out preset args as one <div> per
+  // line followed by the textarea; with the same line-height across all,
+  // each gutter span aligns with one body line.
   const lineNumbers = (): number[] => {
-    const lines = extraArgsText().split("\n");
-    const count = Math.max(lines.length, 1);
-    return Array.from({ length: count }, (_, i) => i + 1);
+    const presetCount = presetArgs().length;
+    const text = extraArgsText();
+    // An empty textarea still occupies one visual line.
+    const extrasCount = text.length === 0 ? 1 : text.split("\n").length;
+    const total = presetCount + extrasCount;
+    return Array.from({ length: total }, (_, i) => i + 1);
+  };
+  // Convert space → newline so each argument lives on its own line. JVM
+  // flags don't legitimately contain spaces; this enforces the one-per-line
+  // convention while still letting users paste a space-separated string
+  // (the onInput / blur paths re-normalize via split(/\s+/)).
+  const handleArgsKeyDown = (e: KeyboardEvent) => {
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      const ta = e.currentTarget as HTMLTextAreaElement;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const next = ta.value.slice(0, start) + "\n" + ta.value.slice(end);
+      setExtraArgsText(next);
+      // Restore caret position past the newline. Defer one tick so Solid
+      // has applied the new `value` before we set selection.
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = start + 1;
+      });
+    }
   };
   const handleArgsBlur = async () => {
     const inst = instance();
@@ -325,7 +354,7 @@ const InstanceMods: Component = () => {
     try {
       await updateInstanceOptions(inst.id, { extraArgs: args });
       await refetchInstances();
-      loadResolvedArgs();
+      loadPresetArgs();
       // Re-normalize the displayed text so blur cleans up extra whitespace.
       setExtraArgsText(args.join("\n"));
     } catch (err) {
@@ -930,46 +959,45 @@ const InstanceMods: Component = () => {
             </div>
           </div>
 
-          {/* Java arguments */}
+          {/* Java arguments — single unified editor showing preset
+              (memory + GC) and user extras with continuous line numbers.
+              The preset rows are non-interactive; the textarea below holds
+              the editable extras. Pressing space in the textarea inserts a
+              newline so each argument lives on its own line. */}
           <div class="settings-group" style="margin-bottom:16px">
             <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
               <div class="settings-key">Java arguments</div>
-              <div class="java-args-grid">
-                {/* Multi-line editor — one arg per line for readability.
-                    Purely presentational: under the hood, args are joined
-                    with spaces into a single `extra_args` string. */}
-                <div class="java-args-panel">
-                  <div class="java-args-panel-header">Extra arguments (one per line)</div>
-                  <div class="code-editor">
-                    <div class="code-editor-gutter" ref={(el) => (gutterRef = el)}>
-                      <For each={lineNumbers()}>
-                        {(n) => <span>{n}</span>}
+              <div class="java-args-panel">
+                <div class="java-args-panel-header">All flags passed at launch</div>
+                <div class="code-editor unified">
+                  <div class="code-editor-gutter" ref={(el) => (gutterRef = el)}>
+                    <For each={lineNumbers()}>
+                      {(n) => <span>{n}</span>}
+                    </For>
+                  </div>
+                  <div class="code-editor-body">
+                    {/* Read-only preset section (memory + GC flags) */}
+                    <div class="code-editor-preset">
+                      <For each={presetArgs()}>
+                        {(arg) => <div class="code-editor-preset-line">{arg}</div>}
                       </For>
                     </div>
+                    {/* Editable extras */}
                     <textarea
                       class="code-editor-input"
                       spellcheck={false}
-                      placeholder={"-XX:+SomeFlag\n-Dsome.property=value"}
+                      placeholder="Add custom flags here, one per line"
                       value={extraArgsText()}
                       onInput={(e) => setExtraArgsText(e.currentTarget.value)}
+                      onKeyDown={handleArgsKeyDown}
                       onBlur={handleArgsBlur}
-                      onScroll={(e) => {
-                        if (gutterRef) gutterRef.scrollTop = e.currentTarget.scrollTop;
-                      }}
                     />
                   </div>
                 </div>
-                {/* Resolved string panel — read-only, shows the full
-                    argument list that will actually be passed to the JVM
-                    (memory + GC preset + your extras). */}
-                <div class="java-args-panel">
-                  <div class="java-args-panel-header">Resolved (passed to JVM)</div>
-                  <div class="resolved-string-wrap">{resolvedArgs()}</div>
-                </div>
               </div>
               <div class="settings-val">
-                Add custom flags above (one per line). The resolved string on the right shows
-                exactly what's passed to the JVM at launch — memory + GC preset + your extras.
+                Preset rows (greyed) come from the GC preset and memory allocation in Settings.
+                Add your own flags below — pressing space puts the next flag on a new line.
               </div>
             </div>
           </div>

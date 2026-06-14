@@ -368,3 +368,32 @@ pub async fn get_resolved_jvm_args(instance_id: String) -> Result<String, String
 
     Ok(all_args.join(" "))
 }
+
+/// Resolve just the *preset* JVM arguments (memory + GC flags) for an instance,
+/// without the user's extra args. Returned as a list so the frontend can
+/// render each flag on its own line in the args editor. Extras are already
+/// available client-side in `instance.java.extra_args`.
+#[tauri::command]
+pub async fn get_preset_jvm_args(instance_id: String) -> Result<Vec<String>, String> {
+    let instance = crate::services::instance_service::get_by_id(&instance_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let settings = crate::services::settings_service::load()
+        .await
+        .map_err(|e| format!("Load settings: {}", e))?;
+
+    let java_major = crate::services::launch::required_java_version(&instance.game_version);
+    let gc_flags = crate::services::launch::resolve_gc_flags(
+        &settings.gc_preset,
+        java_major,
+        instance.java.memory_max_mb,
+    );
+
+    let mut preset = vec![
+        format!("-Xmx{}m", instance.java.memory_max_mb),
+        format!("-Xms{}m", instance.java.memory_min_mb),
+    ];
+    preset.extend(gc_flags);
+    Ok(preset)
+}

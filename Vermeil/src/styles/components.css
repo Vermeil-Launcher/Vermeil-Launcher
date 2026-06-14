@@ -407,15 +407,10 @@ select.field-input { cursor: pointer; appearance: none; color-scheme: dark; }
 select.field-input option { background: var(--bg3); color: var(--text); }
 select.field-input[size] { appearance: none; }
 
-/* Two-panel Java arguments editor (per-instance settings).
-   Left panel is a code-editor-style multi-line view with line numbers.
-   Right panel is the read-only resolved string. Auto-stacks on narrow
-   windows so each panel keeps usable width. */
-.java-args-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-}
+/* Unified Java arguments editor (per-instance settings).
+   Single panel with a line-number gutter and a body that combines the
+   read-only preset rows (memory + GC flags) with an editable extras
+   textarea below. All rows share line-height so the gutter aligns. */
 .java-args-panel {
   background: var(--bg3);
   border: 1px solid var(--border);
@@ -439,8 +434,10 @@ select.field-input[size] { appearance: none; }
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   line-height: 1.6;
-  height: 160px;
   background: var(--bg1);
+  min-height: 160px;
+  max-height: 320px;
+  overflow: auto;
 }
 .code-editor-gutter {
   flex: 0 0 auto;
@@ -450,8 +447,7 @@ select.field-input[size] { appearance: none; }
   color: #4a4d55;
   text-align: right;
   user-select: none;
-  overflow: hidden;
-  min-width: 28px;
+  min-width: 32px;
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
@@ -459,9 +455,31 @@ select.field-input[size] { appearance: none; }
 .code-editor-gutter span {
   display: block;
 }
+.code-editor-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* Read-only preset rows. Dimmer text + slightly different background
+   so users can tell which lines are auto-generated and which are theirs. */
+.code-editor-preset {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.015), transparent);
+}
+.code-editor-preset-line {
+  padding: 0 10px;
+  color: var(--muted);
+  white-space: pre;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+.code-editor-preset-line:first-child {
+  padding-top: 8px;
+}
 .code-editor-input {
   flex: 1;
-  padding: 8px 10px;
+  padding: 0 10px 8px 10px;
   background: transparent;
   border: none;
   outline: none;
@@ -471,25 +489,17 @@ select.field-input[size] { appearance: none; }
   line-height: inherit;
   resize: none;
   white-space: pre;
-  overflow: auto;
+  overflow: visible;
   caret-color: var(--accent);
+  min-height: 1.6em;
+  /* Auto-grow so the panel itself scrolls instead of the textarea, keeping
+     the gutter aligned with the body content. Falls back gracefully on
+     older WebView2 builds that don't support `field-sizing`. */
+  field-sizing: content;
 }
 .code-editor-input::placeholder {
   color: #3a3d45;
   white-space: pre;
-}
-.resolved-string-wrap {
-  flex: 1;
-  padding: 8px 10px;
-  font-family: var(--font-mono, monospace);
-  font-size: 10px;
-  line-height: 1.6;
-  color: var(--muted);
-  background: var(--bg1);
-  height: 160px;
-  overflow: auto;
-  word-break: break-all;
-  user-select: all;
 }
 
 /* Custom dropdown (version selector) */

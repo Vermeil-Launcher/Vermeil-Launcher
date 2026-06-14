@@ -2,20 +2,21 @@
 
 /* ============================================================
    Skins & capes screen (screens/Skins.tsx).
-   Two-column layout: 3D preview + actions on the left, saved
-   skins library + cape grid on the right.
+   Two-column layout: 3D preview on the left, controls + capes
+   on the right. Everything fits without scrolling.
    ============================================================ */
 .skins-screen { padding-bottom: 24px; }
 .skins-layout {
   display: grid;
-  grid-template-columns: 1fr 240px;
-  gap: 16px;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
   margin-top: 12px;
+  align-items: start;
 }
 .skins-preview-col {
   display: flex;
-  flex-direction: row;
-  gap: 16px;
+  flex-direction: column;
+  gap: 8px;
 }
 .skins-canvas-wrap {
   background: var(--bg3);
@@ -24,14 +25,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
-  flex: 1;
-  min-width: 0;
+  padding: 8px;
+  width: 320px;
+  height: 320px;
+  position: relative;
 }
 .skins-canvas {
   width: 100%;
-  max-width: 300px;
-  height: 400px;
+  height: 100%;
   display: block;
   border-radius: 8px;
   cursor: grab;
@@ -52,7 +53,7 @@
 .skins-side-col {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
 }
 .skins-empty-row {
@@ -83,8 +84,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 130px;
-  max-width: 130px;
+  min-width: 110px;
+  max-width: 110px;
   flex-shrink: 0;
   scroll-snap-align: start;
 }
@@ -94,8 +95,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100px;
-  padding-top: 8px;
+  height: 80px;
+  padding-top: 6px;
   overflow: hidden;
 }
 .skins-library-thumb {
@@ -122,17 +123,17 @@
 /* Cape carousel */
 .skins-cape-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
 }
 .skins-cape-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px;
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   font-family: var(--font);
   color: var(--text);
@@ -145,8 +146,8 @@
 }
 .skins-cape-card:disabled { opacity: 0.6; cursor: not-allowed; }
 .skins-cape-thumb {
-  height: 90px;
-  border-radius: 6px;
+  height: 64px;
+  border-radius: 4px;
   background-color: var(--bg1);
   background-size: cover;
   background-position: center;
@@ -156,12 +157,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
   font-style: italic;
 }
 .skins-cape-name {
-  font-size: 11px; color: var(--text);
+  font-size: 10px; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 

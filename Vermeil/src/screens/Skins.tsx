@@ -80,8 +80,8 @@ const Skins: Component = () => {
     if (!viewerCanvas) return;
     viewer = new SkinViewer({
       canvas: viewerCanvas,
-      width: 280,
-      height: 360,
+      width: 304,
+      height: 304,
       skin: undefined,
     });
     viewer.animation = new WalkingAnimation();
@@ -373,7 +373,7 @@ const Skins: Component = () => {
         />
 
         <div class="skins-layout">
-          {/* Main area: 3D preview (spans most of the width) */}
+          {/* Left: 3D preview */}
           <div class="skins-preview-col">
             <div class="skins-canvas-wrap">
               <canvas ref={viewerCanvas} class="skins-canvas" />
@@ -387,7 +387,7 @@ const Skins: Component = () => {
             </div>
           </div>
 
-          {/* Right sidebar: variant + actions */}
+          {/* Right: variant + actions + capes + saved skins */}
           <div class="skins-side-col">
             <div class="skins-variant-row">
               <div class="field-label">Model variant</div>
@@ -422,96 +422,98 @@ const Skins: Component = () => {
                 Refresh
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Below the viewer: Saved skins (horizontal scrollable row) */}
-        <div style="margin-top:16px">
-          <div class="section-label">Saved skins</div>
-            <Show
-              when={(localSkins() ?? []).length > 0}
-              fallback={
-                <div class="skins-empty-row">
-                  Skins you upload are saved here so you can switch back without re-uploading.
-                </div>
-              }
-            >
-              <div class="skins-library">
-                <For each={localSkins()}>
-                  {(skin) => (
-                    <div class="skins-library-item">
-                      <div class="skins-library-thumb-wrap">
-                        <SkinAvatar
-                          texture={skin.texture}
-                          variant={skin.variant as "CLASSIC" | "SLIM" | "Unknown"}
-                          size={96}
+            {/* Capes */}
+            <div>
+              <div class="field-label" style="margin-bottom:6px">Capes</div>
+              <Show
+                when={(profile()?.capes ?? []).length > 0}
+                fallback={
+                  <div class="skins-empty-row">
+                    Capes you've earned appear here.
+                  </div>
+                }
+              >
+                <div class="skins-cape-grid">
+                  <button
+                    class={`skins-cape-card ${
+                      !profile()?.capes.some((c) => c.state === "ACTIVE") ? "active" : ""
+                    }`}
+                    onClick={() => handleEquipCape(null)}
+                    disabled={busy() !== null}
+                  >
+                    <div class="skins-cape-thumb skins-cape-empty">None</div>
+                    <div class="skins-cape-name">No cape</div>
+                  </button>
+                  <For each={profile()?.capes ?? []}>
+                    {(cape) => (
+                      <button
+                        class={`skins-cape-card ${cape.state === "ACTIVE" ? "active" : ""}`}
+                        onClick={() => handleEquipCape(cape.id)}
+                        disabled={busy() !== null}
+                      >
+                        <div
+                          class="skins-cape-thumb"
+                          style={{ "background-image": `url(${cape.texture})` }}
                         />
-                      </div>
-                      <div class="skins-library-info">
-                        <div class="skins-library-name" title={skin.name}>{skin.name}</div>
-                        <div class="skins-library-variant">{skin.variant === "SLIM" ? "Slim" : "Classic"}</div>
-                      </div>
-                      <div class="skins-library-actions">
-                        <button
-                          class="btn btn-accent"
-                          onClick={() => handleEquipLocal(skin)}
-                          disabled={busy() !== null}
-                        >
-                          {busy() === `equip-${skin.hash}` ? "..." : "Equip"}
-                        </button>
-                        <button
-                          class="btn btn-ghost skins-library-remove"
-                          onClick={() => handleRemoveLocal(skin)}
-                          disabled={busy() !== null}
-                          title="Remove from library"
-                        >
-                          <IconTrash2 />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </For>
-              </div>
-            </Show>
-
-            <div class="section-label" style="margin-top:16px">Capes</div>
-            <Show
-              when={(profile()?.capes ?? []).length > 0}
-              fallback={
-                <div class="skins-empty-row">
-                  Capes you've earned (Migrator, Birthday, etc.) appear here.
+                        <div class="skins-cape-name" title={cape.alias}>{cape.alias}</div>
+                      </button>
+                    )}
+                  </For>
                 </div>
-              }
-            >
-              <div class="skins-cape-grid">
-                {/* "No cape" slot */}
-                <button
-                  class={`skins-cape-card ${
-                    !profile()?.capes.some((c) => c.state === "ACTIVE") ? "active" : ""
-                  }`}
-                  onClick={() => handleEquipCape(null)}
-                  disabled={busy() !== null}
-                >
-                  <div class="skins-cape-thumb skins-cape-empty">No cape</div>
-                  <div class="skins-cape-name">No cape</div>
-                </button>
-                <For each={profile()?.capes ?? []}>
-                  {(cape) => (
-                    <button
-                      class={`skins-cape-card ${cape.state === "ACTIVE" ? "active" : ""}`}
-                      onClick={() => handleEquipCape(cape.id)}
-                      disabled={busy() !== null}
-                    >
-                      <div
-                        class="skins-cape-thumb"
-                        style={{ "background-image": `url(${cape.texture})` }}
-                      />
-                      <div class="skins-cape-name" title={cape.alias}>{cape.alias}</div>
-                    </button>
-                  )}
-                </For>
-              </div>
-            </Show>
+              </Show>
+            </div>
+
+            {/* Saved skins */}
+            <div>
+              <div class="field-label" style="margin-bottom:6px">Saved skins</div>
+              <Show
+                when={(localSkins() ?? []).length > 0}
+                fallback={
+                  <div class="skins-empty-row">
+                    Skins you upload are saved here for quick switching.
+                  </div>
+                }
+              >
+                <div class="skins-library">
+                  <For each={localSkins()}>
+                    {(skin) => (
+                      <div class="skins-library-item">
+                        <div class="skins-library-thumb-wrap">
+                          <SkinAvatar
+                            texture={skin.texture}
+                            variant={skin.variant as "CLASSIC" | "SLIM" | "Unknown"}
+                            size={72}
+                          />
+                        </div>
+                        <div class="skins-library-info">
+                          <div class="skins-library-name" title={skin.name}>{skin.name}</div>
+                          <div class="skins-library-variant">{skin.variant === "SLIM" ? "Slim" : "Classic"}</div>
+                        </div>
+                        <div class="skins-library-actions">
+                          <button
+                            class="btn btn-accent"
+                            onClick={() => handleEquipLocal(skin)}
+                            disabled={busy() !== null}
+                          >
+                            {busy() === `equip-${skin.hash}` ? "..." : "Equip"}
+                          </button>
+                          <button
+                            class="btn btn-ghost skins-library-remove"
+                            onClick={() => handleRemoveLocal(skin)}
+                            disabled={busy() !== null}
+                            title="Remove from library"
+                          >
+                            <IconTrash2 />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+          </div>
         </div>
       </Show>
     </div>

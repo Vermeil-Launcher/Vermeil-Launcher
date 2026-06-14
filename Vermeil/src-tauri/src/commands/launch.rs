@@ -340,3 +340,31 @@ pub async fn stop_instance() -> Result<(), String> {
 pub async fn minimize_to_tray(window: tauri::WebviewWindow) -> Result<(), String> {
     window.hide().map_err(|e| e.to_string())
 }
+
+/// Resolve the full JVM argument string for a given instance's GC preset and
+/// memory allocation. Used by the frontend to display the resolved flags in
+/// the per-instance Java arguments field so users see exactly what's applied.
+#[tauri::command]
+pub async fn get_resolved_jvm_args(instance_id: String) -> Result<String, String> {
+    let instance = crate::services::instance_service::get_by_id(&instance_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let settings = crate::services::settings_service::load()
+        .await
+        .map_err(|e| format!("Load settings: {}", e))?;
+
+    let java_major = crate::services::launch::required_java_version(&instance.game_version);
+    let gc_preset = settings.gc_preset.as_str();
+    let gc_flags = crate::services::launch::resolve_gc_flags(gc_preset, java_major, instance.java.memory_max_mb);
+
+    // Build the full resolved string: -Xmx, -Xms, GC flags, then user extra args
+    let mut all_args = vec![
+        format!("-Xmx{}m", instance.java.memory_max_mb),
+        format!("-Xms{}m", instance.java.memory_min_mb),
+    ];
+    all_args.extend(gc_flags);
+    all_args.extend(instance.java.extra_args.iter().filter(|a| !a.is_empty()).cloned());
+
+    Ok(all_args.join(" "))
+}

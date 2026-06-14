@@ -238,6 +238,7 @@ export const toggleModInInstance = (instanceId: string, entryId: string) =>
   invoke<boolean>("toggle_mod_in_instance", { instanceId, entryId });
 export const stopInstance = () => invoke<void>("stop_instance");
 export const minimizeToTray = () => invoke<void>("minimize_to_tray");
+export const getResolvedJvmArgs = (instanceId: string) => invoke<string>("get_resolved_jvm_args", { instanceId });
 
 // Settings commands
 export const getSettings = () => invoke<LauncherSettings>("get_settings");

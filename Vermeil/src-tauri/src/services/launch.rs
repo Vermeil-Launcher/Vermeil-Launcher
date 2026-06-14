@@ -577,6 +577,79 @@ pub fn required_java_version(mc_version: &str) -> u8 {
     else { 8 }                 // 1.16 and below needs Java 8
 }
 
+/// Resolve GC flags for the given preset, Java major version, and memory allocation.
+///
+/// Sources:
+/// - G1GC: Aikar's flags (https://docs.papermc.io/paper/aikars-flags)
+/// - ZGC: Obydux/Minecraft-startup-flags (https://github.com/Obydux/Minecraft-startup-flags)
+/// - Shenandoah: OpenJDK docs + community tuning for Minecraft workloads.
+///
+/// Falls back to G1GC if the requested GC is incompatible with the Java version.
+pub fn resolve_gc_flags(preset: &str, java_major: u8, memory_mb: u32) -> Vec<String> {
+    match preset {
+        "zgc" if java_major >= 21 => {
+            let mut flags = vec![
+                "-XX:+UseZGC".to_string(),
+                "-XX:+AlwaysPreTouch".to_string(),
+                "-XX:+UseStringDeduplication".to_string(),
+                "-XX:TrimNativeHeapInterval=5000".to_string(),
+            ];
+            // ZGenerational is on by default since Java 23; needed for 21-22.
+            if java_major < 23 {
+                flags.push("-XX:+ZGenerational".to_string());
+            }
+            // CompactObjectHeaders available since Java 25.
+            if java_major >= 25 {
+                flags.push("-XX:+UseCompactObjectHeaders".to_string());
+            }
+            flags
+        }
+        "shenandoah" if java_major >= 12 => {
+            vec![
+                "-XX:+UseShenandoahGC".to_string(),
+                "-XX:+AlwaysPreTouch".to_string(),
+                "-XX:+DisableExplicitGC".to_string(),
+                "-XX:+UseStringDeduplication".to_string(),
+                "-XX:ShenandoahGCHeuristics=compact".to_string(),
+            ]
+        }
+        // Default: Aikar's tuned G1GC flags. Works on Java 8+.
+        _ => {
+            let mut flags = vec![
+                "-XX:+UseG1GC".to_string(),
+                "-XX:+ParallelRefProcEnabled".to_string(),
+                "-XX:MaxGCPauseMillis=200".to_string(),
+                "-XX:+UnlockExperimentalVMOptions".to_string(),
+                "-XX:+DisableExplicitGC".to_string(),
+                "-XX:+AlwaysPreTouch".to_string(),
+                "-XX:G1HeapWastePercent=5".to_string(),
+                "-XX:G1MixedGCCountTarget=4".to_string(),
+                "-XX:G1MixedGCLiveThresholdPercent=90".to_string(),
+                "-XX:G1RSetUpdatingPauseTimePercent=5".to_string(),
+                "-XX:SurvivorRatio=32".to_string(),
+                "-XX:+PerfDisableSharedMem".to_string(),
+                "-XX:MaxTenuringThreshold=1".to_string(),
+            ];
+            // Adjust region sizes based on memory allocation. >12GB gets larger
+            // regions and more new-gen headroom per Aikar's recommendation.
+            if memory_mb > 12288 {
+                flags.push("-XX:G1NewSizePercent=40".to_string());
+                flags.push("-XX:G1MaxNewSizePercent=50".to_string());
+                flags.push("-XX:G1HeapRegionSize=16M".to_string());
+                flags.push("-XX:G1ReservePercent=15".to_string());
+                flags.push("-XX:InitiatingHeapOccupancyPercent=20".to_string());
+            } else {
+                flags.push("-XX:G1NewSizePercent=30".to_string());
+                flags.push("-XX:G1MaxNewSizePercent=40".to_string());
+                flags.push("-XX:G1HeapRegionSize=8M".to_string());
+                flags.push("-XX:G1ReservePercent=20".to_string());
+                flags.push("-XX:InitiatingHeapOccupancyPercent=15".to_string());
+            }
+            flags
+        }
+    }
+}
+
 /// Download Java from Adoptium if not already present
 async fn ensure_java(mc_version: &str) -> Result<PathBuf, String> {
     ensure_java_public(mc_version).await
@@ -840,9 +913,28 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // 6. Build JVM arguments — parse from version.json if available
     let mut jvm_args: Vec<String> = Vec::new();
 
+    // Load global launcher settings for GC preset + window dimensions.
+    // Done once here rather than at each use site to avoid redundant I/O.
+    let global_settings = crate::services::settings_service::load().await.ok();
+
     // Memory settings first (can be overridden by version args if needed)
     jvm_args.push(format!("-Xmx{}m", instance.java.memory_max_mb));
     jvm_args.push(format!("-Xms{}m", instance.java.memory_min_mb));
+
+    // GC preset flags — selected by the user in Settings → General → GC preset.
+    // The flags are version-aware: ZGC requires Java 21+, Shenandoah requires 12+.
+    // If the selected GC is incompatible with the resolved Java version, fall
+    // back to Aikar's G1GC flags silently (better than crashing the JVM).
+    {
+        let java_major = required_java_version(&instance.game_version);
+        let gc_preset = global_settings
+            .as_ref()
+            .map(|s| s.gc_preset.as_str())
+            .unwrap_or("g1gc");
+
+        let gc_flags = resolve_gc_flags(gc_preset, java_major, instance.java.memory_max_mb);
+        jvm_args.extend(gc_flags);
+    }
 
     // Parse JVM args from version.json (contains -Djava.library.path, -cp, native dirs, etc.)
     if let Some(ref arguments) = version.arguments {
@@ -916,7 +1008,6 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
 
     // Resolve window dimensions from global settings, falling back to
     // per-instance values (for backwards compat) and then hard defaults.
-    let global_settings = crate::services::settings_service::load().await.ok();
     let global_vs = global_settings.as_ref().map(|s| &s.video_settings);
     let win_fullscreen = global_vs.and_then(|v| v.fullscreen).unwrap_or(instance.window.fullscreen);
     let win_maximized = global_vs.and_then(|v| v.start_maximized).unwrap_or(false);

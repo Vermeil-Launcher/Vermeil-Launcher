@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getResolvedJvmArgs, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -279,6 +279,21 @@ const InstanceMods: Component = () => {
         });
     }, 200);
   };
+
+  // Resolved JVM args — fetched from the backend so the user sees the full
+  // string (memory + GC preset + extra args) that will be passed at launch.
+  const [resolvedArgs, setResolvedArgs] = createSignal("");
+  const loadResolvedArgs = () => {
+    const id = activeInstanceId();
+    if (!id) return;
+    getResolvedJvmArgs(id).then(setResolvedArgs).catch(() => setResolvedArgs("(error loading)"));
+  };
+  // Refresh when we switch to the settings tab or the instance changes.
+  createEffect(() => {
+    if (mainTab() === "settings" && activeInstanceId()) {
+      loadResolvedArgs();
+    }
+  });
 
   const totalPages = () => Math.max(1, Math.ceil(totalHits() / viewCount()));
 
@@ -879,9 +894,19 @@ const InstanceMods: Component = () => {
           {/* Java arguments */}
           <div class="settings-group" style="margin-bottom:16px">
             <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
-              <div class="settings-key">Java arguments</div>
+              <div class="settings-key">Resolved JVM arguments</div>
+              <div
+                class="field-input"
+                style="font-family:var(--font-mono);font-size:10px;color:var(--muted);background:var(--bg1);cursor:default;user-select:all;white-space:nowrap;overflow-x:auto"
+              >
+                {resolvedArgs()}
+              </div>
+              <div class="settings-val">Full argument string applied at launch (memory + GC preset + your extras)</div>
+            </div>
+            <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
+              <div class="settings-key">Extra Java arguments</div>
               <input class="field-input" style="font-family:var(--font-mono);font-size:11px"
-                placeholder="e.g. -XX:+UseG1GC -XX:MaxGCPauseMillis=50"
+                placeholder="Additional flags appended after the GC preset"
                 value={(instance()?.java.extra_args || []).join(" ")}
                 onBlur={async (e) => {
                   const inst = instance();
@@ -889,8 +914,9 @@ const InstanceMods: Component = () => {
                   const args = e.currentTarget.value.split(" ").filter(a => a.trim());
                   await updateInstanceOptions(inst.id, { extraArgs: args });
                   await refetchInstances();
+                  loadResolvedArgs();
                 }} />
-              <div class="settings-val">Additional JVM flags passed when launching</div>
+              <div class="settings-val">Custom JVM flags appended after the preset</div>
             </div>
           </div>
 

@@ -925,15 +925,31 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // The flags are version-aware: ZGC requires Java 21+, Shenandoah requires 12+.
     // If the selected GC is incompatible with the resolved Java version, fall
     // back to Aikar's G1GC flags silently (better than crashing the JVM).
+    //
+    // OVERRIDE: if the instance has custom `extra_args`, those replace the
+    // preset entirely (the user edited the args editor, so we trust their
+    // version). If extra_args is empty, we apply the preset. Memory args
+    // (-Xmx/-Xms) are always applied from the slider regardless.
     {
-        let java_major = required_java_version(&instance.game_version);
-        let gc_preset = global_settings
-            .as_ref()
-            .map(|s| s.gc_preset.as_str())
-            .unwrap_or("g1gc");
-
-        let gc_flags = resolve_gc_flags(gc_preset, java_major, instance.java.memory_max_mb);
-        jvm_args.extend(gc_flags);
+        let has_custom = !instance.java.extra_args.is_empty()
+            && instance.java.extra_args.iter().any(|a| !a.trim().is_empty());
+        if has_custom {
+            // User's custom flags replace the preset
+            for arg in &instance.java.extra_args {
+                if !arg.is_empty() {
+                    jvm_args.push(arg.clone());
+                }
+            }
+        } else {
+            // No custom args — use the GC preset
+            let java_major = required_java_version(&instance.game_version);
+            let gc_preset = global_settings
+                .as_ref()
+                .map(|s| s.gc_preset.as_str())
+                .unwrap_or("g1gc");
+            let gc_flags = resolve_gc_flags(gc_preset, java_major, instance.java.memory_max_mb);
+            jvm_args.extend(gc_flags);
+        }
     }
 
     // Parse JVM args from version.json (contains -Djava.library.path, -cp, native dirs, etc.)
@@ -975,13 +991,6 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
             .replace("${classpath_separator}", crate::util::platform::classpath_separator())
             .replace("${version_name}", &instance.game_version);
         jvm_args.push(val);
-    }
-
-    // Add extra JVM args from instance config (user custom args)
-    for arg in &instance.java.extra_args {
-        if !arg.is_empty() {
-            jvm_args.push(arg.clone());
-        }
     }
 
     // 7. Build game arguments — parse from version.json with rules

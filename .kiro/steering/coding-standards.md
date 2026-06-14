@@ -49,6 +49,10 @@ Vermeil/
 - Verify downloads with SHA-1 hash when available
 - Use `.part` files for downloads — rename to final path only after verification
 - Retry failed downloads up to 3 times with 500ms delay
+- **API vs CDN concurrency.** Distinguish two traffic shapes:
+  - **APIs** (`api.modrinth.com`, `api.curseforge.com`, Mojang profile/auth endpoints) are rate-limited and ToS-bound. Modrinth caps at 300 req/min; CurseForge per-key limits can revoke a key for abusive patterns. Always batch (`POST /v1/mods` with up to 50 IDs, `/v2/version_files` with hashes, `/v2/projects?ids=[…]`). Don't parallelize sequential API calls just because they look serial — the rate-limit budget is the constraint, not wall-clock.
+  - **CDNs** (`cdn.modrinth.com`, `media.forgecdn.net`, Mojang asset/library mirrors) are static-asset hosts and tolerate concurrent fetches like any browser does. Use bounded parallel here for speed.
+  - The user-tunable `concurrent_downloads` / `concurrent_writes` settings govern *install-blocking* download batches via `services::download::download_all` — fetch capped at `MAX_FETCH=20`, write at `MAX_WRITE=50`. Background/cosmetic work (e.g. icon caching during enrichment) uses a fixed internal concurrency, not the user setting, so a user lowering the slider doesn't make polish work crawl and raising it doesn't pointlessly hammer a CDN.
 
 ### File I/O
 - Use `crate::util::paths` for all data directory paths — never hardcode

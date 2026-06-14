@@ -181,6 +181,7 @@ pub fn run() {
             launch::minimize_to_tray,
             launch::get_resolved_jvm_args,
             launch::get_preset_jvm_args,
+            launch::get_known_preset_args,
             // Meta
             meta::get_game_versions,
             meta::get_fabric_loader_versions,

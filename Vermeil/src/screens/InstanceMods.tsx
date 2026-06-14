@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getResolvedJvmArgs, getPresetJvmArgs, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getResolvedJvmArgs, getPresetJvmArgs, getKnownPresetArgs, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -286,40 +286,105 @@ const InstanceMods: Component = () => {
   // (so the user sees what's being applied and can edit from there).
   // Whatever is in the editor at blur is what the backend uses at launch —
   // `extra_args` overrides the preset when non-empty.
+  //
+  // Preset stickiness fix: `extra_args` saved during a previous global GC
+  // preset would otherwise pin the instance to those exact flags forever
+  // (the launch path uses `extra_args` verbatim when non-empty, ignoring
+  // the global preset). We resolve every known preset's flags up-front and
+  // treat `extra_args` as "no override" when it matches *any* of them. That
+  // way switching the global preset in Settings actually propagates: the
+  // next time the user opens the editor, they see the new preset's flags,
+  // and on blur we save empty `extra_args` so launches stay live too.
   const [extraArgsText, setExtraArgsText] = createSignal("");
-  const [presetArgs, setPresetArgs] = createSignal<string[]>([]);
+  const [knownPresets, setKnownPresets] = createSignal<Record<string, string[]>>({});
+  const [globalPreset, setGlobalPreset] = createSignal<string>("g1gc");
   let gutterRef: HTMLDivElement | undefined;
 
-  const loadPresetArgs = () => {
-    const id = activeInstanceId();
-    if (!id) return;
-    getPresetJvmArgs(id).then((args) => {
-      // Strip memory args — the slider handles those
-      const filtered = args.filter(a => !a.startsWith("-Xmx") && !a.startsWith("-Xms"));
-      setPresetArgs(filtered);
-    }).catch(() => setPresetArgs([]));
+  /** Display label for a preset ID — matches the strings in Settings.tsx. */
+  const presetLabel = (id: string): string => {
+    if (id === "g1gc") return "G1GC (recommended)";
+    if (id === "zgc") return "ZGC";
+    if (id === "shenandoah") return "Shenandoah";
+    return id.toUpperCase();
+  };
+
+  /** Multiset equality — JVM flag order doesn't change semantics, so two
+   *  flag lists with the same contents in any order are considered equal. */
+  const argsListsEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false;
+    const sa = [...a].sort();
+    const sb = [...b].sort();
+    for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return false;
+    return true;
+  };
+
+  /** Whether the given flag list matches any known preset's flags. Memory
+   *  args (`-Xmx`/`-Xms`) are excluded from comparison since the slider
+   *  controls them separately and they're never part of the editor's text. */
+  const matchesAnyPreset = (args: string[]): boolean => {
+    const cleaned = args.filter(a => !a.startsWith("-Xmx") && !a.startsWith("-Xms"));
+    const presets = knownPresets();
+    for (const flags of Object.values(presets)) {
+      if (argsListsEqual(cleaned, flags)) return true;
+    }
+    return false;
+  };
+
+  /** Whether the current editor contents are preset-equal — i.e. the global
+   *  preset is effectively in control. Reactive because it depends on both
+   *  the textarea text and the loaded preset map. */
+  const isCurrentlyPreset = (): boolean => {
+    const text = extraArgsText().trim();
+    if (!text) return true;
+    const args = text.split(/\s+/).filter(a => a.trim());
+    return matchesAnyPreset(args);
   };
 
   // Sync editor text whenever instance changes or settings tab opens.
-  // Priority: show user's custom args if they have them, otherwise show
-  // the preset flags so the editor isn't blank on first visit.
+  // We first load the known-preset map and global preset name (so the
+  // "Active preset" label and the preset-equal detection are accurate),
+  // then decide what to show:
+  //   • saved extra_args matches a preset → show *current* preset flags
+  //     (so a global preset switch is reflected immediately),
+  //   • saved extra_args is genuinely customized → show those,
+  //   • no saved extra_args → show current preset flags.
   createEffect(() => {
     const inst = instance();
     if (!inst || mainTab() !== "settings") return;
-    loadPresetArgs();
-    const userArgs = (inst.java.extra_args || []).filter(a => a.trim());
-    if (userArgs.length > 0) {
-      setExtraArgsText(userArgs.join("\n"));
-    } else {
-      // No custom args — pre-fill with preset so user sees what's applied
-      const id = activeInstanceId();
-      if (id) {
+    const id = activeInstanceId();
+    if (!id) return;
+
+    Promise.all([
+      getKnownPresetArgs(id).catch(() => ({} as Record<string, string[]>)),
+      getSettings().catch(() => null),
+    ]).then(([presets, settings]) => {
+      setKnownPresets(presets);
+      if (settings) setGlobalPreset(settings.gc_preset);
+
+      const userArgs = (inst.java.extra_args || []).filter(a => a.trim());
+      const isPresetEqual = userArgs.length === 0 || (() => {
+        const cleaned = userArgs.filter(a => !a.startsWith("-Xmx") && !a.startsWith("-Xms"));
+        for (const flags of Object.values(presets)) {
+          if (cleaned.length === flags.length) {
+            const sa = [...cleaned].sort();
+            const sb = [...flags].sort();
+            if (sa.every((v, i) => v === sb[i])) return true;
+          }
+        }
+        return false;
+      })();
+
+      if (!isPresetEqual && userArgs.length > 0) {
+        setExtraArgsText(userArgs.join("\n"));
+      } else {
+        // Preset-equal or empty — render current preset flags so the editor
+        // tracks the global setting live.
         getPresetJvmArgs(id).then((args) => {
           const filtered = args.filter(a => !a.startsWith("-Xmx") && !a.startsWith("-Xms"));
           setExtraArgsText(filtered.join("\n"));
         }).catch(() => {});
       }
-    }
+    });
   });
 
   // Line-number gutter
@@ -348,9 +413,16 @@ const InstanceMods: Component = () => {
     const inst = instance();
     if (!inst) return;
     const args = extraArgsText().split(/\s+/).filter(a => a.trim());
+    // If the user's flags exactly match a known preset, save empty
+    // `extra_args` instead. The launch path treats empty extras as "use the
+    // global preset" — keeping it empty means switching the global preset
+    // in Settings actually takes effect on next launch instead of being
+    // shadowed forever by stale preset-equal extras.
+    const argsToSave = matchesAnyPreset(args) ? [] : args;
     try {
-      await updateInstanceOptions(inst.id, { extraArgs: args });
+      await updateInstanceOptions(inst.id, { extraArgs: argsToSave });
       await refetchInstances();
+      // Keep the editor visually unchanged regardless of what we persisted.
       setExtraArgsText(args.join("\n"));
     } catch (err) {
       console.error("Save extra args failed:", err);
@@ -969,7 +1041,22 @@ const InstanceMods: Component = () => {
             <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
               <div class="settings-key">Java arguments</div>
               <div class="java-args-panel">
-                <div class="java-args-panel-header">JVM flags (one per line · space = new line)</div>
+                <div class="java-args-panel-header" style="display:flex;align-items:center;gap:8px">
+                  <span>JVM flags (one per line · space = new line)</span>
+                  {/* Active preset indicator. Reads the global GC preset from
+                      Settings and labels it the same way the dropdown there
+                      does, so users always know which preset is feeding the
+                      flags below. When the user edits the flags into a
+                      genuinely-custom set, an extra "custom" tag flips on
+                      so the indicator doesn't lie about what's launching. */}
+                  <span style="margin-left:auto;display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:500;font-size:10px;color:var(--muted)">
+                    <span>Active preset:</span>
+                    <strong style="color:var(--text);font-weight:600">{presetLabel(globalPreset())}</strong>
+                    <Show when={!isCurrentlyPreset()}>
+                      <span style="color:var(--accent);font-weight:600">· custom</span>
+                    </Show>
+                  </span>
+                </div>
                 <div class="code-editor">
                   <div class="code-editor-gutter" ref={(el) => (gutterRef = el)}>
                     <For each={lineNumbers()}>

@@ -397,3 +397,35 @@ pub async fn get_preset_jvm_args(instance_id: String) -> Result<Vec<String>, Str
     preset.extend(gc_flags);
     Ok(preset)
 }
+
+/// Resolve every known GC preset's flag set for a specific instance (memory
+/// args excluded — those come from the slider). The frontend uses this to
+/// detect whether the instance's stored `extra_args` matches *any* preset's
+/// flags. If so, the args are treated as preset-equal (no real customization)
+/// and the global preset selection stays live: switching the preset in
+/// Settings actually takes effect on the next launch instead of being
+/// silently overridden by stale preset-equal `extra_args` saved during a
+/// previous preset.
+#[tauri::command]
+pub async fn get_known_preset_args(
+    instance_id: String,
+) -> Result<std::collections::HashMap<String, Vec<String>>, String> {
+    let instance = crate::services::instance_service::get_by_id(&instance_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let java_major = crate::services::launch::required_java_version(&instance.game_version);
+    let memory = instance.java.memory_max_mb;
+
+    // Keep this list in sync with `services::launch::resolve_gc_flags` and the
+    // dropdown on the Settings screen. If a new preset is added to one, add
+    // it here too — the frontend's "is this preset-equal?" check loops over
+    // these values verbatim.
+    let presets = ["g1gc", "zgc", "shenandoah"];
+    let mut out = std::collections::HashMap::new();
+    for name in &presets {
+        let flags = crate::services::launch::resolve_gc_flags(name, java_major, memory);
+        out.insert((*name).to_string(), flags);
+    }
+    Ok(out)
+}

@@ -241,6 +241,15 @@ export const stopInstance = () => invoke<void>("stop_instance");
 export const minimizeToTray = () => invoke<void>("minimize_to_tray");
 export const getResolvedJvmArgs = (instanceId: string) => invoke<string>("get_resolved_jvm_args", { instanceId });
 export const getPresetJvmArgs = (instanceId: string) => invoke<string[]>("get_preset_jvm_args", { instanceId });
+/**
+ * Resolved flag list for *every* known GC preset, keyed by preset name
+ * ("g1gc" / "zgc" / "shenandoah"). Used by the per-instance Java args editor
+ * to detect when the saved `extra_args` happens to equal one of these
+ * presets — in which case the global preset selection is treated as live
+ * and switching it actually takes effect on the next launch.
+ */
+export const getKnownPresetArgs = (instanceId: string) =>
+  invoke<Record<string, string[]>>("get_known_preset_args", { instanceId });
 
 // Settings commands
 export const getSettings = () => invoke<LauncherSettings>("get_settings");

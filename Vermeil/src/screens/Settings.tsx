@@ -1,4 +1,4 @@
-import { Component, createSignal, createResource, Show, For, onMount } from "solid-js";
+import { Component, createSignal, createResource, Show, For, onMount, createEffect } from "solid-js";
 import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
@@ -25,6 +25,37 @@ const Settings: Component = () => {
   const [appVersion] = createResource(getVersion);
   const [cacheSize, setCacheSize] = createSignal(0);
   const [purging, setPurging] = createSignal(false);
+
+  // Optimistic local mirror of `settings.video_settings` so slider values
+  // (text labels) update live during drag. The resource only refetches after
+  // the save round-trip completes, which lags the slider thumb. We mirror it
+  // here, write through to the backend, and the local signal stays authoritative.
+  type VS = LauncherSettings["video_settings"];
+  const [vsLocal, setVsLocal] = createSignal<VS | null>(null);
+  createEffect(() => {
+    const s = settings();
+    if (s && vsLocal() === null) setVsLocal(s.video_settings);
+  });
+  const vs = (): VS => vsLocal() ?? settings()!.video_settings;
+
+  // Same optimistic-display pattern for the concurrency sliders. Without
+  // these, the displayed number lags the thumb because the read source
+  // (`settings()!.concurrent_*`) only refreshes after the save+refetch
+  // round-trip completes.
+  const [dlDraft, setDlDraft] = createSignal<number | null>(null);
+  const [wrDraft, setWrDraft] = createSignal<number | null>(null);
+  const dlValue = (): number => dlDraft() ?? Math.min(settings()?.concurrent_downloads ?? 10, 10);
+  const wrValue = (): number => wrDraft() ?? settings()?.concurrent_writes ?? 10;
+  createEffect(() => {
+    const s = settings();
+    const d = dlDraft();
+    if (s && d !== null && Math.min(s.concurrent_downloads, 10) === d) setDlDraft(null);
+  });
+  createEffect(() => {
+    const s = settings();
+    const w = wrDraft();
+    if (s && w !== null && s.concurrent_writes === w) setWrDraft(null);
+  });
 
   // Java location finder — populated by `runDetect()` and re-run on demand.
   // The four "slots" (8/17/21/25) cover every Minecraft version that exists.
@@ -159,6 +190,14 @@ const Settings: Component = () => {
     } catch (e) {
       console.error("Failed to save setting:", e);
     }
+  };
+
+  // Patch helper for video_settings: writes optimistically to local signal
+  // (so slider text labels update during drag), then fires the backend save.
+  const updateVideoSettings = (patch: Partial<VS>) => {
+    const merged = { ...vs(), ...patch };
+    setVsLocal(merged);
+    updateSetting("video_settings", merged);
   };
 
   const openInstanceOptions = (id: string) => {
@@ -333,19 +372,24 @@ const Settings: Component = () => {
                     min="1"
                     max="10"
                     step="1"
-                    value={Math.min(settings()!.concurrent_downloads, 10)}
-                    style={`--slider-pct: ${((Math.min(settings()!.concurrent_downloads, 10) - 1) / 9) * 100}%`}
-                    onInput={(e) => updateSetting("concurrent_downloads", clampConcurrency(parseInt(e.currentTarget.value), 10))}
+                    value={dlValue()}
+                    style={`--slider-pct: ${((dlValue() - 1) / 9) * 100}%`}
+                    onInput={(e) => {
+                      const safe = clampConcurrency(parseInt(e.currentTarget.value), 10);
+                      setDlDraft(safe);
+                      updateSetting("concurrent_downloads", safe);
+                    }}
                   />
                   <input
                     class="concurrency-number"
                     type="number"
                     min="1"
                     max="10"
-                    value={Math.min(settings()!.concurrent_downloads, 10)}
+                    value={dlValue()}
                     onChange={(e) => {
                       const safe = clampConcurrency(parseInt(e.currentTarget.value), 10);
                       e.currentTarget.value = String(safe);
+                      setDlDraft(safe);
                       updateSetting("concurrent_downloads", safe);
                     }}
                   />
@@ -363,19 +407,24 @@ const Settings: Component = () => {
                     min="1"
                     max="50"
                     step="1"
-                    value={settings()!.concurrent_writes}
-                    style={`--slider-pct: ${((settings()!.concurrent_writes - 1) / 49) * 100}%`}
-                    onInput={(e) => updateSetting("concurrent_writes", clampConcurrency(parseInt(e.currentTarget.value), 50))}
+                    value={wrValue()}
+                    style={`--slider-pct: ${((wrValue() - 1) / 49) * 100}%`}
+                    onInput={(e) => {
+                      const safe = clampConcurrency(parseInt(e.currentTarget.value), 50);
+                      setWrDraft(safe);
+                      updateSetting("concurrent_writes", safe);
+                    }}
                   />
                   <input
                     class="concurrency-number"
                     type="number"
                     min="1"
                     max="50"
-                    value={settings()!.concurrent_writes}
+                    value={wrValue()}
                     onChange={(e) => {
                       const safe = clampConcurrency(parseInt(e.currentTarget.value), 50);
                       e.currentTarget.value = String(safe);
+                      setWrDraft(safe);
                       updateSetting("concurrent_writes", safe);
                     }}
                   />
@@ -470,72 +519,70 @@ const Settings: Component = () => {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
               <div class="section-label" style="margin-bottom:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Video</div>
               <button class="btn" style="font-size:9px;padding:3px 10px" onClick={() => {
-                const vs = { max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null };
-                updateSetting("video_settings", vs);
+                updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null });
               }}>Reset All</button>
             </div>
-            <div class="settings-group" style="gap:6px">
-              {/* Max Framerate — inline slider */}
-              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
-                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">Max FPS</div>
+            <div class="vs-grid">
+              {/* Max Framerate — slider */}
+              <div class="vs-cell">
+                <div class="vs-key">Max FPS</div>
                 <input
                   type="range"
                   min="10"
                   max="260"
                   step="10"
-                  value={settings()!.video_settings.max_fps ?? 120}
-                  class="memory-slider"
-                  style={`flex:1;--slider-pct:${((settings()!.video_settings.max_fps ?? 120) - 10) / 250 * 100}%`}
+                  value={vs().max_fps ?? 120}
+                  class="memory-slider vs-slider"
+                  style={`--slider-pct:${((vs().max_fps ?? 120) - 10) / 250 * 100}%`}
                   onInput={(e) => {
                     const val = parseInt(e.currentTarget.value);
                     e.currentTarget.style.setProperty('--slider-pct', `${(val - 10) / 250 * 100}%`);
-                    const vs = { ...settings()!.video_settings, max_fps: val };
-                    updateSetting("video_settings", vs);
+                    updateVideoSettings({ max_fps: val });
                   }}
                 />
-                <span style="font-size:9px;color:var(--muted);min-width:52px;text-align:right">{settings()!.video_settings.max_fps === null ? "Default" : settings()!.video_settings.max_fps === 260 ? "Unlimited" : `${settings()!.video_settings.max_fps} FPS`}</span>
+                <div class="vs-val">{vs().max_fps === null ? "Default" : vs().max_fps === 260 ? "Unlimited" : `${vs().max_fps} FPS`}</div>
               </div>
 
-              {/* VSync + View Bobbing — 2-column grid */}
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                <div class="settings-row" style="padding:6px 10px;align-items:center">
-                  <div class="settings-key" style="font-size:11px;flex:1">VSync</div>
-                  <Dropdown
-                    value={settings()!.video_settings.vsync === null ? "default" : settings()!.video_settings.vsync ? "true" : "false"}
-                    options={[
-                      { value: "default", label: "Default" },
-                      { value: "true", label: "On" },
-                      { value: "false", label: "Off" },
-                    ]}
-                    onChange={(val) => {
-                      const vs = { ...settings()!.video_settings, vsync: val === "default" ? null : val === "true" };
-                      updateSetting("video_settings", vs);
-                    }}
-                  />
-                </div>
-                <div class="settings-row" style="padding:6px 10px;align-items:center">
-                  <div class="settings-key" style="font-size:11px;flex:1">View Bobbing</div>
-                  <Dropdown
-                    value={settings()!.video_settings.view_bobbing === null ? "default" : settings()!.video_settings.view_bobbing ? "true" : "false"}
-                    options={[
-                      { value: "default", label: "Default" },
-                      { value: "true", label: "On" },
-                      { value: "false", label: "Off" },
-                    ]}
-                    onChange={(val) => {
-                      const vs = { ...settings()!.video_settings, view_bobbing: val === "default" ? null : val === "true" };
-                      updateSetting("video_settings", vs);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* GUI Scale — inline */}
-              <div class="settings-row" style="padding:6px 10px;align-items:center">
-                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">GUI Scale</div>
+              {/* VSync */}
+              <div class="vs-cell">
+                <div class="vs-key">VSync</div>
                 <div style="flex:1" />
                 <Dropdown
-                  value={settings()!.video_settings.gui_scale === null ? "default" : String(settings()!.video_settings.gui_scale)}
+                  value={vs().vsync === null ? "default" : vs().vsync ? "true" : "false"}
+                  options={[
+                    { value: "default", label: "Default" },
+                    { value: "true", label: "On" },
+                    { value: "false", label: "Off" },
+                  ]}
+                  onChange={(val) => {
+                    updateVideoSettings({ vsync: val === "default" ? null : val === "true" });
+                  }}
+                />
+              </div>
+
+              {/* View Bobbing */}
+              <div class="vs-cell">
+                <div class="vs-key">View Bobbing</div>
+                <div style="flex:1" />
+                <Dropdown
+                  value={vs().view_bobbing === null ? "default" : vs().view_bobbing ? "true" : "false"}
+                  options={[
+                    { value: "default", label: "Default" },
+                    { value: "true", label: "On" },
+                    { value: "false", label: "Off" },
+                  ]}
+                  onChange={(val) => {
+                    updateVideoSettings({ view_bobbing: val === "default" ? null : val === "true" });
+                  }}
+                />
+              </div>
+
+              {/* GUI Scale */}
+              <div class="vs-cell">
+                <div class="vs-key">GUI Scale</div>
+                <div style="flex:1" />
+                <Dropdown
+                  value={vs().gui_scale === null ? "default" : String(vs().gui_scale)}
                   options={[
                     { value: "default", label: "Default" },
                     { value: "0", label: "Auto" },
@@ -545,53 +592,50 @@ const Settings: Component = () => {
                     { value: "4", label: "Huge" },
                   ]}
                   onChange={(val) => {
-                    const vs = { ...settings()!.video_settings, gui_scale: val === "default" ? null : parseInt(val) };
-                    updateSetting("video_settings", vs);
+                    updateVideoSettings({ gui_scale: val === "default" ? null : parseInt(val) });
                   }}
                 />
               </div>
 
-              {/* FOV — inline slider */}
-              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
-                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">FOV</div>
+              {/* FOV */}
+              <div class="vs-cell">
+                <div class="vs-key">FOV</div>
                 <input
                   type="range"
                   min="30"
                   max="110"
                   step="1"
-                  value={settings()!.video_settings.fov === null ? 70 : Math.round(40 * settings()!.video_settings.fov + 70)}
-                  class="memory-slider"
-                  style={`flex:1;--slider-pct:${((settings()!.video_settings.fov === null ? 70 : Math.round(40 * settings()!.video_settings.fov + 70)) - 30) / 80 * 100}%`}
+                  value={vs().fov === null ? 70 : Math.round(40 * vs().fov! + 70)}
+                  class="memory-slider vs-slider"
+                  style={`--slider-pct:${((vs().fov === null ? 70 : Math.round(40 * vs().fov! + 70)) - 30) / 80 * 100}%`}
                   onInput={(e) => {
                     const degrees = parseInt(e.currentTarget.value);
                     e.currentTarget.style.setProperty('--slider-pct', `${(degrees - 30) / 80 * 100}%`);
                     const fovValue = (degrees - 70) / 40;
-                    const vs = { ...settings()!.video_settings, fov: fovValue };
-                    updateSetting("video_settings", vs);
+                    updateVideoSettings({ fov: fovValue });
                   }}
                 />
-                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.fov === null ? "Default" : `${Math.round(40 * settings()!.video_settings.fov! + 70)}°`}</span>
+                <div class="vs-val">{vs().fov === null ? "Default" : `${Math.round(40 * vs().fov! + 70)}°`}</div>
               </div>
 
-              {/* FOV Effects — inline slider */}
-              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
-                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">FOV Effects</div>
+              {/* FOV Effects */}
+              <div class="vs-cell">
+                <div class="vs-key">FOV Effects</div>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   step="1"
-                  value={settings()!.video_settings.fov_effects === null ? 100 : Math.round(settings()!.video_settings.fov_effects * 100)}
-                  class="memory-slider"
-                  style={`flex:1;--slider-pct:${(settings()!.video_settings.fov_effects === null ? 100 : Math.round(settings()!.video_settings.fov_effects * 100))}%`}
+                  value={vs().fov_effects === null ? 100 : Math.round(vs().fov_effects! * 100)}
+                  class="memory-slider vs-slider"
+                  style={`--slider-pct:${(vs().fov_effects === null ? 100 : Math.round(vs().fov_effects! * 100))}%`}
                   onInput={(e) => {
                     const pct = parseInt(e.currentTarget.value);
                     e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
-                    const vs = { ...settings()!.video_settings, fov_effects: pct / 100 };
-                    updateSetting("video_settings", vs);
+                    updateVideoSettings({ fov_effects: pct / 100 });
                   }}
                 />
-                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.fov_effects === null ? "Default" : `${Math.round(settings()!.video_settings.fov_effects! * 100)}%`}</span>
+                <div class="vs-val">{vs().fov_effects === null ? "Default" : `${Math.round(vs().fov_effects! * 100)}%`}</div>
               </div>
             </div>
           </div>
@@ -599,47 +643,45 @@ const Settings: Component = () => {
           {/* Sound section */}
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Sound</div>
-            <div class="settings-group" style="gap:6px">
-              {/* Master Volume — inline slider */}
-              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
-                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">Master</div>
+            <div class="vs-grid">
+              {/* Master Volume */}
+              <div class="vs-cell">
+                <div class="vs-key">Master</div>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   step="1"
-                  value={settings()!.video_settings.master_volume === null ? 100 : Math.round(settings()!.video_settings.master_volume * 100)}
-                  class="memory-slider"
-                  style={`flex:1;--slider-pct:${(settings()!.video_settings.master_volume === null ? 100 : Math.round(settings()!.video_settings.master_volume * 100))}%`}
+                  value={vs().master_volume === null ? 100 : Math.round(vs().master_volume! * 100)}
+                  class="memory-slider vs-slider"
+                  style={`--slider-pct:${(vs().master_volume === null ? 100 : Math.round(vs().master_volume! * 100))}%`}
                   onInput={(e) => {
                     const pct = parseInt(e.currentTarget.value);
                     e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
-                    const vs = { ...settings()!.video_settings, master_volume: pct / 100 };
-                    updateSetting("video_settings", vs);
+                    updateVideoSettings({ master_volume: pct / 100 });
                   }}
                 />
-                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.master_volume === null ? "Default" : `${Math.round(settings()!.video_settings.master_volume! * 100)}%`}</span>
+                <div class="vs-val">{vs().master_volume === null ? "Default" : `${Math.round(vs().master_volume! * 100)}%`}</div>
               </div>
 
-              {/* Music Volume — inline slider */}
-              <div class="settings-row" style="padding:6px 10px;align-items:center;gap:10px">
-                <div class="settings-key" style="font-size:11px;min-width:90px;flex-shrink:0">Music</div>
+              {/* Music Volume */}
+              <div class="vs-cell">
+                <div class="vs-key">Music</div>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   step="1"
-                  value={settings()!.video_settings.music_volume === null ? 100 : Math.round(settings()!.video_settings.music_volume * 100)}
-                  class="memory-slider"
-                  style={`flex:1;--slider-pct:${(settings()!.video_settings.music_volume === null ? 100 : Math.round(settings()!.video_settings.music_volume * 100))}%`}
+                  value={vs().music_volume === null ? 100 : Math.round(vs().music_volume! * 100)}
+                  class="memory-slider vs-slider"
+                  style={`--slider-pct:${(vs().music_volume === null ? 100 : Math.round(vs().music_volume! * 100))}%`}
                   onInput={(e) => {
                     const pct = parseInt(e.currentTarget.value);
                     e.currentTarget.style.setProperty('--slider-pct', `${pct}%`);
-                    const vs = { ...settings()!.video_settings, music_volume: pct / 100 };
-                    updateSetting("video_settings", vs);
+                    updateVideoSettings({ music_volume: pct / 100 });
                   }}
                 />
-                <span style="font-size:9px;color:var(--muted);min-width:42px;text-align:right">{settings()!.video_settings.music_volume === null ? "Default" : `${Math.round(settings()!.video_settings.music_volume! * 100)}%`}</span>
+                <div class="vs-val">{vs().music_volume === null ? "Default" : `${Math.round(vs().music_volume! * 100)}%`}</div>
               </div>
             </div>
             <div class="settings-val" style="margin-top:8px;font-size:9px">Applied to all instances on launch. "Default" keeps whatever is set in-game.</div>

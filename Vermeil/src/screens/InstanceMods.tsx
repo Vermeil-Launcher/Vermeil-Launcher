@@ -244,6 +244,23 @@ const InstanceMods: Component = () => {
     return list.find(i => i.id === id) || list[0] || null;
   };
 
+  // Optimistic local mirror of the per-instance memory value so the slider
+  // label and fill update synchronously while the user drags. Without this
+  // the displayed "X.Y GB" lags the thumb because the read source
+  // (`instance().java.memory_max_mb`) only refreshes after the IPC save
+  // round-trip + refetchInstances() completes.
+  const [memoryDraft, setMemoryDraft] = createSignal<number | null>(null);
+  const memoryValue = (): number => memoryDraft() ?? instance()?.java.memory_max_mb ?? 4096;
+  // Clear the draft once the resource catches up so external changes are
+  // reflected eventually. (The resource always re-reads on refetch.)
+  createEffect(() => {
+    const inst = instance();
+    const draft = memoryDraft();
+    if (inst && draft !== null && inst.java.memory_max_mb === draft) {
+      setMemoryDraft(null);
+    }
+  });
+
   const totalPages = () => Math.max(1, Math.ceil(totalHits() / viewCount()));
 
   // Load files when tab switches
@@ -786,7 +803,7 @@ const InstanceMods: Component = () => {
                       const dots = [];
                       for (let gb = 4096; gb <= max; gb += 4096) {
                         const pct = ((gb - 512) / (max - 512)) * 100;
-                        const current = instance()?.java.memory_max_mb || 4096;
+                        const current = memoryValue();
                         dots.push(
                           <div
                             class="memory-dot"
@@ -804,28 +821,36 @@ const InstanceMods: Component = () => {
                     min={512}
                     max={Math.max((systemMemoryMb() || 16384) - 2048, 4096)}
                     step={256}
-                    value={instance()?.java.memory_max_mb || 4096}
+                    value={memoryValue()}
                     style={{
-                      "--slider-pct": `${(((instance()?.java.memory_max_mb || 4096) - 512) / (Math.max((systemMemoryMb() || 16384) - 2048, 4096) - 512)) * 100}%`
+                      "--slider-pct": `${((memoryValue() - 512) / (Math.max((systemMemoryMb() || 16384) - 2048, 4096) - 512)) * 100}%`
                     }}
-                    onInput={async (e) => {
+                    onInput={(e) => {
                       const inst = instance();
                       if (!inst) return;
                       const val = parseInt(e.currentTarget.value);
                       const snapped = Math.round(val / 512) * 512 || 512;
                       e.currentTarget.value = String(snapped);
-                      await updateInstanceOptions(inst.id, { memoryMaxMb: snapped });
-                      await refetchInstances();
+                      // Update local signal synchronously so display follows the thumb.
+                      setMemoryDraft(snapped);
+                      // Fire-and-forget save; the createEffect above clears the
+                      // draft once the resource catches up. Errors are toasted.
+                      updateInstanceOptions(inst.id, { memoryMaxMb: snapped })
+                        .then(() => refetchInstances())
+                        .catch((err) => {
+                          console.error("Save memory failed:", err);
+                          showToast({ title: "Failed to save memory setting", message: String(err), type: "error" });
+                        });
                     }}
                   />
                 </div>
                 <div class="memory-slider-labels">
                   <span>512 MB</span>
-                  <span class="memory-slider-value">{((instance()?.java.memory_max_mb || 4096) / 1024).toFixed(1).replace('.0', '')} GB</span>
+                  <span class="memory-slider-value">{(memoryValue() / 1024).toFixed(1).replace('.0', '')} GB</span>
                   <span>{Math.round(Math.max((systemMemoryMb() || 16384) - 2048, 4096) / 1024)} GB</span>
                 </div>
-                <div class={`memory-hint ${memoryHintLevel(instance()?.java.memory_max_mb || 4096)}`}>
-                  {memoryHintText(instance()?.java.memory_max_mb || 4096)}
+                <div class={`memory-hint ${memoryHintLevel(memoryValue())}`}>
+                  {memoryHintText(memoryValue())}
                 </div>
               </div>
             </div>

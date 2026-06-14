@@ -215,6 +215,42 @@
 .settings-key { font-size: 13px; color: var(--text); font-weight: 500; }
 .settings-val { font-size: 12px; color: var(--muted); }
 
+/* Global instance settings — responsive grid that auto-flows into 1 / 2 / 3
+   columns based on available width. Each cell is a self-contained control
+   (slider or dropdown) with label + value. */
+.vs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+}
+.vs-cell {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 36px;
+}
+.vs-key {
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 500;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+.vs-slider { flex: 1; min-width: 0; }
+.vs-val {
+  font-size: 9px;
+  color: var(--muted);
+  min-width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 /* Downloads */
 .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
 .dl-item {

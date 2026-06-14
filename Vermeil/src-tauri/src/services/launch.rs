@@ -1139,11 +1139,19 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         // Game exited — reset Discord RPC to idle
         crate::services::discord::set_stopped();
 
+        // Clear the global PID tracker so stop_instance knows nothing is running.
+        crate::commands::launch::GAME_PID.store(0, std::sync::atomic::Ordering::SeqCst);
+
+        // If the user clicked "Stop", treat any non-zero exit code as intentional
+        // rather than a crash. The flag is consumed (set to false) so subsequent
+        // natural crashes are still detected.
+        let user_stopped = crate::commands::launch::take_user_stopped();
+
         // Game exited — restore window and notify frontend
         if let Some(win) = window {
             let _ = win.show();
             let _ = win.set_focus();
-            if crashed {
+            if crashed && !user_stopped {
                 let crash_dir = paths::instances_dir()
                     .join(&instance_id)
                     .join(".minecraft")

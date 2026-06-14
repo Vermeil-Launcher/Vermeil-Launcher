@@ -16,6 +16,7 @@ import {
   setInitialInstanceTab,
   dockHidden,
   dockPagination,
+  clearGameLogs,
 } from "../App";
 import {
   IconHome,
@@ -124,6 +125,7 @@ const FloatingDock: Component = () => {
     const id = activeInstanceId();
     if (!id) return;
     setGameRunning(true);
+    clearGameLogs(id);
     try {
       await launchInstance(id);
     } catch (e) {

@@ -3,6 +3,19 @@ use crate::services::instance_service;
 use crate::services::auth::MinecraftProfile;
 use crate::util::{paths, credentials};
 use std::fs;
+use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+
+/// PID of the currently running game process. 0 means no game is running.
+pub static GAME_PID: AtomicU32 = AtomicU32::new(0);
+/// Set to `true` when the user clicks "Stop" so the exit handler knows
+/// not to emit `game-crashed` for the non-zero exit code that results
+/// from a graceful termination signal.
+static USER_STOPPED: AtomicBool = AtomicBool::new(false);
+
+/// Check whether the user requested a stop (and clear the flag).
+pub fn take_user_stopped() -> bool {
+    USER_STOPPED.swap(false, Ordering::SeqCst)
+}
 
 #[tauri::command]
 pub async fn launch_instance(instance_id: String, window: tauri::WebviewWindow) -> Result<u32, String> {
@@ -47,6 +60,8 @@ pub async fn launch_instance(instance_id: String, window: tauri::WebviewWindow) 
 
     // Launch the game
     let pid = launch::launch(&instance, &username, &uuid, &token, Some(window.clone())).await?;
+    GAME_PID.store(pid, Ordering::SeqCst);
+    USER_STOPPED.store(false, Ordering::SeqCst);
 
     // Set Discord Rich Presence to "Playing"
     let loader_name = format!("{:?}", instance.loader.loader_type).to_lowercase();
@@ -239,23 +254,85 @@ pub async fn get_crash_report(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn stop_instance() -> Result<(), String> {
-    // Kill all java processes spawned by us (simple approach)
+    let pid = GAME_PID.load(Ordering::SeqCst);
+    if pid == 0 {
+        return Err("No game is running".to_string());
+    }
+
+    // Mark that the user intentionally stopped the game, so the exit
+    // handler (in launch.rs background task) won't emit `game-crashed`.
+    USER_STOPPED.store(true, Ordering::SeqCst);
+
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
+        // Send a graceful close (WM_CLOSE via taskkill without /F).
+        // This triggers Minecraft's shutdown hook: saves worlds, flushes
+        // chunks, closes connections — same as clicking the window X button.
+        // CREATE_NO_WINDOW prevents the brief black console flash.
         let _ = std::process::Command::new("taskkill")
-            .args(&["/F", "/IM", "java.exe"])
+            .args(&["/PID", &pid.to_string()])
+            .creation_flags(crate::services::java::CREATE_NO_WINDOW)
             .output();
-        let _ = std::process::Command::new("taskkill")
-            .args(&["/F", "/IM", "javaw.exe"])
-            .output();
+
+        // Wait up to 10s for the process to exit gracefully.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            // Check if process still exists
+            let check = std::process::Command::new("tasklist")
+                .args(&["/FI", &format!("PID eq {}", pid), "/NH", "/FO", "CSV"])
+                .creation_flags(crate::services::java::CREATE_NO_WINDOW)
+                .output();
+            if let Ok(output) = check {
+                let out = String::from_utf8_lossy(&output.stdout);
+                if !out.contains(&pid.to_string()) {
+                    // Process exited
+                    break;
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                // Force-kill as last resort
+                tracing::warn!("Game PID {} didn't exit gracefully after 10s, force-killing", pid);
+                let _ = std::process::Command::new("taskkill")
+                    .args(&["/F", "/PID", &pid.to_string()])
+                    .creation_flags(crate::services::java::CREATE_NO_WINDOW)
+                    .output();
+                break;
+            }
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
-        // On Linux/macOS, kill java processes by name
-        let _ = std::process::Command::new("pkill")
-            .args(&["-f", "java"])
+        // Send SIGTERM for graceful shutdown (triggers JVM shutdown hooks).
+        let _ = std::process::Command::new("kill")
+            .args(&["-TERM", &pid.to_string()])
             .output();
+
+        // Wait up to 10s, then force-kill.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let check = std::process::Command::new("kill")
+                .args(&["-0", &pid.to_string()])
+                .output();
+            if let Ok(output) = check {
+                if !output.status.success() {
+                    // Process no longer exists
+                    break;
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                tracing::warn!("Game PID {} didn't exit gracefully after 10s, force-killing", pid);
+                let _ = std::process::Command::new("kill")
+                    .args(&["-9", &pid.to_string()])
+                    .output();
+                break;
+            }
+        }
     }
+
+    GAME_PID.store(0, Ordering::SeqCst);
     Ok(())
 }
 

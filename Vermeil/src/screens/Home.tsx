@@ -1,5 +1,5 @@
 import { Component, createSignal, createEffect, createResource, createMemo, For, Show, onCleanup } from "solid-js";
-import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination } from "../App";
+import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination, clearGameLogs } from "../App";
 import { launchInstance, listInstanceWorlds, getJavaNews, getArticleBody, NewsArticle } from "../ipc/commands";
 import { IconPlay } from "../components/Icons";
 import PlayerHead from "../components/PlayerHead";
@@ -94,6 +94,7 @@ const Home: Component = () => {
     setInitialInstanceTab("logs");
     setGameLaunched(true);
     setActiveScreen("mods");
+    clearGameLogs(instanceId);
     try { await launchInstance(instanceId); } catch (e) { console.error(e); }
   };
 

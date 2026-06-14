@@ -58,6 +58,39 @@ const InstallProgress: Component = () => {
    *  NEVER overwrite the message text until the subprocess finishes. */
   let installerActive = false;
 
+  /**
+   * Message-update throttle. The Forge/NeoForge installer streams stdout
+   * lines that map to a handful of phases ("Downloading loader libraries",
+   * "Resolving loader libraries", etc.). The installer interleaves these
+   * line types, so naively reflecting every line makes the text flicker
+   * between two phases frame-by-frame. We throttle text changes to one per
+   * THROTTLE_MS and use a trailing timer so the LAST phase in a burst wins
+   * once the burst settles — smooth text, no flicker.
+   */
+  let lastMessageSetAt = 0;
+  let pendingMessageTimer: number | undefined;
+  const MESSAGE_THROTTLE_MS = 450;
+
+  /** Set the message text, throttled. `force` bypasses for terminal states
+   *  ("Ready to play") that must show immediately. */
+  const setMessageThrottled = (text: string, force = false) => {
+    if (pendingMessageTimer) { clearTimeout(pendingMessageTimer); pendingMessageTimer = undefined; }
+    const now = Date.now();
+    const elapsed = now - lastMessageSetAt;
+    if (force || elapsed >= MESSAGE_THROTTLE_MS) {
+      lastMessageSetAt = now;
+      setMessage(text);
+    } else {
+      // Schedule a trailing update so the final message in a rapid burst
+      // lands after the throttle window, instead of being dropped.
+      pendingMessageTimer = window.setTimeout(() => {
+        lastMessageSetAt = Date.now();
+        setMessage(text);
+        pendingMessageTimer = undefined;
+      }, MESSAGE_THROTTLE_MS - elapsed);
+    }
+  };
+
   onMount(() => {
     const unlistenInstall = listen<ProgressEvent>("install-progress", (event) => {
       const payload = event.payload;
@@ -70,7 +103,7 @@ const InstallProgress: Component = () => {
         installerActive = false;
         setDone(true);
         setFraction(1);
-        setMessage("Ready to play");
+        setMessageThrottled("Ready to play", true);
         hideTimeout = window.setTimeout(() => {
           setVisible(false);
           setDone(false);
@@ -86,7 +119,7 @@ const InstallProgress: Component = () => {
 
       setVisible(true);
       setTitle(payload.title);
-      setMessage(payload.message);
+      setMessageThrottled(payload.message);
       // Latch this message so `download-progress` events can't clobber it.
       // If the fraction is >= 0.95, we're in the installer-subprocess phase
       // (BinaryPatcher, SpecialSource, etc.) — hold the latch indefinitely
@@ -125,7 +158,7 @@ const InstallProgress: Component = () => {
         // This stops the "Downloading files (n/m)" string from blinking
         // over a more specific phase like "Patching client (BinaryPatcher)".
         if (!installerActive && Date.now() >= phaseLatchUntil) {
-          setMessage(`Downloading files (${completed}/${total})`);
+          setMessageThrottled(`Downloading files (${completed}/${total})`);
         }
       }
     });
@@ -135,6 +168,7 @@ const InstallProgress: Component = () => {
       unlistenDownload.then(fn => fn());
       if (hideTimeout) clearTimeout(hideTimeout);
       if (activityTimeout) clearTimeout(activityTimeout);
+      if (pendingMessageTimer) clearTimeout(pendingMessageTimer);
     });
   });
 

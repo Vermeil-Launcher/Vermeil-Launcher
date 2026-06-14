@@ -51,7 +51,7 @@ pub async fn update_instance_memory(id: String, memory_max_mb: u32) -> Result<()
     let mut instance: crate::models::instance::Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
     instance.java.memory_max_mb = memory_max_mb;
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
-    std::fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+    crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -103,7 +103,7 @@ pub async fn update_instance_options(
     if let Some(args) = extra_args { instance.java.extra_args = args; }
 
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
-    std::fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+    crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -114,7 +114,7 @@ pub async fn rename_instance(id: String, new_name: String) -> Result<(), String>
     let mut instance: crate::models::instance::Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
     instance.name = new_name.trim().to_string();
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
-    std::fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+    crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
     Ok(())
 }
 

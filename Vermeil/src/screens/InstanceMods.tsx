@@ -261,6 +261,25 @@ const InstanceMods: Component = () => {
     }
   });
 
+  // Debounced save for the memory slider. Firing IPC on every drag tick
+  // (~30/sec) caused concurrent read-modify-write races on instance.json,
+  // surfacing as "EOF while parsing" toasts. Now we only persist after
+  // the user pauses dragging — the visual updates instantly via the draft
+  // signal, save fires once when the drag settles.
+  let memorySaveTimer: number | undefined;
+  const commitMemory = (instanceId: string, mb: number) => {
+    if (memorySaveTimer !== undefined) clearTimeout(memorySaveTimer);
+    memorySaveTimer = window.setTimeout(() => {
+      memorySaveTimer = undefined;
+      updateInstanceOptions(instanceId, { memoryMaxMb: mb })
+        .then(() => refetchInstances())
+        .catch((err) => {
+          console.error("Save memory failed:", err);
+          showToast({ title: "Failed to save memory setting", message: String(err), type: "error" });
+        });
+    }, 200);
+  };
+
   const totalPages = () => Math.max(1, Math.ceil(totalHits() / viewCount()));
 
   // Load files when tab switches
@@ -839,14 +858,9 @@ const InstanceMods: Component = () => {
                       e.currentTarget.style.setProperty('--slider-pct', `${((snapped - 512) / (max - 512)) * 100}%`);
                       // Update local signal synchronously so display follows the thumb.
                       setMemoryDraft(snapped);
-                      // Fire-and-forget save; the createEffect above clears the
-                      // draft once the resource catches up. Errors are toasted.
-                      updateInstanceOptions(inst.id, { memoryMaxMb: snapped })
-                        .then(() => refetchInstances())
-                        .catch((err) => {
-                          console.error("Save memory failed:", err);
-                          showToast({ title: "Failed to save memory setting", message: String(err), type: "error" });
-                        });
+                      // Debounce the actual IPC save — firing one save per
+                      // drag tick races on instance.json reads/writes.
+                      commitMemory(inst.id, snapped);
                     }}
                   />
                 </div>

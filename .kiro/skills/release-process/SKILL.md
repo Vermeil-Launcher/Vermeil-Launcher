@@ -43,11 +43,43 @@ Use a short scope in parentheses to indicate the affected area:
 
 ### Commit Message Rules
 
+Keep them short. Most commits are one line — a body is the exception, not the rule.
+
 - Imperative mood: "add X", "fix Y", not "added" or "fixes"
-- Summary line under ~70 chars
-- Lead with user-visible change, not implementation detail
+- Subject under 70 chars, lower-case after the prefix, no trailing period
+- Lead with the user-visible change, not the implementation detail
+- **Body only when it adds something the subject can't carry** — usually a non-obvious *why*, a regression risk, or a follow-up note. If the body just restates what the diff already shows, drop it.
+- When a body is needed, keep it to 1–3 short lines. No multi-paragraph rationale, no step-by-step walkthroughs, no quoted code. The diff is the source of truth.
 - Never mention other launcher projects by name
 - No emojis in subject lines
+
+Good (subject only — the diff speaks for itself):
+
+```
+fix(modpack): enrich metadata for resource packs and shaders
+```
+
+Good (one-line body for non-obvious why):
+
+```
+fix(launch): keep global GC preset live when extras are preset-equal
+
+Stale extras from a previous preset were silently overriding new picks.
+```
+
+Bad (long body restating the patch):
+
+```
+fix(launch): keep global GC preset live when instance flags are preset-equal
+
+Switching the GC preset in Settings only updated an instance's Java args once.
+After that, the editor's blur handler would persist the pre-filled preset
+flags into extra_args, and the launch path treats any non-empty extra_args as
+a hard override of the global preset — so subsequent preset switches were
+silently shadowed.
+
+Add get_known_preset_args, which resolves every preset's flags...
+```
 
 ## Releasing a New Version
 

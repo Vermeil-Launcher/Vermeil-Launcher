@@ -297,6 +297,27 @@ pub async fn install_from_mrpack_file(
                     category: "shader".to_string(),
                     author: None,
                 });
+            } else if let Some(filename) = mf.path.strip_prefix("datapacks/") {
+                // Top-level `datapacks/` entries in a .mrpack — uncommon (most
+                // datapacks live inside a world's `saves/<world>/datapacks/`)
+                // but the spec doesn't forbid them. Track as a content entry
+                // so the Datapacks tab shows them and metadata enrichment
+                // can fetch their icon/title like any other content type.
+                mod_entries.push(ModEntry {
+                    id: filename.to_string(),
+                    source: "modpack".to_string(),
+                    project_id: String::new(),
+                    version_id: String::new(),
+                    filename: filename.to_string(),
+                    enabled: true,
+                    pinned: false,
+                    title: None,
+                    icon_url: None,
+                    local_icon_path: None,
+                    description: None,
+                    category: "datapack".to_string(),
+                    author: None,
+                });
             }
         }
     }
@@ -510,23 +531,35 @@ pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
         }
     }
 
-    // For Modrinth-sourced mods with filenames but no project_id, attempt
-    // hash-based lookup. The .mrpack format provides SHA-1 hashes for each
-    // file but not project IDs. We can use Modrinth's `/v2/version_files`
-    // endpoint to resolve hashes → version → project.
-    let modrinth_entries: Vec<(usize, String)> = instance.mods.iter().enumerate()
+    // For Modrinth-sourced entries (mods, resource packs, shader packs,
+    // datapacks) with filenames but no project_id, attempt hash-based lookup.
+    // The .mrpack format provides SHA-1 hashes for each file but not project
+    // IDs. We can use Modrinth's `/v2/version_files` endpoint to resolve
+    // hashes → version → project. The endpoint returns the version regardless
+    // of project type, so the same flow enriches every content category.
+    let modrinth_entries: Vec<(usize, String, String)> = instance.mods.iter().enumerate()
         .filter(|(_, m)| m.source == "modpack" && m.project_id.is_empty() && m.title.is_none())
-        .map(|(i, m)| (i, m.filename.clone()))
+        .map(|(i, m)| (i, m.filename.clone(), m.category.clone()))
         .collect();
 
     if !modrinth_entries.is_empty() {
-        // Compute SHA-1 hashes from the mod files on disk
-        let mods_dir = paths::instances_dir().join(instance_id).join(".minecraft").join("mods");
+        // Compute SHA-1 hashes from the files on disk. Resolve each entry's
+        // directory from its category — non-mod content (resource packs,
+        // shaders, datapacks) lives in its own subfolder, not `mods/`. Without
+        // this, only mods would get enriched and resource packs / shaders
+        // would always render as filename-only cards.
+        let minecraft_dir = paths::instances_dir().join(instance_id).join(".minecraft");
         let mut hash_to_idx: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
         let mut hashes: Vec<String> = Vec::new();
 
-        for (idx, filename) in &modrinth_entries {
-            let file_path = mods_dir.join(filename);
+        for (idx, filename, category) in &modrinth_entries {
+            let subdir = match category.as_str() {
+                "resourcepack" => "resourcepacks",
+                "shader" => "shaderpacks",
+                "datapack" => "datapacks",
+                _ => "mods",
+            };
+            let file_path = minecraft_dir.join(subdir).join(filename);
             if file_path.exists() {
                 if let Ok(bytes) = std::fs::read(&file_path) {
                     use sha1::Digest;

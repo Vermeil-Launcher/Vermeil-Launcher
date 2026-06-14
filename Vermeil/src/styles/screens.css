@@ -884,7 +884,8 @@
 
 
 /* Mod source toggle button — switches between Modrinth and CurseForge
-   in the Browse tab search bar. Shows a compact text badge. */
+   in the Browse tab search bar. The button itself carries the brand tint
+   so the icon can fill the space without a constraining inner badge. */
 .mod-source-toggle {
   display: flex;
   align-items: center;
@@ -894,7 +895,7 @@
   padding: 0;
   border-radius: 8px;
   flex-shrink: 0;
-  transition: background 0.12s, transform 0.12s;
+  transition: background 0.12s, transform 0.12s, border-color 0.12s;
 }
 .mod-source-toggle:hover {
   transform: scale(1.05);
@@ -903,23 +904,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  border-radius: 4px;
-  padding: 2px 5px;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
 }
 .mod-source-badge svg {
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
 }
 .mod-source-badge.mr {
   color: #1bd96a;
-  background: rgba(27, 217, 106, 0.12);
+  background: rgba(27, 217, 106, 0.15);
 }
 .mod-source-badge.cf {
   color: #f16436;
-  background: rgba(241, 100, 54, 0.12);
+  background: rgba(241, 100, 54, 0.15);
 }
 
 

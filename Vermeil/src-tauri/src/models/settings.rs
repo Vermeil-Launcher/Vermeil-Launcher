@@ -78,6 +78,20 @@ pub struct GlobalVideoSettings {
     /// None = don't override.
     #[serde(default)]
     pub music_volume: Option<f64>,
+    /// Game window width in pixels. Applied to all instances on launch.
+    /// None = use 1280 (launcher default).
+    #[serde(default)]
+    pub window_width: Option<u32>,
+    /// Game window height in pixels. Applied to all instances on launch.
+    /// None = use 720 (launcher default).
+    #[serde(default)]
+    pub window_height: Option<u32>,
+    /// Launch in fullscreen mode.
+    #[serde(default)]
+    pub fullscreen: Option<bool>,
+    /// Launch the game window maximized (fills screen, but not fullscreen).
+    #[serde(default)]
+    pub start_maximized: Option<bool>,
 }
 
 fn default_concurrent_downloads() -> u8 { 10 }

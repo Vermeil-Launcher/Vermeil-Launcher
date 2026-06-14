@@ -845,6 +845,26 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         }
     };
 
+    // Resolve window dimensions from global settings, falling back to
+    // per-instance values (for backwards compat) and then hard defaults.
+    let global_settings = crate::services::settings_service::load().await.ok();
+    let global_vs = global_settings.as_ref().map(|s| &s.video_settings);
+    let win_fullscreen = global_vs.and_then(|v| v.fullscreen).unwrap_or(instance.window.fullscreen);
+    let win_maximized = global_vs.and_then(|v| v.start_maximized).unwrap_or(false);
+    // If maximized is enabled (and not fullscreen), Minecraft launches with
+    // --width/--height set to a very large value so it fills the screen.
+    // Minecraft itself clamps this to the monitor bounds on startup.
+    let win_width = if win_maximized && !win_fullscreen {
+        7680 // large enough for any monitor; MC clamps internally
+    } else {
+        global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width)
+    };
+    let win_height = if win_maximized && !win_fullscreen {
+        4320
+    } else {
+        global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height)
+    };
+
     let mut game_args: Vec<String> = if let Some(ref arguments) = version.arguments {
         if let Some(ref game) = arguments.game {
             let game_dir_str = game_dir.to_string_lossy().to_string();
@@ -854,8 +874,8 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
             let uname = username.to_string();
             let uid = uuid.to_string();
             let token = access_token.to_string();
-            let w = instance.window.width.to_string();
-            let h = instance.window.height.to_string();
+            let w = win_width.to_string();
+            let h = win_height.to_string();
             let game_assets_str = paths::assets_dir().join("virtual").join(&assets_id).to_string_lossy().to_string();
 
             parse_versioned_args(game, &|t: &str| {
@@ -917,11 +937,11 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // injected manually.
     if version.minecraft_arguments.is_some() && has_custom_resolution {
         game_args.push("--width".to_string());
-        game_args.push(instance.window.width.to_string());
+        game_args.push(win_width.to_string());
         game_args.push("--height".to_string());
-        game_args.push(instance.window.height.to_string());
+        game_args.push(win_height.to_string());
     }
-    if instance.window.fullscreen {
+    if win_fullscreen {
         game_args.push("--fullscreen".to_string());
     }
 
@@ -991,11 +1011,11 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
             }
         }
 
-        // Always sync the fullscreen state from the per-instance setting
+        // Always sync the fullscreen state from the global settings
         // so in-game toggles don't persist unexpectedly across launches.
         let options_path = game_dir.join("options.txt");
         let mut content = fs::read_to_string(&options_path).unwrap_or_default();
-        let fullscreen_line = format!("fullscreen:{}", if instance.window.fullscreen { "true" } else { "false" });
+        let fullscreen_line = format!("fullscreen:{}", if win_fullscreen { "true" } else { "false" });
         let prefix = "fullscreen:";
         if let Some(pos) = content.find(prefix) {
             let end = content[pos..].find('\n').map(|i| pos + i).unwrap_or(content.len());

@@ -527,7 +527,7 @@ const Settings: Component = () => {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
               <div class="section-label" style="margin-bottom:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Video</div>
               <button class="btn" style="font-size:9px;padding:3px 10px" onClick={() => {
-                updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null });
+                updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null, window_width: null, window_height: null, fullscreen: null, start_maximized: null });
               }}>Reset All</button>
             </div>
             <div class="vs-grid">
@@ -693,6 +693,47 @@ const Settings: Component = () => {
               </div>
             </div>
             <div class="settings-val" style="margin-top:8px;font-size:9px">Applied to all instances on launch. "Default" keeps whatever is set in-game.</div>
+          </div>
+
+          {/* Window section */}
+          <div class="settings-section">
+            <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Window</div>
+            <div class="vs-grid">
+              {/* Resolution preset dropdown */}
+              <div class="vs-cell">
+                <div class="vs-key">Resolution</div>
+                <div style="flex:1" />
+                <Dropdown
+                  value={vs().window_width && vs().window_height ? `${vs().window_width}x${vs().window_height}` : "1280x720"}
+                  options={[
+                    { value: "1280x720", label: "1280 × 720" },
+                    { value: "1366x768", label: "1366 × 768" },
+                    { value: "1600x900", label: "1600 × 900" },
+                    { value: "1920x1080", label: "1920 × 1080" },
+                    { value: "2560x1440", label: "2560 × 1440" },
+                    { value: "3840x2160", label: "3840 × 2160" },
+                  ]}
+                  onChange={(val) => {
+                    const [w, h] = val.split("x").map(Number);
+                    updateVideoSettings({ window_width: w, window_height: h });
+                  }}
+                />
+              </div>
+
+              {/* Fullscreen toggle */}
+              <div class="vs-cell">
+                <div class="vs-key">Fullscreen</div>
+                <div style="flex:1" />
+                <div class={`toggle ${vs().fullscreen ? "on" : ""}`} onClick={() => updateVideoSettings({ fullscreen: !vs().fullscreen })} />
+              </div>
+
+              {/* Maximized toggle */}
+              <div class="vs-cell">
+                <div class="vs-key">Maximized</div>
+                <div style="flex:1" />
+                <div class={`toggle ${vs().start_maximized ? "on" : ""}`} onClick={() => updateVideoSettings({ start_maximized: !vs().start_maximized })} />
+              </div>
+            </div>
           </div>
 
           <div class="settings-section">

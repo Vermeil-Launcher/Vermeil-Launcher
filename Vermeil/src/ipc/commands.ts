@@ -127,6 +127,10 @@ export interface LauncherSettings {
     fov_effects: number | null;
     master_volume: number | null;
     music_volume: number | null;
+    window_width: number | null;
+    window_height: number | null;
+    fullscreen: boolean | null;
+    start_maximized: boolean | null;
   };
   /**
    * User-customizable keyboard shortcuts. Map of action ID → key combo

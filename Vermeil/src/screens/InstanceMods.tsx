@@ -876,48 +876,6 @@ const InstanceMods: Component = () => {
             </div>
           </div>
 
-          {/* Resolution */}
-          <div class="settings-group" style="margin-bottom:16px">
-            <div class="settings-row">
-              <div>
-                <div class="settings-key">Fullscreen</div>
-                <div class="settings-val">Launch game in fullscreen mode</div>
-              </div>
-              <div class={`toggle ${instance()?.window.fullscreen ? "on" : ""}`} onClick={async () => {
-                const inst = instance();
-                if (!inst) return;
-                await updateInstanceOptions(inst.id, { fullscreen: !inst.window.fullscreen });
-                await refetchInstances();
-              }} />
-            </div>
-            <div class="settings-row">
-              <div>
-                <div class="settings-key">Width</div>
-                <div class="settings-val">Game window width in pixels</div>
-              </div>
-              <input class="control-select" type="number" style="width:80px;text-align:center" value={instance()?.window.width}
-                onBlur={async (e) => {
-                  const inst = instance();
-                  if (!inst) return;
-                  const val = parseInt(e.currentTarget.value);
-                  if (val > 0) { await updateInstanceOptions(inst.id, { width: val }); await refetchInstances(); }
-                }} />
-            </div>
-            <div class="settings-row">
-              <div>
-                <div class="settings-key">Height</div>
-                <div class="settings-val">Game window height in pixels</div>
-              </div>
-              <input class="control-select" type="number" style="width:80px;text-align:center" value={instance()?.window.height}
-                onBlur={async (e) => {
-                  const inst = instance();
-                  if (!inst) return;
-                  const val = parseInt(e.currentTarget.value);
-                  if (val > 0) { await updateInstanceOptions(inst.id, { height: val }); await refetchInstances(); }
-                }} />
-            </div>
-          </div>
-
           {/* Java arguments */}
           <div class="settings-group" style="margin-bottom:16px">
             <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">

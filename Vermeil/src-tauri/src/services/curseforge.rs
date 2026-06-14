@@ -37,11 +37,19 @@ fn loader_type_id(loader: &str) -> Option<u32> {
     }
 }
 
-/// Map CurseForge sortField enum values to our sort names.
+/// Map our shared sort names to CurseForge's `sortField` enum.
+///
+/// Note that the launcher's sort dropdown is shared with Modrinth, but the
+/// two APIs don't have a 1:1 sort vocabulary. Where they differ we pick the
+/// closest CurseForge equivalent so the UI behavior stays coherent:
+/// - `follows` → `popularity` (CF has no follower count; popularity is the
+///   closest "social proof" sort).
+/// - `featured` is a CF-only Modrinth doesn't surface; we treat it like
+///   relevance.
 fn sort_field_id(sort: &str) -> u32 {
     match sort {
         "relevance" | "featured" => 1,
-        "popularity" => 2,
+        "popularity" | "follows" => 2,
         "updated" => 3,
         "name" => 4,
         "downloads" => 6,
@@ -178,10 +186,10 @@ pub async fn search(
     if !game_version.is_empty() {
         url.push_str(&format!("&gameVersion={}", urlencoding::encode(game_version)));
     }
-    // Only filter by loader for mods — resource packs, shaders, and datapacks
-    // are loader-agnostic on CurseForge and return 0 results if a loader
-    // filter is applied.
-    if project_type == "mod" {
+    // CurseForge's `modLoaderType` filter applies to mods AND modpacks
+    // (both have a primary loader). Resource packs, shaders, and datapacks
+    // are loader-agnostic — applying the filter to them returns 0 results.
+    if project_type == "mod" || project_type == "modpack" {
         if let Some(loader_id) = loader_type_id(loader) {
             url.push_str(&format!("&modLoaderType={}", loader_id));
         }

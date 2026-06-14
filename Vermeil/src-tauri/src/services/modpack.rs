@@ -328,6 +328,7 @@ pub async fn install_from_mrpack_file(
         window: WindowConfig::default(),
         mods: mod_entries,
         source_project_id,
+        source_platform: Some("modrinth".to_string()),
     };
 
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
@@ -361,6 +362,13 @@ pub async fn install_from_mrpack_file(
     // the newer loader libraries.
     if let Err(e) = revalidate_loader(&id, window_for_revalidate).await {
         tracing::warn!("Loader revalidation failed for {} (non-fatal): {}", id, e);
+    }
+
+    // Enrich mod metadata (titles, icons, authors) from APIs. Best-effort —
+    // failures just leave cards with filename-only display until the user
+    // manually installs/updates the affected mods.
+    if let Err(e) = enrich_mod_metadata(&id).await {
+        tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", id, e);
     }
 
     // Re-read the (possibly loader-bumped) instance so the returned value
@@ -409,6 +417,180 @@ pub async fn revalidate_loader(
         .await
         .map_err(|e| format!("Reload instance after bump: {}", e))?;
     crate::services::prepare::prepare(&bumped, window).await
+}
+
+/// Enrich mod entries in a modpack instance with metadata (title, icon, author)
+/// from their respective APIs. Called after modpack install completes. Mods
+/// without a `project_id` (Modrinth .mrpack path) get looked up via the hash
+/// endpoint; CurseForge mods are batched via the `/v1/mods` endpoint.
+///
+/// This is best-effort — enrichment failures don't break the instance, they
+/// just leave cards with filename-only display. On success, writes the updated
+/// metadata back to instance.json.
+pub async fn enrich_mod_metadata(instance_id: &str) -> Result<(), String> {
+    let meta_path = paths::instances_dir().join(instance_id).join("instance.json");
+    let content = std::fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
+    let mut instance: Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    let settings = crate::services::settings_service::load()
+        .await
+        .map_err(|e| format!("Load settings: {}", e))?;
+    let api_key = if settings.curseforge_api_key.is_empty() {
+        "$2a$10$Vqhx8J1qatEwez9lhg6cjeh1W6RC6H8AtXeLdu7o8H45smb66wCgu".to_string()
+    } else {
+        settings.curseforge_api_key.clone()
+    };
+
+    // Collect CurseForge project IDs that need enrichment
+    let cf_ids: Vec<String> = instance.mods.iter()
+        .filter(|m| (m.source == "curseforge" || m.source == "modpack") && !m.project_id.is_empty() && m.title.is_none())
+        .map(|m| m.project_id.clone())
+        .collect();
+
+    // Batch fetch CurseForge metadata (up to 50 per request)
+    if !cf_ids.is_empty() {
+        for chunk in cf_ids.chunks(50) {
+            let body = serde_json::json!({ "modIds": chunk.iter().filter_map(|id| id.parse::<u64>().ok()).collect::<Vec<_>>() });
+            let resp = crate::util::http::HTTP
+                .post("https://api.curseforge.com/v1/mods")
+                .header("x-api-key", &api_key)
+                .json(&body)
+                .send()
+                .await;
+
+            if let Ok(resp) = resp {
+                if let Ok(v) = resp.json::<serde_json::Value>().await {
+                    if let Some(data) = v.get("data").and_then(|d| d.as_array()) {
+                        for mod_data in data {
+                            let project_id = mod_data.get("id").and_then(|i| i.as_u64()).unwrap_or(0).to_string();
+                            let title = mod_data.get("name").and_then(|n| n.as_str()).map(|s| s.to_string());
+                            let icon = mod_data.get("logo")
+                                .and_then(|l| {
+                                    let thumb = l.get("thumbnailUrl").and_then(|u| u.as_str()).filter(|s| !s.is_empty());
+                                    let full = l.get("url").and_then(|u| u.as_str()).filter(|s| !s.is_empty());
+                                    thumb.or(full)
+                                })
+                                .map(|s| s.to_string());
+                            let author = mod_data.get("authors")
+                                .and_then(|a| a.as_array())
+                                .and_then(|a| a.first())
+                                .and_then(|a| a.get("name"))
+                                .and_then(|n| n.as_str())
+                                .map(|s| s.to_string());
+
+                            // Update matching entries
+                            for entry in instance.mods.iter_mut() {
+                                if entry.project_id == project_id && entry.title.is_none() {
+                                    entry.title = title.clone();
+                                    entry.icon_url = icon.clone();
+                                    entry.author = author.clone();
+                                    // Cache icon locally
+                                    if let Some(ref url) = icon {
+                                        entry.local_icon_path = crate::services::icon_cache::cache_remote_icon(url).await;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // For Modrinth-sourced mods with filenames but no project_id, attempt
+    // hash-based lookup. The .mrpack format provides SHA-1 hashes for each
+    // file but not project IDs. We can use Modrinth's `/v2/version_files`
+    // endpoint to resolve hashes → version → project.
+    let modrinth_entries: Vec<(usize, String)> = instance.mods.iter().enumerate()
+        .filter(|(_, m)| m.source == "modpack" && m.project_id.is_empty() && m.title.is_none())
+        .map(|(i, m)| (i, m.filename.clone()))
+        .collect();
+
+    if !modrinth_entries.is_empty() {
+        // Compute SHA-1 hashes from the mod files on disk
+        let mods_dir = paths::instances_dir().join(instance_id).join(".minecraft").join("mods");
+        let mut hash_to_idx: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut hashes: Vec<String> = Vec::new();
+
+        for (idx, filename) in &modrinth_entries {
+            let file_path = mods_dir.join(filename);
+            if file_path.exists() {
+                if let Ok(bytes) = std::fs::read(&file_path) {
+                    use sha1::Digest;
+                    let hash = format!("{:x}", sha1::Sha1::digest(&bytes));
+                    hash_to_idx.insert(hash.clone(), *idx);
+                    hashes.push(hash);
+                }
+            }
+        }
+
+        // Batch lookup via Modrinth (up to 1000 hashes per request)
+        if !hashes.is_empty() {
+            let body = serde_json::json!({ "hashes": hashes, "algorithm": "sha1" });
+            let resp = crate::util::http::HTTP
+                .post("https://api.modrinth.com/v2/version_files")
+                .json(&body)
+                .send()
+                .await;
+
+            if let Ok(resp) = resp {
+                if let Ok(v) = resp.json::<serde_json::Value>().await {
+                    // Response is a map of hash → version object
+                    if let Some(obj) = v.as_object() {
+                        let mut project_ids: Vec<String> = Vec::new();
+                        let mut hash_to_project: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+                        for (hash, version) in obj {
+                            if let Some(pid) = version.get("project_id").and_then(|p| p.as_str()) {
+                                hash_to_project.insert(hash.clone(), pid.to_string());
+                                project_ids.push(pid.to_string());
+                                // Update the project_id on the entry
+                                if let Some(&idx) = hash_to_idx.get(hash) {
+                                    instance.mods[idx].project_id = pid.to_string();
+                                    instance.mods[idx].source = "modrinth".to_string();
+                                }
+                            }
+                        }
+
+                        // Batch fetch project metadata
+                        project_ids.dedup();
+                        if !project_ids.is_empty() {
+                            let ids_param = project_ids.iter()
+                                .map(|id| format!("\"{}\"", id))
+                                .collect::<Vec<_>>()
+                                .join(",");
+                            let url = format!("https://api.modrinth.com/v2/projects?ids=[{}]", ids_param);
+                            if let Ok(resp) = crate::util::http::HTTP.get(&url).send().await {
+                                if let Ok(projects) = resp.json::<Vec<serde_json::Value>>().await {
+                                    for project in &projects {
+                                        let pid = project.get("id").and_then(|i| i.as_str()).unwrap_or("");
+                                        let title = project.get("title").and_then(|t| t.as_str()).map(|s| s.to_string());
+                                        let icon = project.get("icon_url").and_then(|u| u.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
+
+                                        for entry in instance.mods.iter_mut() {
+                                            if entry.project_id == pid && entry.title.is_none() {
+                                                entry.title = title.clone();
+                                                entry.icon_url = icon.clone();
+                                                if let Some(ref url) = icon {
+                                                    entry.local_icon_path = crate::services::icon_cache::cache_remote_icon(url).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Write enriched instance back
+    let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
+    crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;
+    tracing::info!("Enriched mod metadata for instance {}", instance_id);
+    Ok(())
 }
 
 /// Generate a unique instance name by appending "(N)" if needed. Shared with

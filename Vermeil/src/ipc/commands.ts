@@ -17,6 +17,7 @@ export interface Instance {
   total_play_seconds: number;
   created_at: string;
   source_project_id: string | null;
+  source_platform: string | null;
 }
 
 export interface CreateInstanceConfig {

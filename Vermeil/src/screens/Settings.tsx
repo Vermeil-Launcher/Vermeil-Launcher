@@ -5,7 +5,7 @@ import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { IconDownload, IconSearch, IconFolderOpen } from "../components/Icons";
+import { IconDownload, IconSearch, IconFolderOpen, IconModrinth, IconCurseForge } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
 import Dropdown from "../components/Dropdown";
 import KeybindCapture from "../components/KeybindCapture";
@@ -782,6 +782,12 @@ const Settings: Component = () => {
                             <span class="inst-badge badge-ram">{inst.java.memory_max_mb} MB</span>
                             <Show when={inst.window.fullscreen}>
                               <span class="inst-badge" style="background:var(--bg4);color:var(--accent-cyan)">Fullscreen</span>
+                            </Show>
+                            <Show when={inst.source_platform === "modrinth"}>
+                              <span class="inst-badge badge-source-mr"><IconModrinth /></span>
+                            </Show>
+                            <Show when={inst.source_platform === "curseforge"}>
+                              <span class="inst-badge badge-source-cf"><IconCurseForge /></span>
                             </Show>
                           </div>
                         </div>

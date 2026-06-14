@@ -151,6 +151,7 @@ pub async fn import_zip(
         total_play_seconds: 0,
         created_at: chrono::Utc::now().to_rfc3339(),
         source_project_id,
+        source_platform: Some("curseforge".to_string()),
     };
 
     // Save instance.json
@@ -185,6 +186,11 @@ pub async fn import_zip(
     // one than the manifest declared, then re-prepare loader libs.
     if let Err(e) = crate::services::modpack::revalidate_loader(&instance_id, window_for_revalidate).await {
         tracing::warn!("Loader revalidation failed for {} (non-fatal): {}", instance_id, e);
+    }
+
+    // Enrich mod metadata (titles, icons, authors) from APIs.
+    if let Err(e) = crate::services::modpack::enrich_mod_metadata(&instance_id).await {
+        tracing::warn!("Metadata enrichment failed for {} (non-fatal): {}", instance_id, e);
     }
 
     let final_instance = crate::services::instance_service::get_by_id(&instance_id)
@@ -295,6 +301,7 @@ pub async fn import_profile_code(
                 total_play_seconds: 0,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 source_project_id: None,
+                source_platform: Some("curseforge".to_string()),
             };
 
             let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;

@@ -115,9 +115,14 @@ pub struct Instance {
     pub java: JavaConfig,
     pub window: WindowConfig,
     pub mods: Vec<ModEntry>,
-    /// Modrinth project ID if this instance was created from a modpack
+    /// Modrinth or CurseForge project ID if this instance was created from a modpack
     #[serde(default)]
     pub source_project_id: Option<String>,
+    /// Which platform the instance (modpack) was installed from: "modrinth",
+    /// "curseforge", or None for custom-created instances. Used to render a
+    /// source badge on the Library card.
+    #[serde(default)]
+    pub source_platform: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

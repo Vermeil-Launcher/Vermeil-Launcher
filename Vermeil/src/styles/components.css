@@ -60,6 +60,10 @@
 .badge-quilt { background: #241a35; color: #c084e8; }
 .badge-ram { background: var(--bg4); color: var(--muted); }
 .badge-version { background: var(--bg4); color: var(--text); }
+.badge-source-mr { background: rgba(27, 217, 106, 0.12); color: #1bd96a; display: inline-flex; align-items: center; padding: 2px 5px; }
+.badge-source-mr svg { width: 12px; height: 12px; }
+.badge-source-cf { background: rgba(241, 100, 54, 0.12); color: #f16436; display: inline-flex; align-items: center; padding: 2px 5px; }
+.badge-source-cf svg { width: 12px; height: 12px; }
 
 
 /* Add card */

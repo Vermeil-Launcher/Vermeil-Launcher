@@ -22,7 +22,7 @@ use tokio::sync::Semaphore;
 
 /// Hard ceilings — match the UI (Settings.tsx) so a tampered config.json or
 /// older settings file doesn't drive the semaphores past safe limits.
-const MAX_FETCH: usize = 10;
+const MAX_FETCH: usize = 20;
 const MAX_WRITE: usize = 50;
 const MAX_RETRIES: u8 = 3;
 const RETRY_DELAY_MS: u64 = 500;

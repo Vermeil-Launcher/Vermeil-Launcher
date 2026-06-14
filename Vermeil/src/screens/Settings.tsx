@@ -44,12 +44,12 @@ const Settings: Component = () => {
   // round-trip completes.
   const [dlDraft, setDlDraft] = createSignal<number | null>(null);
   const [wrDraft, setWrDraft] = createSignal<number | null>(null);
-  const dlValue = (): number => dlDraft() ?? Math.min(settings()?.concurrent_downloads ?? 10, 10);
+  const dlValue = (): number => dlDraft() ?? Math.min(settings()?.concurrent_downloads ?? 10, 20);
   const wrValue = (): number => wrDraft() ?? settings()?.concurrent_writes ?? 10;
   createEffect(() => {
     const s = settings();
     const d = dlDraft();
-    if (s && d !== null && Math.min(s.concurrent_downloads, 10) === d) setDlDraft(null);
+    if (s && d !== null && Math.min(s.concurrent_downloads, 20) === d) setDlDraft(null);
   });
   createEffect(() => {
     const s = settings();
@@ -363,24 +363,24 @@ const Settings: Component = () => {
               <div class="settings-row" style="align-items:center">
                 <div>
                   <div class="settings-key">Concurrent downloads</div>
-                  <div class="settings-val">Max files downloading simultaneously (1–10)</div>
+                  <div class="settings-val">Max files downloading simultaneously (1–20)</div>
                 </div>
                 <div class="concurrency-control">
                   <input
                     class="concurrency-slider"
                     type="range"
                     min="1"
-                    max="10"
+                    max="20"
                     step="1"
                     value={dlValue()}
-                    style={`--slider-pct: ${((dlValue() - 1) / 9) * 100}%`}
+                    style={`--slider-pct: ${((dlValue() - 1) / 19) * 100}%`}
                     onInput={(e) => {
-                      const safe = clampConcurrency(parseInt(e.currentTarget.value), 10);
+                      const safe = clampConcurrency(parseInt(e.currentTarget.value), 20);
                       // Update the gradient fill synchronously so the visual
                       // tracks the thumb instantly, bypassing Solid's render
                       // queue. Without this, fast scrubs look laggy because
                       // the fill repaint waits for the next render tick.
-                      e.currentTarget.style.setProperty('--slider-pct', `${((safe - 1) / 9) * 100}%`);
+                      e.currentTarget.style.setProperty('--slider-pct', `${((safe - 1) / 19) * 100}%`);
                       setDlDraft(safe);
                       updateSetting("concurrent_downloads", safe);
                     }}
@@ -389,10 +389,10 @@ const Settings: Component = () => {
                     class="concurrency-number"
                     type="number"
                     min="1"
-                    max="10"
+                    max="20"
                     value={dlValue()}
                     onChange={(e) => {
-                      const safe = clampConcurrency(parseInt(e.currentTarget.value), 10);
+                      const safe = clampConcurrency(parseInt(e.currentTarget.value), 20);
                       e.currentTarget.value = String(safe);
                       setDlDraft(safe);
                       updateSetting("concurrent_downloads", safe);

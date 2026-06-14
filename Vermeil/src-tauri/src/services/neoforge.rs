@@ -444,15 +444,35 @@ async fn ensure_installer_ran(
     let marker = instance_dir.join(format!(".{}-installed", marker_name));
 
     if !marker.exists() {
-        // Download installer
+        // Download installer to a shared cache so multiple instances using
+        // the same loader version don't re-download the 15-40MB JAR.
+        let cache_dir = paths::data_dir().join("cache").join("installers");
+        fs::create_dir_all(&cache_dir).map_err(|e| format!("Create installer cache dir: {}", e))?;
+        // Use the installer URL's filename as the cache key (e.g. "neoforge-21.4.148-installer.jar")
+        let cache_filename = installer_url
+            .rsplit('/')
+            .next()
+            .unwrap_or("loader-installer.jar")
+            .to_string();
+        let cached_installer = cache_dir.join(&cache_filename);
+
+        if !cached_installer.exists() {
+            let task = DownloadTask {
+                url: installer_url.to_string(),
+                dest: cached_installer.clone(),
+                expected_sha1: None,
+                expected_size: None,
+            };
+            download_file(&crate::util::http::HTTP, &task).await?;
+        } else {
+            tracing::info!("Using cached installer: {}", cached_installer.display());
+        }
+
+        // Copy to instance dir for the installer to use (it writes files
+        // relative to its own directory)
         let installer_path = instance_dir.join("loader-installer.jar");
-        let task = DownloadTask {
-            url: installer_url.to_string(),
-            dest: installer_path.clone(),
-            expected_sha1: None,
-            expected_size: None,
-        };
-        download_file(&crate::util::http::HTTP, &task).await?;
+        fs::copy(&cached_installer, &installer_path)
+            .map_err(|e| format!("Copy cached installer: {}", e))?;
 
         // The installer needs the vanilla client jar in versions/<mc_version>/<mc_version>.jar
         // Copy it from our shared versions cache if available

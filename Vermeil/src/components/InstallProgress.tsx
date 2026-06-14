@@ -46,9 +46,17 @@ const InstallProgress: Component = () => {
   /**
    * Latch state for the message-source race. While `phaseLatchUntil` is
    * in the future, `download-progress` won't touch the message text.
+   * When an installer-phase event arrives (fraction >= 0.95), the latch
+   * holds until the next install-progress event updates it — effectively
+   * locking the message to the installer's stream for the entire duration
+   * of Forge/NeoForge processor execution.
    */
   let phaseLatchUntil = 0;
   const PHASE_LATCH_MS = 2000;
+  /** When true, the installer subprocess is actively streaming phases.
+   *  Download-progress events may still advance the bar fraction but
+   *  NEVER overwrite the message text until the subprocess finishes. */
+  let installerActive = false;
 
   onMount(() => {
     const unlistenInstall = listen<ProgressEvent>("install-progress", (event) => {
@@ -59,6 +67,7 @@ const InstallProgress: Component = () => {
 
       // "done" signal — hide popup after a short delay
       if (payload.section === "done") {
+        installerActive = false;
         setDone(true);
         setFraction(1);
         setMessage("Ready to play");
@@ -78,11 +87,17 @@ const InstallProgress: Component = () => {
       setVisible(true);
       setTitle(payload.title);
       setMessage(payload.message);
-      // Latch this message so `download-progress` events can't clobber it
-      // for the next ~2s. The installer-log streamer fires multiple phase
-      // lines per second during processor execution, so the latch will
-      // keep refreshing as long as the installer is actively reporting.
-      phaseLatchUntil = Date.now() + PHASE_LATCH_MS;
+      // Latch this message so `download-progress` events can't clobber it.
+      // If the fraction is >= 0.95, we're in the installer-subprocess phase
+      // (BinaryPatcher, SpecialSource, etc.) — hold the latch indefinitely
+      // until the next install-progress event refreshes it.
+      if (payload.fraction >= 0.95) {
+        installerActive = true;
+        phaseLatchUntil = Infinity;
+      } else {
+        installerActive = false;
+        phaseLatchUntil = Date.now() + PHASE_LATCH_MS;
+      }
 
       // Only update fraction from install-progress if download-progress hasn't taken over
       // (install-progress sends coarse fractions like 0.97, 0.98 for post-download steps)
@@ -106,10 +121,10 @@ const InstallProgress: Component = () => {
         const fileFraction = completed / total;
         setFraction(fileFraction);
         // Only own the message text when no install-progress phase is
-        // currently latched. This stops the "Downloading files (n/m)"
-        // string from blinking over a more specific phase like
-        // "Patching client (BinaryPatcher)" while both streams are live.
-        if (Date.now() >= phaseLatchUntil) {
+        // currently latched AND the installer subprocess isn't running.
+        // This stops the "Downloading files (n/m)" string from blinking
+        // over a more specific phase like "Patching client (BinaryPatcher)".
+        if (!installerActive && Date.now() >= phaseLatchUntil) {
           setMessage(`Downloading files (${completed}/${total})`);
         }
       }

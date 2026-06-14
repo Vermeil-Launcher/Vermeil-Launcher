@@ -4,12 +4,12 @@ import { searchModpacks, searchCurseforge, installModpack, installCfModpack, Mod
 import Dropdown from "../components/Dropdown";
 import { IconModrinth, IconCurseForge } from "../components/Icons";
 
-const KNOWN_LOADERS = ["fabric", "forge", "neoforge", "quilt"];
-
-/** Extract the primary loader from a ModHit's categories array. */
-function extractLoader(hit: ModHit): string {
+/** Extract ALL supported loaders from a ModHit's categories array.
+ *  Returns them in a stable display order so badge arrangement is predictable. */
+const LOADER_ORDER = ["fabric", "quilt", "forge", "neoforge"];
+function extractLoaders(hit: ModHit): string[] {
   const cats = hit.categories ?? [];
-  return cats.find(c => KNOWN_LOADERS.includes(c)) ?? "";
+  return LOADER_ORDER.filter(l => cats.includes(l));
 }
 
 /** Extract a compact version range string from a ModHit's versions array. */
@@ -114,7 +114,7 @@ const BrowseModpacks: Component = () => {
     // mod installs.
     const dlId = trackDownload(pack.title, "modpack", {
       iconUrl: pack.icon_url,
-      loader: extractLoader(pack),
+      loader: extractLoaders(pack)[0] || "",
       gameVersion: extractVersionRange(pack),
     });
 
@@ -236,9 +236,9 @@ const BrowseModpacks: Component = () => {
                       </Show>
                       <div class="mod-desc">{pack.description}</div>
                       <div class="mod-card-tags" style="margin-top:4px">
-                        <Show when={extractLoader(pack)}>
-                          <span class={`mod-tag mod-tag-loader loader-${extractLoader(pack)}`}>{extractLoader(pack)}</span>
-                        </Show>
+                        <For each={extractLoaders(pack)}>
+                          {(l) => <span class={`mod-tag mod-tag-loader loader-${l}`}>{l}</span>}
+                        </For>
                         <Show when={extractVersionRange(pack)}>
                           <span class="mod-tag">{extractVersionRange(pack)}</span>
                         </Show>

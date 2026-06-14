@@ -376,6 +376,11 @@ const Settings: Component = () => {
                     style={`--slider-pct: ${((dlValue() - 1) / 9) * 100}%`}
                     onInput={(e) => {
                       const safe = clampConcurrency(parseInt(e.currentTarget.value), 10);
+                      // Update the gradient fill synchronously so the visual
+                      // tracks the thumb instantly, bypassing Solid's render
+                      // queue. Without this, fast scrubs look laggy because
+                      // the fill repaint waits for the next render tick.
+                      e.currentTarget.style.setProperty('--slider-pct', `${((safe - 1) / 9) * 100}%`);
                       setDlDraft(safe);
                       updateSetting("concurrent_downloads", safe);
                     }}
@@ -411,6 +416,9 @@ const Settings: Component = () => {
                     style={`--slider-pct: ${((wrValue() - 1) / 49) * 100}%`}
                     onInput={(e) => {
                       const safe = clampConcurrency(parseInt(e.currentTarget.value), 50);
+                      // Direct setProperty for instant visual fill — see
+                      // the concurrent-downloads slider above for rationale.
+                      e.currentTarget.style.setProperty('--slider-pct', `${((safe - 1) / 49) * 100}%`);
                       setWrDraft(safe);
                       updateSetting("concurrent_writes", safe);
                     }}

@@ -831,6 +831,12 @@ const InstanceMods: Component = () => {
                       const val = parseInt(e.currentTarget.value);
                       const snapped = Math.round(val / 512) * 512 || 512;
                       e.currentTarget.value = String(snapped);
+                      // Update the gradient fill synchronously so the thumb
+                      // tracks instantly, bypassing Solid's render queue.
+                      // Without this, fast scrubs look laggy because the
+                      // fill repaint waits for the next render tick.
+                      const max = Math.max((systemMemoryMb() || 16384) - 2048, 4096);
+                      e.currentTarget.style.setProperty('--slider-pct', `${((snapped - 512) / (max - 512)) * 100}%`);
                       // Update local signal synchronously so display follows the thumb.
                       setMemoryDraft(snapped);
                       // Fire-and-forget save; the createEffect above clears the

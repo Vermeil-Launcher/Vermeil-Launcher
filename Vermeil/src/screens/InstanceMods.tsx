@@ -295,6 +295,45 @@ const InstanceMods: Component = () => {
     }
   });
 
+  // Extra-arguments code editor. Stored on disk as a single space-joined
+  // string in `instance.java.extra_args`; displayed here one arg per line
+  // for readability. The editor is purely presentational — on blur we
+  // re-split by whitespace and persist the joined form.
+  const [extraArgsText, setExtraArgsText] = createSignal("");
+  let gutterRef: HTMLDivElement | undefined;
+  // Sync the editor's text whenever the active instance changes.
+  createEffect(() => {
+    const inst = instance();
+    if (!inst) return;
+    const args = (inst.java.extra_args || []).filter((a) => a.trim());
+    setExtraArgsText(args.join("\n"));
+  });
+  // Line-number gutter mirrors the textarea row count. Math.max keeps the
+  // gutter from collapsing to a single number when the editor is empty.
+  const lineNumbers = (): number[] => {
+    const lines = extraArgsText().split("\n");
+    const count = Math.max(lines.length, 1);
+    return Array.from({ length: count }, (_, i) => i + 1);
+  };
+  const handleArgsBlur = async () => {
+    const inst = instance();
+    if (!inst) return;
+    // Split on any whitespace (newlines + spaces) so users can paste a
+    // one-line string and we'll re-format it. Filter empty entries from
+    // trailing newlines or accidental double spaces.
+    const args = extraArgsText().split(/\s+/).filter((a) => a.trim());
+    try {
+      await updateInstanceOptions(inst.id, { extraArgs: args });
+      await refetchInstances();
+      loadResolvedArgs();
+      // Re-normalize the displayed text so blur cleans up extra whitespace.
+      setExtraArgsText(args.join("\n"));
+    } catch (err) {
+      console.error("Save extra args failed:", err);
+      showToast({ title: "Failed to save Java arguments", message: String(err), type: "error" });
+    }
+  };
+
   const totalPages = () => Math.max(1, Math.ceil(totalHits() / viewCount()));
 
   // Load files when tab switches
@@ -894,29 +933,44 @@ const InstanceMods: Component = () => {
           {/* Java arguments */}
           <div class="settings-group" style="margin-bottom:16px">
             <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
-              <div class="settings-key">Resolved JVM arguments</div>
-              <div
-                class="field-input"
-                style="font-family:var(--font-mono);font-size:10px;color:var(--muted);background:var(--bg1);cursor:default;user-select:all;white-space:nowrap;overflow-x:auto"
-              >
-                {resolvedArgs()}
+              <div class="settings-key">Java arguments</div>
+              <div class="java-args-grid">
+                {/* Multi-line editor — one arg per line for readability.
+                    Purely presentational: under the hood, args are joined
+                    with spaces into a single `extra_args` string. */}
+                <div class="java-args-panel">
+                  <div class="java-args-panel-header">Extra arguments (one per line)</div>
+                  <div class="code-editor">
+                    <div class="code-editor-gutter" ref={(el) => (gutterRef = el)}>
+                      <For each={lineNumbers()}>
+                        {(n) => <span>{n}</span>}
+                      </For>
+                    </div>
+                    <textarea
+                      class="code-editor-input"
+                      spellcheck={false}
+                      placeholder={"-XX:+SomeFlag\n-Dsome.property=value"}
+                      value={extraArgsText()}
+                      onInput={(e) => setExtraArgsText(e.currentTarget.value)}
+                      onBlur={handleArgsBlur}
+                      onScroll={(e) => {
+                        if (gutterRef) gutterRef.scrollTop = e.currentTarget.scrollTop;
+                      }}
+                    />
+                  </div>
+                </div>
+                {/* Resolved string panel — read-only, shows the full
+                    argument list that will actually be passed to the JVM
+                    (memory + GC preset + your extras). */}
+                <div class="java-args-panel">
+                  <div class="java-args-panel-header">Resolved (passed to JVM)</div>
+                  <div class="resolved-string-wrap">{resolvedArgs()}</div>
+                </div>
               </div>
-              <div class="settings-val">Full argument string applied at launch (memory + GC preset + your extras)</div>
-            </div>
-            <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
-              <div class="settings-key">Extra Java arguments</div>
-              <input class="field-input" style="font-family:var(--font-mono);font-size:11px"
-                placeholder="Additional flags appended after the GC preset"
-                value={(instance()?.java.extra_args || []).join(" ")}
-                onBlur={async (e) => {
-                  const inst = instance();
-                  if (!inst) return;
-                  const args = e.currentTarget.value.split(" ").filter(a => a.trim());
-                  await updateInstanceOptions(inst.id, { extraArgs: args });
-                  await refetchInstances();
-                  loadResolvedArgs();
-                }} />
-              <div class="settings-val">Custom JVM flags appended after the preset</div>
+              <div class="settings-val">
+                Add custom flags above (one per line). The resolved string on the right shows
+                exactly what's passed to the JVM at launch — memory + GC preset + your extras.
+              </div>
             </div>
           </div>
 

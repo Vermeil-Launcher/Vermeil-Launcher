@@ -407,6 +407,91 @@ select.field-input { cursor: pointer; appearance: none; color-scheme: dark; }
 select.field-input option { background: var(--bg3); color: var(--text); }
 select.field-input[size] { appearance: none; }
 
+/* Two-panel Java arguments editor (per-instance settings).
+   Left panel is a code-editor-style multi-line view with line numbers.
+   Right panel is the read-only resolved string. Auto-stacks on narrow
+   windows so each panel keeps usable width. */
+.java-args-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.java-args-panel {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.java-args-panel-header {
+  padding: 6px 12px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+.code-editor {
+  display: flex;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.6;
+  height: 160px;
+  background: var(--bg1);
+}
+.code-editor-gutter {
+  flex: 0 0 auto;
+  padding: 8px 8px 8px 12px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  color: #4a4d55;
+  text-align: right;
+  user-select: none;
+  overflow: hidden;
+  min-width: 28px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+.code-editor-gutter span {
+  display: block;
+}
+.code-editor-input {
+  flex: 1;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  resize: none;
+  white-space: pre;
+  overflow: auto;
+  caret-color: var(--accent);
+}
+.code-editor-input::placeholder {
+  color: #3a3d45;
+  white-space: pre;
+}
+.resolved-string-wrap {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+  background: var(--bg1);
+  height: 160px;
+  overflow: auto;
+  word-break: break-all;
+  user-select: all;
+}
+
 /* Custom dropdown (version selector) */
 .custom-dropdown {
   position: relative;

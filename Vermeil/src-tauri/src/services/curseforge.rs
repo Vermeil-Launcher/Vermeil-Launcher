@@ -97,6 +97,10 @@ struct CfAuthor {
 struct CfLogo {
     #[serde(rename = "thumbnailUrl")]
     thumbnail_url: String,
+    /// Full-size icon URL. Used as fallback when `thumbnailUrl` is empty
+    /// (some CurseForge projects only populate the full `url` field).
+    #[serde(default)]
+    url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,7 +242,9 @@ pub async fn search(
             slug: m.slug,
             title: m.name,
             description: m.summary,
-            icon_url: m.logo.map(|l| l.thumbnail_url),
+            icon_url: m.logo.map(|l| {
+                if l.thumbnail_url.is_empty() { l.url } else { l.thumbnail_url }
+            }).filter(|u| !u.is_empty()),
             downloads: m.download_count,
             follows: m.thumbs_up_count,
             categories,

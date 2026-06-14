@@ -252,6 +252,8 @@ async fn fetch_cf_project_meta(api_key: &str, mod_id: &str) -> (Option<String>, 
     struct Logo {
         #[serde(rename = "thumbnailUrl")]
         thumbnail_url: String,
+        #[serde(default)]
+        url: String,
     }
     #[derive(serde::Deserialize)]
     struct Author {
@@ -261,7 +263,10 @@ async fn fetch_cf_project_meta(api_key: &str, mod_id: &str) -> (Option<String>, 
     match resp.json::<Wrapper>().await {
         Ok(w) => {
             let author = w.data.authors.into_iter().next().map(|a| a.name);
-            (w.data.name, w.data.logo.map(|l| l.thumbnail_url), author)
+            let icon = w.data.logo.map(|l| {
+                if l.thumbnail_url.is_empty() { l.url } else { l.thumbnail_url }
+            }).filter(|u| !u.is_empty());
+            (w.data.name, icon, author)
         }
         Err(_) => (None, None, None),
     }

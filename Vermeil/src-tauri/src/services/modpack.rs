@@ -537,12 +537,16 @@ async fn fetch_cf_project_icon(api_key: &str, project_id: &str) -> Result<Option
         return Ok(None);
     }
     let v: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    Ok(v.get("data")
-        .and_then(|d| d.get("logo"))
+    let logo = v.get("data").and_then(|d| d.get("logo"));
+    // Prefer thumbnailUrl, fall back to full `url` when thumbnail is empty
+    // (some CurseForge projects only populate the full-size URL).
+    let icon = logo
         .and_then(|l| l.get("thumbnailUrl"))
         .and_then(|u| u.as_str())
         .filter(|s| !s.is_empty())
-        .map(|s| s.to_string()))
+        .or_else(|| logo.and_then(|l| l.get("url")).and_then(|u| u.as_str()).filter(|s| !s.is_empty()))
+        .map(|s| s.to_string());
+    Ok(icon)
 }
 
 /// Install a modpack from a CurseForge project ID. Fetches the modpack zip

@@ -16,12 +16,22 @@ use tauri::Manager;
 ///
 /// The poll runs on an OS thread (not a tokio task) because it makes only
 /// blocking Win32 calls and we don't want to tie up the runtime. It gives
-/// up after 30 s — that's well past Minecraft's startup time on slow disks
-/// and avoids leaking a forever-running thread if MC fails to open a window.
+/// up after 120 s — that covers cold-start of even the heaviest modpacks
+/// (Cobbleverse, ATM10, RAD2 routinely take 45–90 s on first launch with
+/// a slow disk and 200+ mods to initialize). The earlier 30 s ceiling
+/// timed out before the GLFW window appeared on those packs and silently
+/// dropped the maximize.
+///
+/// We also exit early if the JVM process dies during the wait (user closed
+/// the game, crash before the window appeared, etc.) so we don't keep a
+/// dead-poll thread alive for the full timeout.
 #[cfg(windows)]
 fn maximize_minecraft_window_async(pid: u32) {
     use std::time::Duration;
-    use windows_sys::Win32::Foundation::{HWND, LPARAM};
+    use windows_sys::Win32::Foundation::{CloseHandle, HWND, LPARAM};
+    use windows_sys::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetWindowThreadProcessId, IsWindowVisible, ShowWindow, SW_MAXIMIZE,
     };
@@ -42,7 +52,9 @@ fn maximize_minecraft_window_async(pid: u32) {
             GetWindowThreadProcessId(hwnd, &mut window_pid);
             // Match by PID and require the window to be visible — Java
             // creates several invisible service windows during JVM startup
-            // (e.g. AWT), and we want the actual GLFW one.
+            // (e.g. AWT), and we want the actual GLFW one. Window *title*
+            // is never read: modpacks frequently rename the title (e.g.
+            // Cobbleverse), and our matcher must be title-agnostic.
             if window_pid == data.target_pid && IsWindowVisible(hwnd) != 0 {
                 data.found_hwnd = hwnd;
                 return 0; // FALSE — stop enumeration; we found our window
@@ -51,11 +63,53 @@ fn maximize_minecraft_window_async(pid: u32) {
         }
     }
 
+    /// Probe whether the JVM is still alive. Returns false once the process
+    /// has exited, so the caller can stop polling instead of grinding for
+    /// the full 120 s on a game the user already closed.
+    ///
+    /// Uses `PROCESS_QUERY_LIMITED_INFORMATION` because that's the minimum
+    /// privilege needed for `GetExitCodeProcess` and works across UAC
+    /// boundaries — `PROCESS_QUERY_INFORMATION` would require matching
+    /// integrity level on locked-down systems.
+    fn is_pid_alive(pid: u32) -> bool {
+        // STILL_ACTIVE is documented as 259 (= STATUS_PENDING). The constant
+        // isn't re-exported through `windows_sys::Win32::System::Threading`
+        // in every minor release, so we inline it to keep the import set
+        // stable.
+        const STILL_ACTIVE: u32 = 259;
+        unsafe {
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if handle.is_null() {
+                return false;
+            }
+            let mut code: u32 = 0;
+            let ok = GetExitCodeProcess(handle, &mut code) != 0;
+            CloseHandle(handle);
+            ok && code == STILL_ACTIVE
+        }
+    }
+
     std::thread::spawn(move || {
-        // Poll up to 30 s in 500 ms increments — covers slow startups (mod
-        // initialization on first launch can take 10–20 s for big modpacks).
-        for _ in 0..60 {
-            std::thread::sleep(Duration::from_millis(500));
+        // Poll up to 120 s in 500 ms increments. Heavy modpacks legitimately
+        // take 45–90 s to reach their first GLFW window on a cold start;
+        // 120 s adds margin without committing the thread to forever-poll
+        // when something genuinely went wrong.
+        const POLL_INTERVAL: Duration = Duration::from_millis(500);
+        const MAX_ITERATIONS: u32 = 240; // 240 × 500 ms = 120 s
+
+        for _ in 0..MAX_ITERATIONS {
+            std::thread::sleep(POLL_INTERVAL);
+
+            // Bail early if the JVM is gone — no point hunting for a window
+            // that will never appear.
+            if !is_pid_alive(pid) {
+                tracing::debug!(
+                    "Maximize watcher: PID {} exited before its window appeared; stopping poll",
+                    pid
+                );
+                return;
+            }
+
             let mut data = EnumData {
                 target_pid: pid,
                 found_hwnd: std::ptr::null_mut(),
@@ -71,7 +125,7 @@ fn maximize_minecraft_window_async(pid: u32) {
             }
         }
         tracing::warn!(
-            "Couldn't find a visible window for Minecraft PID {} after 30s; skipping maximize",
+            "Couldn't find a visible window for Minecraft PID {} after 120s; skipping maximize",
             pid
         );
     });

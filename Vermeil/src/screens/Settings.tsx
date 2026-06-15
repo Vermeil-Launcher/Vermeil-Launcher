@@ -5,7 +5,7 @@ import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { IconDownload, IconSearch, IconFolderOpen, IconTrash, IconModrinth, IconCurseForge, IconChevronRight } from "../components/Icons";
+import { IconDownload, IconSearch, IconFolderOpen, IconTrash, IconModrinth, IconCurseForge, IconChevronRight, IconGlobe } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
 import JavaChooserModal from "../modals/JavaChooserModal";
 import Dropdown from "../components/Dropdown";
@@ -386,6 +386,16 @@ const Settings: Component = () => {
                 </div>
                 <button class="btn" style="font-size:10px;padding:4px 10px;display:flex;align-items:center;gap:4px" onClick={() => openUrl("https://github.com/davekb1976-beep/Vermeil-Launcher")}>
                   <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                </button>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-key">Website</div>
+                  <div class="settings-val">vermeil-launcher.online</div>
+                </div>
+                <button class="btn" style="font-size:10px;padding:4px 10px;display:flex;align-items:center;gap:4px" onClick={() => openUrl("https://vermeil-launcher.online/")}>
+                  <IconGlobe />
+                  Visit
                 </button>
               </div>
               <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">

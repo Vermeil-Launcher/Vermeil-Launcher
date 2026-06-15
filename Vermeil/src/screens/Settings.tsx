@@ -259,41 +259,6 @@ const Settings: Component = () => {
         {/* ═══ GENERAL ═══ */}
         <Show when={tab() === "general"}>
           <div class="settings-section">
-            <div class="section-label" style="margin-bottom:8px">Java</div>
-            <div class="settings-group">
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">Java runtime</div>
-                  <div class="settings-val">{settings()!.java_runtime === "auto" ? "Auto-managed (Adoptium)" : settings()!.java_runtime}</div>
-                </div>
-                <Dropdown
-                  value={settings()!.java_runtime}
-                  options={[
-                    { value: "auto", label: "Auto (Adoptium)" },
-                    { value: "system", label: "System Java" },
-                  ]}
-                  onChange={(val) => updateSetting("java_runtime", val)}
-                />
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">GC preset</div>
-                  <div class="settings-val">{settings()!.gc_preset === "g1gc" ? "G1GC (recommended)" : settings()!.gc_preset.toUpperCase()}</div>
-                </div>
-                <Dropdown
-                  value={settings()!.gc_preset}
-                  options={[
-                    { value: "g1gc", label: "G1GC (recommended)" },
-                    { value: "zgc", label: "ZGC (Java 21+)" },
-                    { value: "shenandoah", label: "Shenandoah" },
-                  ]}
-                  onChange={(val) => updateSetting("gc_preset", val)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-section">
             <div class="section-label" style="margin-bottom:8px">Launcher</div>
             <div class="settings-group">
               <div class="settings-row">
@@ -484,6 +449,40 @@ const Settings: Component = () => {
               Each Minecraft major needs a different JRE. Use Detect to scan your system,
               Install recommended to download Adoptium Temurin, or Browse to point at an
               existing install.
+            </div>
+            {/* Java runtime + GC preset rows. Used to live under General →
+                Java; relocated here so every Java-related toggle (runtime
+                source, GC preset, per-major slots) is on one tab. */}
+            <div class="settings-group" style="margin-bottom:14px">
+              <div class="settings-row">
+                <div>
+                  <div class="settings-key">Java runtime</div>
+                  <div class="settings-val">{settings()!.java_runtime === "auto" ? "Auto-managed (Adoptium)" : settings()!.java_runtime}</div>
+                </div>
+                <Dropdown
+                  value={settings()!.java_runtime}
+                  options={[
+                    { value: "auto", label: "Auto (Adoptium)" },
+                    { value: "system", label: "System Java" },
+                  ]}
+                  onChange={(val) => updateSetting("java_runtime", val)}
+                />
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-key">GC preset</div>
+                  <div class="settings-val">{settings()!.gc_preset === "g1gc" ? "G1GC (recommended)" : settings()!.gc_preset.toUpperCase()}</div>
+                </div>
+                <Dropdown
+                  value={settings()!.gc_preset}
+                  options={[
+                    { value: "g1gc", label: "G1GC (recommended)" },
+                    { value: "zgc", label: "ZGC (Java 21+)" },
+                    { value: "shenandoah", label: "Shenandoah" },
+                  ]}
+                  onChange={(val) => updateSetting("gc_preset", val)}
+                />
+              </div>
             </div>
             <div class="java-slots">
               <For each={JAVA_SLOTS}>

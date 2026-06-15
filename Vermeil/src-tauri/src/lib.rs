@@ -211,6 +211,7 @@ pub fn run() {
             java::validate_java_path,
             java::set_java_path,
             java::install_recommended_java,
+            java::delete_java_install,
             // Skins & capes
             skins::get_skin_profile,
             skins::upload_skin,

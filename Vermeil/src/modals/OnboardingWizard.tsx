@@ -20,6 +20,7 @@ import {
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { IconDownload, IconSearch, IconFolderOpen } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
+import JavaChooserModal from "./JavaChooserModal";
 
 /**
  * First-run onboarding wizard.
@@ -121,6 +122,9 @@ const OnboardingWizard: Component = () => {
   const [javaBusy, setJavaBusy] = createSignal<Record<number, "install" | "detect" | "browse" | null>>({});
   const setJavaSlotBusy = (m: number, b: "install" | "detect" | "browse" | null) =>
     setJavaBusy(prev => ({ ...prev, [m]: b }));
+  // Chooser modal state — surfaced when Detect returns more than one match
+  // for a major. Mirrors the Settings → Resources behaviour.
+  const [chooser, setChooser] = createSignal<{ major: number; options: JavaInstall[] } | null>(null);
 
   /** Best-known path for a major: user-set > detected. */
   const javaPathFor = (major: number): string => {
@@ -226,23 +230,35 @@ const OnboardingWizard: Component = () => {
     try {
       const found = await detectJavaInstallations();
       setJavaDetections(found);
-      const match = found.find(i => i.major === major);
-      if (match) {
-        await setJavaPath(major, match.path);
-        setJavaPaths(prev => ({ ...prev, [major]: match.path }));
-        showToast({ title: `Java ${major} detected`, message: match.path, type: "success" });
-      } else {
+      const matches = found.filter(i => i.major === major);
+      if (matches.length === 0) {
         showToast({
           title: `Java ${major} not found`,
           message: "Try Install recommended or Browse to point at a JDK.",
           type: "info",
         });
+      } else if (matches.length === 1) {
+        await applyDetection(major, matches[0]);
+      } else {
+        // Multiple matches — let the user pick instead of silently grabbing
+        // the first by source priority. Same UX as Settings → Resources.
+        setChooser({ major, options: matches });
       }
     } catch (e) {
       showToast({ title: "Detection failed", message: String(e), type: "error" });
     } finally {
       setJavaSlotBusy(major, null);
     }
+  };
+
+  const applyDetection = async (major: number, install: JavaInstall) => {
+    await setJavaPath(major, install.path);
+    setJavaPaths(prev => ({ ...prev, [major]: install.path }));
+    setJavaDetections(prev => {
+      const without = prev.filter(i => i.path !== install.path);
+      return [...without, install];
+    });
+    showToast({ title: `Java ${major} set`, message: install.path, type: "success" });
   };
 
   const handleJavaBrowse = async (major: number) => {
@@ -520,8 +536,8 @@ const OnboardingWizard: Component = () => {
                           <button
                             class="btn"
                             onClick={() => handleJavaInstall(major)}
-                            disabled={busy() !== null || installed()}
-                            title={installed() ? "Already installed" : "Download from Adoptium"}
+                            disabled={busy() !== null}
+                            title={installed() ? "Replace with a fresh Adoptium download" : "Download from Adoptium"}
                           >
                             <IconDownload />
                             {busy() === "install" ? "Installing..." : "Install recommended"}
@@ -594,6 +610,23 @@ const OnboardingWizard: Component = () => {
           </Show>
         </div>
       </div>
+
+      {/* Chooser modal — sibling of the wizard's overlay so it stacks on
+          top via DOM order. The wizard's `.modal-overlay` doesn't close on
+          backdrop click, so dismissing the chooser leaves the wizard intact
+          underneath. */}
+      <Show when={chooser()}>
+        <JavaChooserModal
+          major={chooser()!.major}
+          options={chooser()!.options}
+          onCancel={() => setChooser(null)}
+          onPick={async (install) => {
+            const major = chooser()!.major;
+            setChooser(null);
+            await applyDetection(major, install);
+          }}
+        />
+      </Show>
     </Show>
   );
 };

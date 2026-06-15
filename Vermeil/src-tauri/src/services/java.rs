@@ -466,6 +466,55 @@ pub async fn install_recommended(major: u8) -> Result<JavaInstall, String> {
         .ok_or_else(|| "Downloaded JRE could not be validated".to_string())
 }
 
+/// Delete a Vermeil-downloaded JRE from `<data>/java/jdk-<major>/`.
+///
+/// Refuses to touch anything outside `paths::java_dir()` — the directory we
+/// own — so a corrupted setting or weird symlink can never wipe a user's
+/// external JDK at, say, `C:\Program Files\Java\jdk-21`. The two-stage check
+/// (path-prefix on the canonicalized result) is belt-and-braces against
+/// race conditions where the path resolves to something unexpected between
+/// `exists()` and `remove_dir_all()`.
+///
+/// Returns the deleted directory's absolute path on success.
+pub async fn delete_auto_installed(major: u8) -> Result<String, String> {
+    let install_dir = paths::java_dir().join(format!("jdk-{}", major));
+
+    if !install_dir.exists() {
+        return Err(format!(
+            "No Vermeil-installed Java {} found at {}",
+            major,
+            install_dir.display()
+        ));
+    }
+
+    // Re-resolve both sides through canonicalize so symlinks/junctions can't
+    // smuggle the deletion outside of `<data>/java/`.
+    let target_canon = install_dir
+        .canonicalize()
+        .map_err(|e| format!("Resolve install path: {}", e))?;
+    let java_root_canon = paths::java_dir()
+        .canonicalize()
+        .map_err(|e| format!("Resolve Vermeil java dir: {}", e))?;
+
+    if !target_canon.starts_with(&java_root_canon) {
+        return Err(format!(
+            "Refusing to delete: resolved path {} is outside Vermeil's Java directory {}",
+            target_canon.display(),
+            java_root_canon.display()
+        ));
+    }
+
+    std::fs::remove_dir_all(&target_canon).map_err(|e| {
+        format!(
+            "Delete {}: {} (the directory may be in use — close any running game first)",
+            target_canon.display(),
+            e
+        )
+    })?;
+
+    Ok(strip_extended_prefix(&target_canon.to_string_lossy()))
+}
+
 /// Replicates the Adoptium download path used by `launch::ensure_java_public`
 /// but parameterized on the major version, so the Settings UI can install
 /// any of the major versions our matrix supports (8, 17, 21, 25).

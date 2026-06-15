@@ -52,3 +52,31 @@ pub async fn install_recommended_java(major: u8) -> Result<JavaInstall, String> 
         .map_err(|e| e.to_string())?;
     Ok(install)
 }
+
+/// Delete the Vermeil-downloaded JRE for a major version. Refuses to touch
+/// externally-installed JREs — those are managed by the user's OS and the
+/// safety check in `services::java::delete_auto_installed` enforces this.
+///
+/// If the configured `java_paths` entry pointed at the deleted directory,
+/// it's cleared so the next launch can fall back to auto-detection or
+/// trigger a fresh `install_recommended`.
+#[tauri::command]
+pub async fn delete_java_install(major: u8) -> Result<String, String> {
+    let deleted = java::delete_auto_installed(major).await?;
+
+    // Clear the override only if it pointed inside the directory we just
+    // removed — leave any unrelated user override untouched.
+    let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
+    let should_clear = settings
+        .java_paths
+        .get(&major)
+        .map(|p| p.starts_with(&deleted))
+        .unwrap_or(false);
+    if should_clear {
+        settings.java_paths.remove(&major);
+        settings_service::save(&settings)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(deleted)
+}

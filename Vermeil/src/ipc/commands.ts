@@ -280,6 +280,14 @@ export const setJavaPath = (major: number, path: string | null) =>
   invoke<void>("set_java_path", { major, path });
 export const installRecommendedJava = (major: number) =>
   invoke<JavaInstall>("install_recommended_java", { major });
+/**
+ * Delete the Vermeil-downloaded JRE for a major version. The backend refuses
+ * for any path outside `<data>/java/`, so this can never wipe a user's
+ * external JDK even if `java_paths` is misconfigured. Returns the deleted
+ * directory's absolute path on success.
+ */
+export const deleteJavaInstall = (major: number) =>
+  invoke<string>("delete_java_install", { major });
 
 // ─── Skins / capes ───
 //

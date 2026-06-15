@@ -1,12 +1,13 @@
 import { Component, createSignal, createResource, Show, For, onMount, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { IconDownload, IconSearch, IconFolderOpen, IconModrinth, IconCurseForge } from "../components/Icons";
+import { IconDownload, IconSearch, IconFolderOpen, IconTrash, IconModrinth, IconCurseForge } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
+import JavaChooserModal from "../modals/JavaChooserModal";
 import Dropdown from "../components/Dropdown";
 import KeybindCapture from "../components/KeybindCapture";
 import { KEYBINDS, resolveBinding } from "../lib/keybinds";
@@ -62,8 +63,8 @@ const Settings: Component = () => {
   // Anything missing falls back to auto-detection / auto-install at launch.
   const JAVA_SLOTS: number[] = [25, 21, 17, 8];
   const [javaDetections, setJavaDetections] = createSignal<JavaInstall[]>([]);
-  const [javaBusy, setJavaBusy] = createSignal<Record<number, "install" | "detect" | "browse" | null>>({});
-  const setJavaSlotBusy = (major: number, busy: "install" | "detect" | "browse" | null) => {
+  const [javaBusy, setJavaBusy] = createSignal<Record<number, "install" | "detect" | "browse" | "delete" | null>>({});
+  const setJavaSlotBusy = (major: number, busy: "install" | "detect" | "browse" | "delete" | null) => {
     setJavaBusy(prev => ({ ...prev, [major]: busy }));
   };
 
@@ -77,19 +78,38 @@ const Settings: Component = () => {
     return detectionFor(major)?.path ?? "";
   };
 
+  // Chooser-modal state. When `Detect` finds more than one matching JRE for
+  // a major, we surface this modal so the user picks one explicitly instead
+  // of silently auto-selecting the first by source priority. Single matches
+  // still auto-apply — no popup for the obvious case.
+  const [chooser, setChooser] = createSignal<{ major: number; options: JavaInstall[] } | null>(null);
+
+  /** Apply a detected install: persist, refetch settings, toast. */
+  const applyDetection = async (major: number, install: JavaInstall) => {
+    await setJavaPath(major, install.path);
+    await refetch();
+    setJavaDetections((prev) => {
+      const without = prev.filter((i) => i.path !== install.path);
+      return [...without, install];
+    });
+    showToast({ title: `Java ${major} set`, message: install.path, type: "success" });
+  };
+
   const runDetect = async (major?: number) => {
     if (major !== undefined) setJavaSlotBusy(major, "detect");
     try {
       const found = await detectJavaInstallations();
       setJavaDetections(found);
       if (major !== undefined) {
-        const match = found.find(i => i.major === major);
-        if (match) {
-          await setJavaPath(major, match.path);
-          await refetch();
-          showToast({ title: `Java ${major} detected`, message: match.path, type: "success" });
-        } else {
+        const matches = found.filter((i) => i.major === major);
+        if (matches.length === 0) {
           showToast({ title: `Java ${major} not found`, message: "Try Install recommended or Browse manually.", type: "info" });
+        } else if (matches.length === 1) {
+          await applyDetection(major, matches[0]);
+        } else {
+          // Multiple matches — let the user pick. The chooser handles the
+          // apply step itself via `onPick`.
+          setChooser({ major, options: matches });
         }
       } else {
         showToast({ title: `Found ${found.length} Java install${found.length === 1 ? "" : "s"}`, type: "success" });
@@ -98,6 +118,23 @@ const Settings: Component = () => {
       showToast({ title: "Detection failed", message: String(e), type: "error" });
     } finally {
       if (major !== undefined) setJavaSlotBusy(major, null);
+    }
+  };
+
+  const runDelete = async (major: number) => {
+    setJavaSlotBusy(major, "delete");
+    try {
+      await deleteJavaInstall(major);
+      await refetch();
+      // Drop the deleted install from the local cache. The detector key is
+      // path-based — anything pointing into the now-removed `jdk-{major}/`
+      // is stale, but we just nuke any matching `major` entries to be safe.
+      setJavaDetections((prev) => prev.filter((i) => i.major !== major));
+      showToast({ title: `Java ${major} removed`, message: "Vermeil's downloaded copy was deleted.", type: "success" });
+    } catch (e) {
+      showToast({ title: `Java ${major} delete failed`, message: String(e), type: "error" });
+    } finally {
+      setJavaSlotBusy(major, null);
     }
   };
 
@@ -490,8 +527,8 @@ const Settings: Component = () => {
                         <button
                           class="btn"
                           onClick={() => runInstall(major)}
-                          disabled={busy() !== null || installed()}
-                          title={installed() ? "Already installed" : "Download from Adoptium"}
+                          disabled={busy() !== null}
+                          title={installed() ? "Replace with a fresh Adoptium download" : "Download from Adoptium"}
                         >
                           <IconDownload />
                           {busy() === "install" ? "Installing..." : "Install recommended"}
@@ -512,6 +549,33 @@ const Settings: Component = () => {
                           <IconFolderOpen />
                           {busy() === "browse" ? "Picking..." : "Browse"}
                         </button>
+                        {/* Delete is gated on the *current* slot being one of
+                            ours (source: auto_installed). The backend repeats
+                            the path-prefix check before any rm-rf so a stale
+                            UI state can't trick us into wiping a user JDK,
+                            but we hide the button when it'd be a no-op so
+                            users don't reach for it on their own installs. */}
+                          {(() => {
+                            const det = detectionFor(major);
+                            const ownsCurrent =
+                              det !== undefined &&
+                              det.path === path() &&
+                              det.source === "auto_installed";
+                            return (
+                              <Show when={ownsCurrent}>
+                                <button
+                                  class="btn"
+                                  style="color:#e05252;border-color:#e05252"
+                                  onClick={() => runDelete(major)}
+                                  disabled={busy() !== null}
+                                  title="Delete Vermeil's downloaded copy"
+                                >
+                                  <IconTrash />
+                                  {busy() === "delete" ? "Deleting..." : "Delete"}
+                                </button>
+                              </Show>
+                            );
+                          })()}
                       </div>
                     </div>
                   );
@@ -839,6 +903,23 @@ const Settings: Component = () => {
             </div>
           </div>
         </Show>
+      </Show>
+
+      {/* Chooser modal — rendered at the screen root so it overlays the
+          Settings tabs when the Detect action returns multiple matches. The
+          single-match path bypasses this entirely (auto-applied in
+          `runDetect`). */}
+      <Show when={chooser()}>
+        <JavaChooserModal
+          major={chooser()!.major}
+          options={chooser()!.options}
+          onCancel={() => setChooser(null)}
+          onPick={async (install) => {
+            const major = chooser()!.major;
+            setChooser(null);
+            await applyDetection(major, install);
+          }}
+        />
       </Show>
     </div>
   );

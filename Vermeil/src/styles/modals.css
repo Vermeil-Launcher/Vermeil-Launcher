@@ -359,3 +359,64 @@
   max-width: none;
 }
 
+
+/* Java chooser modal — shown when "Detect" finds more than one matching JRE
+   and the user has to pick which one to bind to the slot. Shape matches the
+   `.java-slot` cards above so the choice feels consistent with the slot UI
+   the user just clicked from. */
+.java-chooser-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.java-chooser-list::-webkit-scrollbar { width: 6px; }
+.java-chooser-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+.java-chooser-list::-webkit-scrollbar-track { background: transparent; }
+.java-chooser-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.java-chooser-row:hover { border-color: var(--accent); }
+.java-chooser-row.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg1));
+}
+.java-chooser-row input[type="radio"] {
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.java-chooser-info {
+  flex: 1;
+  min-width: 0;
+}
+.java-chooser-version {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.java-chooser-arch,
+.java-chooser-source {
+  font-weight: 400;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+.java-chooser-path {
+  margin-top: 2px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -14,6 +14,7 @@ import {
   SkinVariant,
 } from "../ipc/commands";
 import { SkinViewer, IdleAnimation, FlyingAnimation } from "skinview3d";
+import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
 import { IconUpload, IconReload, IconTrash2 } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 
@@ -104,6 +105,32 @@ const Skins: Component = () => {
     });
     viewer.animation = new IdleAnimation();
     viewer.controls.enableZoom = false;
+
+    // Hexagonal figurine pedestal under the model. Two stacked discs:
+    // - a wider, slightly taller dark base (panel surface color)
+    // - a thinner accent rim sitting on top of it
+    // Skinview3d's player model has its origin at the feet, so the platform
+    // sits at y = 0 with a small downward offset so the disc visibly extends
+    // past the soles. Sizes are in skinview3d scene units (the player model
+    // is roughly 32 units tall internally).
+    const platform = new Group();
+    const base = new Mesh(
+      // radiusTop, radiusBottom, height, 6 sides for a chunky hex pedestal
+      new CylinderGeometry(7, 8, 1.2, 6),
+      new MeshBasicMaterial({ color: 0x1d1b24 }),
+    );
+    base.position.y = -0.6;
+    const rim = new Mesh(
+      new CylinderGeometry(8.1, 8.1, 0.25, 6),
+      new MeshBasicMaterial({ color: 0x8b5cf6 }),
+    );
+    rim.position.y = 0.05;
+    platform.add(base);
+    platform.add(rim);
+    // Sink the whole thing slightly so the rim sits flush at the model's
+    // foot plane rather than poking through.
+    platform.position.y = -0.4;
+    viewer.scene.add(platform);
 
     computeCanvasSize();
     const ro = new ResizeObserver(computeCanvasSize);

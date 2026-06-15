@@ -13,7 +13,7 @@ import {
   LocalSkin,
   SkinVariant,
 } from "../ipc/commands";
-import { SkinViewer, WalkingAnimation, FlyingAnimation } from "skinview3d";
+import { SkinViewer, IdleAnimation, FlyingAnimation } from "skinview3d";
 import { IconUpload, IconReload, IconTrash2 } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 
@@ -102,7 +102,7 @@ const Skins: Component = () => {
       height: 520,
       skin: undefined,
     });
-    viewer.animation = new WalkingAnimation();
+    viewer.animation = new IdleAnimation();
     viewer.controls.enableZoom = false;
 
     computeCanvasSize();
@@ -171,7 +171,7 @@ const Skins: Component = () => {
       }
     }
 
-    const newAnim = elytra ? new FlyingAnimation() : new WalkingAnimation();
+    const newAnim = elytra ? new FlyingAnimation() : new IdleAnimation();
     if (viewer.animation) viewer.animation.speed = 0;
     viewer.animation = newAnim;
     newAnim.speed = 0;

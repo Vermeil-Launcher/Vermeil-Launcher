@@ -1,6 +1,6 @@
 {
   "productName": "Vermeil",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "identifier": "com.vermeil.launcher",
   "build": {
     "beforeDevCommand": "pnpm dev",

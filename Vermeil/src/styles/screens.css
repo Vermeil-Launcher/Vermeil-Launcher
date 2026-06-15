@@ -118,74 +118,41 @@
 }
 .skins-toolbar-btn svg { width: 14px; height: 14px; }
 
-/* Side carousel arrows — page through saved skins. */
-.skins-arrow {
+/* Side docks — vertical columns flanking the model. Saved skins on the
+   left, capes on the right. Each dock scrolls vertically when there are
+   more chips than the viewport height accommodates. */
+.skins-dock-side {
   top: 50%;
   transform: translateY(-50%);
-  width: 48px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 88px;
+  max-height: calc(100% - 120px);
   background: var(--surface-glass);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--border);
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
-  box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.4),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.30);
-}
-.skins-arrow:hover:not(:disabled) {
-  background: var(--surface-raised);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.skins-arrow:active:not(:disabled) { transform: translateY(-50%) scale(0.96); }
-.skins-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
-.skins-arrow--left { left: var(--space-5); }
-.skins-arrow--right { right: var(--space-5); }
-.skins-arrow svg { width: 20px; height: 20px; }
-.skins-hero.idle .skins-arrow--left { transform: translate(-12px, -50%); }
-.skins-hero.idle .skins-arrow--right { transform: translate(12px, -50%); }
-
-/* Bottom floating strip — capes row + saved-skin library row. */
-.skins-strip-bottom {
-  bottom: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(720px, calc(100% - var(--space-8) * 2));
-  background: var(--surface-glass);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid var(--border);
-  padding: var(--space-3);
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  overflow-y: auto;
+  scrollbar-width: none;
+  align-items: center;
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.4),
     inset 0 -3px 0 rgba(0, 0, 0, 0.25);
 }
-.skins-hero.idle .skins-strip-bottom {
-  transform: translate(-50%, 8px);
-}
-.skins-strip-row {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-}
-.skins-strip-row::-webkit-scrollbar { display: none; }
-.skins-strip-empty {
-  font-size: 11px;
+.skins-dock-side::-webkit-scrollbar { display: none; }
+.skins-dock-left { left: var(--space-3); }
+.skins-dock-right { right: var(--space-3); }
+.skins-hero.idle .skins-dock-left { transform: translate(-12px, -50%); }
+.skins-hero.idle .skins-dock-right { transform: translate(12px, -50%); }
+.skins-dock-empty {
+  font-size: 10px;
   color: var(--text-muted);
   text-align: center;
-  padding: var(--space-2);
+  padding: var(--space-3) var(--space-1);
   font-style: italic;
+  line-height: 1.4;
 }
 
 /* Cape chip — small square thumb. */

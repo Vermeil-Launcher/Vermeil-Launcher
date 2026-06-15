@@ -169,7 +169,13 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+  /* Chunky 3D plate — same hard inner under-shadow as the toggle thumb,
+     scaled to the FAB's 48px height (~14% of height, matching the thumb's
+     22px/3px ratio). The drop glow stays as the outer halo; the inset is
+     what gives the button physical depth. */
+  box-shadow:
+    0 4px 14px rgba(139, 92, 246, 0.4),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.30);
   transition:
     box-shadow 0.2s ease,
     transform 0.15s ease,
@@ -181,9 +187,22 @@
 .dock-center:hover {
   background: var(--accent-strong);
   transform: translate(-50%, -50%) scale(1.04);
-  box-shadow: 0 6px 18px rgba(139, 92, 246, 0.55);
+  /* Hover bg is darker than default and the FAB scales up, so the under-shadow
+     needs to GROW (not just deepen) to keep the chunky depth visible. Bigger
+     offset and deeper alpha together amplify the 3D plate look on hover instead
+     of letting it flatten as the button lifts. */
+  box-shadow:
+    0 6px 18px rgba(139, 92, 246, 0.55),
+    inset 0 -8px 0 rgba(0, 0, 0, 0.40);
 }
-.dock-center:active { transform: translate(-50%, -50%) scale(0.96); }
+.dock-center:active {
+  transform: translate(-50%, -50%) scale(0.96);
+  /* Compress the inset on press so the FAB reads as "pushed into the dock" —
+     smaller offset, deeper alpha, against the same darker hover bg. */
+  box-shadow:
+    0 2px 8px rgba(139, 92, 246, 0.4),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.45);
+}
 
 .dock-center-icon {
   position: relative;
@@ -236,12 +255,14 @@
   background: var(--danger);
   box-shadow:
     var(--shadow-md),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.30),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 .dock-center-stop:hover {
   box-shadow:
     var(--shadow-lg),
     0 0 0 4px var(--danger-soft),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.30),
     0 1px 0 rgba(255, 255, 255, 0.2) inset;
 }
 
@@ -250,12 +271,14 @@
   background: linear-gradient(135deg, var(--surface-raised), var(--surface-panel));
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.35),
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 .dock-center-close:hover {
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.5),
     0 0 0 4px rgba(255, 255, 255, 0.05),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.35),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 

@@ -131,14 +131,13 @@
   padding: 0 var(--space-4);
 }
 
-/* Middle stage holds the skinview3d canvas. Caps at a sensible max so on
-   wide windows the docks hug the canvas instead of getting pushed to the
-   screen edges; the row's `justify-content: center` lets the leftover
-   horizontal space sit on the outer sides. flex auto-shrinks below the cap
-   on narrow windows so nothing overflows. */
+/* Middle stage holds the skinview3d canvas. The canvas itself is sized
+   portrait in JS (computeCanvasSize) to fit the tall model; this element
+   just gives it room and stays centered. max-width keeps the docks from
+   being pushed to the screen edges on very wide windows. */
 .skins-stage {
   flex: 1 1 auto;
-  max-width: 560px;
+  max-width: 620px;
   min-width: 0;
   height: 100%;
   display: flex;

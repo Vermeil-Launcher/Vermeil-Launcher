@@ -84,15 +84,18 @@ const Skins: Component = () => {
   let heroEl: HTMLDivElement | undefined;
   let stageEl: HTMLDivElement | undefined;
 
-  // Resize the skinview3d canvas to fit the central stage between the two
-  // side docks. Goes square so rotated arms and capes don't clip at the
-  // edges. The flex layout already reserves dock space, so we just measure
-  // the inner stage element directly.
+  // Size the canvas to a PORTRAIT rect that scales with the stage height.
+  // A humanoid model is ~2x taller than its max rotational width, so a tall
+  // narrow canvas fills with the model (appears large) instead of wasting
+  // horizontal space like a square would, and lets the side docks sit close.
+  // Height drives the size and grows with the window; width is 60% of height,
+  // which still clears the model's widest rotated extent at zoom 0.62.
   const computeCanvasSize = () => {
     if (!viewer || !stageEl) return;
     const rect = stageEl.getBoundingClientRect();
-    const size = Math.min(rect.width, rect.height * 0.95, 800);
-    if (size > 0) viewer.setSize(Math.round(size), Math.round(size));
+    const h = Math.min(rect.height * 0.96, 880);
+    const w = Math.min(rect.width, h * 0.6);
+    if (h > 0 && w > 0) viewer.setSize(Math.round(w), Math.round(h));
   };
 
   onMount(() => {

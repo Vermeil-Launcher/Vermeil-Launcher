@@ -39,9 +39,14 @@ fn current_path() -> PathBuf {
 /// over, so the user doesn't notice the launcher window forgetting where it
 /// was. The legacy file is left in place — auto-deleting another app's folder
 /// shape is risky and the empty `com.vermeil.launcher/` folder is harmless.
-fn legacy_path() -> Option<PathBuf> {
-    let base = dirs::config_dir()?;
-    Some(base.join("com.vermeil.launcher").join(".window-state"))
+///
+/// The plugin renamed its state file from `.window-state` (no extension) to
+/// `.window-state.json` somewhere around v2.0; we try both so users coming
+/// from any prior version migrate cleanly.
+fn legacy_paths() -> Vec<PathBuf> {
+    let Some(base) = dirs::config_dir() else { return Vec::new(); };
+    let dir = base.join("com.vermeil.launcher");
+    vec![dir.join(".window-state.json"), dir.join(".window-state")]
 }
 
 /// Read the saved state, falling back to a one-time migration from the legacy
@@ -53,10 +58,18 @@ pub fn load() -> Option<WindowState> {
             return Some(s);
         }
     }
-    let migrated = parse_legacy(&std::fs::read_to_string(legacy_path()?).ok()?)?;
-    // Persist into our location so we never have to read the legacy file again.
-    let _ = save(&migrated);
-    Some(migrated)
+    // First-launch migration. Try every known legacy filename and pick the
+    // first that parses; persist into our location so subsequent launches
+    // skip this branch entirely.
+    for legacy in legacy_paths() {
+        if let Ok(raw) = std::fs::read_to_string(&legacy) {
+            if let Some(migrated) = parse_legacy(&raw) {
+                let _ = save(&migrated);
+                return Some(migrated);
+            }
+        }
+    }
+    None
 }
 
 /// `tauri-plugin-window-state` serializes a `HashMap<String, LegacyState>`

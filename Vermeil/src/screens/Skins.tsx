@@ -487,7 +487,7 @@ const Skins: Component = () => {
                           <SkinAvatar
                             texture={skin.texture}
                             variant={skin.variant as "CLASSIC" | "SLIM" | "Unknown"}
-                            size={48}
+                            size={64}
                           />
                         </button>
                         <button

@@ -99,6 +99,17 @@
 .content::-webkit-scrollbar { width: 4px; }
 .content::-webkit-scrollbar-thumb { background: var(--accent); border-radius: var(--radius-xs); }
 
+/* The Skins screen is a full-bleed cinematic hero — its floating chrome
+   already lives within the visible area and the launcher dock sits on
+   empty canvas behind the model, not on top of any actionable controls.
+   Drop the bottom clearance and scroll-padding for this screen so the
+   model uses the full vertical space. Uses :has() (Chromium 105+, fine
+   in WebView2) to scope the override without touching the global rule. */
+.content:has(.skins-screen) {
+  padding-bottom: var(--space-5);
+  scroll-padding-bottom: 0;
+}
+
 /* =====================================================================
    Responsive_Layout (Requirements 8.1, 8.2, 8.3, 8.4, 8.6)
    ---------------------------------------------------------------------

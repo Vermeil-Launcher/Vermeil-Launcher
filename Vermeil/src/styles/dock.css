@@ -495,7 +495,16 @@
   height: 6px;
   border-radius: 0;
   background: var(--muted);
-  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition:
+    width 0.28s ease-in,
+    height 0.28s ease-in,
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background 0.2s ease;
   cursor: pointer;
 }
 .dock-dot.active {
@@ -504,6 +513,33 @@
 .dock-dot:hover:not(.active) {
   background: var(--text);
   opacity: 0.8 !important;
+}
+
+/* Active dot widens to reveal its page number while the user is scrolling
+   through pages on the island. Faster ease-out on grow vs slower ease-in on
+   collapse — reads as "wake up fast, settle slow". The transition override
+   only kicks in for the .expanded variant; collapse uses the base rule's
+   timing so it has the slower curve we want. */
+.dock-dot.active.expanded {
+  width: 26px;
+  height: 14px;
+  transition:
+    width 0.18s ease-out,
+    height 0.18s ease-out;
+}
+.dock-dot-num {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-contrast);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+  animation: dockDotNumIn 0.18s ease-out;
+}
+@keyframes dockDotNumIn {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 /* Page number input (shown on hold) — shows input / total */

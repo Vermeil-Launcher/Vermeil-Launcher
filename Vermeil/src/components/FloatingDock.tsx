@@ -144,6 +144,20 @@ const FloatingDock: Component = () => {
         {(() => {
           const [holding, setHolding] = createSignal(false);
           const [inputValue, setInputValue] = createSignal("");
+          // Wheel-on-island flash. While the user is scrolling pages, the
+          // active dot expands to reveal its page number; a 600ms idle
+          // debounce keeps it expanded during continuous scroll and only
+          // collapses once the user actually stops.
+          const [scrolling, setScrolling] = createSignal(false);
+          let scrollResetTimer: number | undefined;
+          const flashScroll = () => {
+            setScrolling(true);
+            if (scrollResetTimer !== undefined) window.clearTimeout(scrollResetTimer);
+            scrollResetTimer = window.setTimeout(() => setScrolling(false), 600);
+          };
+          onCleanup(() => {
+            if (scrollResetTimer !== undefined) window.clearTimeout(scrollResetTimer);
+          });
           let holdTimer: number | undefined;
           let islandEl: HTMLDivElement | undefined;
 
@@ -191,6 +205,10 @@ const FloatingDock: Component = () => {
                   e.stopPropagation();
                   const pag = dockPagination();
                   if (!pag) return;
+                  // Always flash on a wheel event so the user gets feedback
+                  // even when they're already at the edge and the page can't
+                  // change. Confirms "I heard you" instead of feeling dead.
+                  flashScroll();
                   if (e.deltaY < 0 && pag.current < pag.total) {
                     pag.onPageChange(pag.current + 1);
                     if (holding()) setInputValue((pag.current + 1).toString());
@@ -210,13 +228,18 @@ const FloatingDock: Component = () => {
                   <For each={dots()}>
                     {(page) => {
                       const pag = () => dockPagination()!;
+                      const isActive = () => page === pag().current;
                       const dist = () => Math.abs(page - pag().current);
                       return (
                         <div
-                          class={`dock-dot ${page === pag().current ? "active" : ""}`}
-                          style={`opacity: ${Math.max(0.2, 1 - dist() * 0.2)}; transform: scale(${page === pag().current ? 1 : Math.max(0.5, 1 - dist() * 0.15)})`}
+                          class={`dock-dot ${isActive() ? "active" : ""} ${isActive() && scrolling() ? "expanded" : ""}`}
+                          style={`opacity: ${Math.max(0.2, 1 - dist() * 0.2)}; transform: scale(${isActive() ? 1 : Math.max(0.5, 1 - dist() * 0.15)})`}
                           onClick={() => pag().onPageChange(page)}
-                        />
+                        >
+                          <Show when={isActive() && scrolling()}>
+                            <span class="dock-dot-num">{page}</span>
+                          </Show>
+                        </div>
                       );
                     }}
                   </For>

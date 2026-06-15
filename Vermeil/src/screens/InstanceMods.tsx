@@ -3,7 +3,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { searchMods, installModToInstance, installCfModToInstance, minimizeToTray, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceMemory, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getResolvedJvmArgs, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
-import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge } from "../components/Icons";
+import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
   { value: "relevance", label: "Relevance" },
@@ -12,7 +12,65 @@ const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
   { value: "updated", label: "Updated" },
 ];
-const VIEW_OPTIONS = [12, 24, 48];
+const VIEW_OPTIONS = [24, 48, 96];
+
+/**
+ * Adaptive grid page size. Measures the grid container's width and the visible
+ * height below it (inside the scrolling `.content` viewport), then reports how
+ * many compact cards fill that area plus a one-row buffer — so the grid is
+ * always full and never leaves a dead band on large windows.
+ *
+ *   - `live: true`  → recompute on every resize (client-side grids; free).
+ *   - `live: false` → recompute only after the resize settles (server-paged
+ *                     grids, so we don't refetch the rate-limited API on every
+ *                     pixel of a drag).
+ */
+function createAdaptiveCount(opts: { trackMin: number; rowHeight: number; gap: number; maxCols: number; maxRows: number; min: number; live: boolean }) {
+  const [count, setCount] = createSignal(opts.min);
+  let el: HTMLElement | undefined;
+  let settle: number | undefined;
+
+  const compute = () => {
+    if (!el) return;
+    const w = el.clientWidth;
+    if (w <= 0) return;
+    const content = el.closest(".content") as HTMLElement | null;
+    let availH = window.innerHeight;
+    if (content) {
+      const top = el.getBoundingClientRect().top - content.getBoundingClientRect().top;
+      availH = content.clientHeight - top;
+    }
+    // Columns grow with width up to maxCols; beyond that, cards widen (1fr)
+    // instead of adding columns — so a wide window never feels overwhelming.
+    const cols = Math.min(opts.maxCols, Math.max(1, Math.floor((w + opts.gap) / (opts.trackMin + opts.gap))));
+    const rows = Math.min(opts.maxRows, Math.max(1, Math.ceil(availH / (opts.rowHeight + opts.gap))));
+    // Pin the grid to exactly `cols` stretch-to-fill columns (overrides the CSS
+    // auto-fit track so the column cap is enforced and cards fill the row).
+    el.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    setCount(cols * rows);
+  };
+
+  const onResize = () => {
+    if (opts.live) compute();
+    else {
+      if (settle !== undefined) clearTimeout(settle);
+      settle = window.setTimeout(compute, 350);
+    }
+  };
+
+  const setEl = (node: HTMLElement) => {
+    el = node;
+    compute();                       // synchronous: usually has width at ref time
+    requestAnimationFrame(compute);  // fallback if layout wasn't ready yet
+    const ro = new ResizeObserver(onResize);
+    ro.observe(node);
+    const content = node.closest(".content");
+    if (content) ro.observe(content);
+    onCleanup(() => { ro.disconnect(); if (settle !== undefined) clearTimeout(settle); });
+  };
+
+  return { setEl, count };
+}
 
 type InstanceTab = "content" | "files" | "worlds" | "logs" | "settings";
 
@@ -139,7 +197,12 @@ const InstanceMods: Component = () => {
   // page. Default 24 fits roughly two screens at standard window size and
   // matches the value the user agreed on for "feels instant on big packs".
   const [installedPage, setInstalledPage] = createSignal(1);
-  const [installedView, setInstalledView] = createSignal(24);
+  // Adaptive page size — fills the visible grid area and recomputes live on
+  // resize (client-side slice, so re-rendering is free). The View dropdown can
+  // pin a fixed count; null = Auto (adaptive).
+  const installedAdaptive = createAdaptiveCount({ trackMin: 180, rowHeight: 132, gap: 12, maxCols: 6, maxRows: 6, min: 12, live: true });
+  const [installedViewOverride, setInstalledViewOverride] = createSignal<number | null>(null);
+  const installedView = () => installedViewOverride() ?? installedAdaptive.count();
 
   // Map of project_id → ModUpdate. Populated by `checkModUpdates` whenever the
   // Installed tab is opened so each card can render an "Update" pill without
@@ -200,7 +263,13 @@ const InstanceMods: Component = () => {
   const [totalHits, setTotalHits] = createSignal(0);
   const [currentPage, setCurrentPage] = createSignal(1);
   const [sortBy, setSortBy] = createSignal("relevance");
-  const [viewCount, setViewCount] = createSignal(12);
+  // Adaptive page size for Browse. Browse is server-paged against rate-limited
+  // APIs, so this recomputes only after a resize settles (live:false); the
+  // browse-fetch effect re-queries when the count changes. The View dropdown
+  // can pin a fixed count; null = Auto (adaptive).
+  const browseAdaptive = createAdaptiveCount({ trackMin: 180, rowHeight: 132, gap: 12, maxCols: 6, maxRows: 6, min: 12, live: false });
+  const [viewOverride, setViewOverride] = createSignal<number | null>(null);
+  const viewCount = () => viewOverride() ?? browseAdaptive.count();
   const [modSource, setModSource] = createSignal<"modrinth" | "curseforge">("modrinth");
   const [installing, setInstalling] = createSignal<string | null>(null);
   const [localInstalled, setLocalInstalled] = createSignal<Set<string>>(new Set());
@@ -494,8 +563,8 @@ const InstanceMods: Component = () => {
   createEffect(() => {
     if (mainTab() === "content" && contentTab() === "browse") {
       const _filter = browseFilter(); // track category changes
+      const _vc = viewCount();        // track adaptive/override page-size changes
       if (instance()) {
-        setSearchResults([]);
         setCurrentPage(1);
         doSearch(1);
       }
@@ -599,7 +668,6 @@ const InstanceMods: Component = () => {
 
   const handleSourceToggle = () => {
     setModSource(modSource() === "modrinth" ? "curseforge" : "modrinth");
-    setSearchResults([]);
     setCurrentPage(1);
     doSearch(1);
   };
@@ -612,7 +680,7 @@ const InstanceMods: Component = () => {
   };
 
   const handleSortChange = (sort: string) => { setSortBy(sort); setCurrentPage(1); doSearch(1); };
-  const handleViewChange = (count: number) => { setViewCount(count); setCurrentPage(1); doSearch(1); };
+  const handleViewChange = (count: number | null) => { setViewOverride(count); setCurrentPage(1); /* browse-fetch effect re-queries on viewCount change */ };
 
   const goToPage = (page: number) => {
     if (page < 1 || page > totalPages()) return;
@@ -953,7 +1021,7 @@ const InstanceMods: Component = () => {
       }>
       {/* Context bar */}
       <div class="inst-context-bar">
-        <button class="btn btn-ghost" style="padding:3px 7px;font-size:12px" onClick={() => setActiveScreen("library")}>
+        <button class="btn btn--ghost" style="padding:3px 7px;font-size:12px" onClick={() => setActiveScreen("library")}>
           <IconArrowLeft />
         </button>
         <span style="font-size:13px;font-weight:600;color:var(--text)">{instance()?.name}</span>
@@ -971,12 +1039,12 @@ const InstanceMods: Component = () => {
         </Show>
 
         <div class="ctx-action-group">
-          <div class="ctx-tabs">
-            <div class={`ctx-tab ${mainTab() === "content" ? "active" : ""}`} onClick={() => setMainTab("content")}>Content</div>
-            <div class={`ctx-tab ${mainTab() === "files" ? "active" : ""}`} onClick={() => setMainTab("files")}>Files</div>
-            <div class={`ctx-tab ${mainTab() === "worlds" ? "active" : ""}`} onClick={() => setMainTab("worlds")}>Worlds</div>
-            <div class={`ctx-tab ${mainTab() === "logs" ? "active" : ""}`} onClick={() => setMainTab("logs")}>Logs</div>
-            <div class={`ctx-tab ${mainTab() === "settings" ? "active" : ""}`} onClick={() => setMainTab("settings")}>⚙</div>
+          <div class="tab-strip">
+            <div class={`tab ${mainTab() === "content" ? "active" : ""}`} onClick={() => setMainTab("content")}>Content</div>
+            <div class={`tab ${mainTab() === "files" ? "active" : ""}`} onClick={() => setMainTab("files")}>Files</div>
+            <div class={`tab ${mainTab() === "worlds" ? "active" : ""}`} onClick={() => setMainTab("worlds")}>Worlds</div>
+            <div class={`tab ${mainTab() === "logs" ? "active" : ""}`} onClick={() => setMainTab("logs")}>Logs</div>
+            <div class={`tab ${mainTab() === "settings" ? "active" : ""}`} onClick={() => setMainTab("settings")} title="Instance settings"><span class="side-icon"><IconSettings /></span></div>
           </div>
           {/* Play/Stop control lives in the floating dock now (the center
               FAB). Removed from here to avoid duplicating the action and
@@ -1041,7 +1109,7 @@ const InstanceMods: Component = () => {
                 </button>
                 <Show when={instance() && instance()!.icon !== "cube"}>
                   <button
-                    class="btn btn-ghost"
+                    class="btn btn--ghost"
                     style="font-size:11px"
                     onClick={async () => {
                       const inst = instance();
@@ -1284,7 +1352,7 @@ const InstanceMods: Component = () => {
                 Make a copy with the same loader, mods, configs, and worlds. Useful for testing changes without breaking your main setup.
               </span>
               <button
-                class="btn btn-accent"
+                class="btn btn--primary"
                 style="font-size:11px;white-space:nowrap"
                 disabled={cloning()}
                 onClick={async () => {
@@ -1319,20 +1387,20 @@ const InstanceMods: Component = () => {
 
           {/* Danger zone */}
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-            <div class="section-label" style="color:#e05252">Danger Zone</div>
+            <div class="section-label" style="color:var(--danger)">Danger Zone</div>
             <Show when={!deleteConfirm()} fallback={
               <div style="display:flex;flex-direction:column;gap:8px">
-                <span style="font-size:12px;color:#e05252">Type <strong>Confirm</strong> to delete this instance permanently.</span>
+                <span style="font-size:12px;color:var(--danger)">Type <strong>Confirm</strong> to delete this instance permanently.</span>
                 <div style="display:flex;gap:8px;align-items:center">
-                  <input class="search-input" style="max-width:160px;border-color:#e05252" placeholder="Type Confirm"
+                  <input class="field-control field-control--text" style="max-width:160px;border-color:var(--danger)" placeholder="Type Confirm"
                     onInput={(e) => setDeleteCountdown(e.currentTarget.value === "Confirm" ? 0 : 1)} />
-                  <button class="btn" style="font-size:11px;color:#e05252;border-color:#e05252" disabled={deleteCountdown() !== 0}
+                  <button class="btn btn--danger" style="font-size:11px" disabled={deleteCountdown() !== 0}
                     onClick={async () => { const inst = instance(); if (!inst) return; await deleteInstance(inst.id); await refetchInstances(); refreshPinnedInstanceIds().catch(() => {}); setActiveScreen("library"); }}>Delete</button>
-                  <button class="btn btn-ghost" style="font-size:11px" onClick={() => setDeleteConfirm(false)}>Cancel</button>
+                  <button class="btn btn--ghost" style="font-size:11px" onClick={() => setDeleteConfirm(false)}>Cancel</button>
                 </div>
               </div>
             }>
-              <button class="btn" style="font-size:11px;color:#e05252;border-color:#e05252"
+              <button class="btn btn--danger" style="font-size:11px"
                 onClick={async () => {
                   const settings = await getSettings();
                   if (settings.force_delete) {
@@ -1357,22 +1425,22 @@ const InstanceMods: Component = () => {
       {/* ═══ CONTENT TAB ═══ */}
       <Show when={mainTab() === "content"}>
         {/* Mode toggle */}
-        <div class="src-tabs" style="margin-bottom:8px">
-          <div class={`src-tab ${contentTab() === "installed" ? "active" : ""}`} onClick={() => { setContentTab("installed"); refetchInstances(); }}>Installed</div>
-          <div class={`src-tab ${contentTab() === "browse" ? "active" : ""}`} onClick={() => setContentTab("browse")}>Browse</div>
+        <div class="tab-strip" style="margin-bottom:8px">
+          <div class={`tab ${contentTab() === "installed" ? "active" : ""}`} onClick={() => { setContentTab("installed"); refetchInstances(); }}>Installed</div>
+          <div class={`tab ${contentTab() === "browse" ? "active" : ""}`} onClick={() => setContentTab("browse")}>Browse</div>
         </div>
 
         {/* Category filter */}
         <Show when={contentTab() === "installed"}>
           <div class="installed-filter-row">
-            <div class="src-tabs" style="margin-bottom:0;flex:1">
+            <div class="tab-strip" style="margin-bottom:0;flex:1">
               {(() => {
                 const loader = () => instance()?.loader.type ?? "vanilla";
                 const filter = (cat: "all" | "mod" | "resourcepack" | "shader" | "datapack", label: string, count: () => number) => {
                   if (cat !== "all" && !isCategoryAvailable(cat, loader())) return null;
                   return (
                     <div
-                      class={`src-tab ${installedFilter() === cat ? "active" : ""}`}
+                      class={`tab ${installedFilter() === cat ? "active" : ""}`}
                       onClick={() => setInstalledFilter(cat)}
                     >
                       {label}{count() > 0 ? ` (${count()})` : ""}
@@ -1408,7 +1476,7 @@ const InstanceMods: Component = () => {
           {/* Search + sort row — applies on top of the category filter above. */}
           <div class="installed-search-row">
             <input
-              class="search-input"
+              class="field-control field-control--text"
               style="flex:1"
               placeholder="Search installed content..."
               value={installedSearch()}
@@ -1445,9 +1513,10 @@ const InstanceMods: Component = () => {
                 <span class="control-label">View:</span>
                 <select
                   class="control-select"
-                  value={installedView()}
-                  onChange={(e) => setInstalledView(parseInt(e.currentTarget.value))}
+                  value={installedViewOverride() === null ? "auto" : String(installedViewOverride())}
+                  onChange={(e) => setInstalledViewOverride(e.currentTarget.value === "auto" ? null : parseInt(e.currentTarget.value))}
                 >
+                  <option value="auto">Auto</option>
                   <For each={VIEW_OPTIONS}>{(n) => <option value={n}>{n}</option>}</For>
                 </select>
               </div>
@@ -1466,14 +1535,14 @@ const InstanceMods: Component = () => {
           {/* Browse category tabs. Tabs for categories that aren't usable
               on the current loader (mods/shaders on vanilla) are hidden
               entirely to avoid clutter and confusion. */}
-          <div class="src-tabs" style="margin-bottom:12px">
+          <div class="tab-strip" style="margin-bottom:12px">
             {(() => {
               const loader = () => instance()?.loader.type ?? "vanilla";
               const tab = (cat: "mod" | "resourcepack" | "shader" | "datapack", label: string) => {
                 if (!isCategoryAvailable(cat, loader())) return null;
                 return (
                   <div
-                    class={`src-tab ${browseFilter() === cat ? "active" : ""}`}
+                    class={`tab ${browseFilter() === cat ? "active" : ""}`}
                     onClick={() => setBrowseFilter(cat)}
                   >
                     {label}{browseFilter() === cat && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}
@@ -1510,7 +1579,7 @@ const InstanceMods: Component = () => {
                 })()}
               </div>
               <div style="display:flex;gap:8px">
-                <button class="btn" style="font-size:11px;color:#e05252;border-color:#e05252" onClick={async () => {
+                <button class="btn btn--danger" style="font-size:11px" onClick={async () => {
                   const inst = instance();
                   if (!inst) return;
                   setShowBulkDelete(false);
@@ -1532,20 +1601,20 @@ const InstanceMods: Component = () => {
                     });
                   }
                 }}>Delete</button>
-                <button class="btn btn-ghost" style="font-size:11px" onClick={() => setShowBulkDelete(false)}>Cancel</button>
+                <button class="btn btn--ghost" style="font-size:11px" onClick={() => setShowBulkDelete(false)}>Cancel</button>
               </div>
             </div>
           </Show>
-          <div class="mod-grid">
+          <div class="card-grid card-grid--compact" style="margin-bottom:80px" ref={installedAdaptive.setEl}>
             <For each={installedPaged()}>
               {(mod) => (
                 <div class="mod-card" style={mod.enabled ? "" : "opacity:0.5"}>
                   <div class="mod-card-header">
                     <div class="mod-card-icon" style={`background:${(mod as any).category === "resourcepack" ? "#1a2035" : (mod as any).category === "shader" ? "#251a35" : "#251a35"}`}>
                       <Show when={resolveIconUrl(mod as any)} fallback={
-                        <span style="font-size:16px">{(mod as any).category === "resourcepack" ? "🎨" : (mod as any).category === "shader" ? "✨" : "⚡"}</span>
+                        <span class="side-icon" style="width:20px;height:20px">{(mod as any).category === "resourcepack" ? <IconShirt /> : (mod as any).category === "shader" ? <IconWand /> : <IconCube />}</span>
                       }>
-                        <img src={resolveIconUrl(mod as any)!} style="width:100%;height:100%;border-radius:6px;object-fit:cover" />
+                        <img src={resolveIconUrl(mod as any)!} style="width:100%;height:100%;border-radius:0;object-fit:cover" />
                       </Show>
                     </div>
                     <div class="mod-card-name-wrap">
@@ -1596,12 +1665,12 @@ const InstanceMods: Component = () => {
                         await toggleModInInstance(inst.id, mod.id);
                         await refetchInstances();
                       }} />
-                      <button class="btn" style="font-size:9px;padding:2px 5px;color:#e05252;border-color:#e05252" onClick={async () => {
+                      <button class="btn btn--danger btn--sm" onClick={async () => {
                         const inst = instance();
                         if (!inst) return;
                         await removeModFromInstance(inst.id, mod.id);
                         await refetchInstances();
-                      }}>✕</button>
+                      }}><IconX /></button>
                     </div>
                   </div>
                 </div>
@@ -1624,38 +1693,42 @@ const InstanceMods: Component = () => {
                   <span class="mod-source-badge mr"><IconModrinth /></span>
                 </Show>
               </button>
-              <input class="search-input" style="flex:1" placeholder={modSource() === "modrinth" ? "Search Modrinth..." : "Search CurseForge..."} value={searchQuery()} onInput={(e) => handleSearch(e.currentTarget.value)} />
+              <input class="field-control field-control--text" style="flex:1" placeholder={modSource() === "modrinth" ? "Search Modrinth..." : "Search CurseForge..."} value={searchQuery()} onInput={(e) => handleSearch(e.currentTarget.value)} />
               <button class={`btn tip-below ${selectMode() ? "btn-active" : ""}`} style="font-size:10px;padding:5px 10px;white-space:nowrap"
                 data-tip="Bulk install"
                 onClick={() => { setSelectMode(!selectMode()); if (selectMode()) setSelectedItems(new Map()); }}>
                 {selectMode() ? `Cancel (${selectedItems().size})` : "Select"}
               </button>
             </div>
-            <div class="browse-controls">
-              <div class="control-group">
-                <span class="control-label">Sort:</span>
-                <select class="control-select" value={sortBy()} onChange={(e) => handleSortChange(e.currentTarget.value)}>
-                  <For each={SORT_OPTIONS}>{(opt) => <option value={opt.value}>{opt.label}</option>}</For>
-                </select>
+            {/* Context + controls on one bar: left = what we're filtering for,
+                right = Sort / View. */}
+            <div class="browse-bar">
+              <div class="browse-bar-context">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <Show when={browseFilter() === "resourcepack" || browseFilter() === "shader"} fallback={
+                  <>Showing for <strong style="color:var(--accent);margin:0 3px">{instance()?.loader.type}</strong> · <strong style="color:var(--text)">{instance()?.game_version}</strong></>
+                }>
+                  <>Version: <input class="field-control field-control--text" style="width:80px;padding:2px 6px;font-size:10px;height:auto;display:inline-block;margin:0 4px" placeholder={instance()?.game_version || "any"} value={browseVersion()} onInput={(e) => { setBrowseVersion(e.currentTarget.value); setCurrentPage(1); clearTimeout(searchTimeout); searchTimeout = window.setTimeout(() => doSearch(1), 400); }} /> <span style="color:var(--muted);font-size:10px">(any if empty)</span></>
+                </Show>
               </div>
-              <div class="control-group">
-                <span class="control-label">View:</span>
-                <select class="control-select" value={viewCount()} onChange={(e) => handleViewChange(parseInt(e.currentTarget.value))}>
-                  <For each={VIEW_OPTIONS}>{(n) => <option value={n}>{n}</option>}</For>
-                </select>
+              <div class="browse-bar-controls">
+                <div class="control-group">
+                  <span class="control-label">Sort:</span>
+                  <select class="control-select" value={sortBy()} onChange={(e) => handleSortChange(e.currentTarget.value)}>
+                    <For each={SORT_OPTIONS}>{(opt) => <option value={opt.value}>{opt.label}</option>}</For>
+                  </select>
+                </div>
+                <div class="control-group">
+                  <span class="control-label">View:</span>
+                  <select class="control-select" value={viewOverride() === null ? "auto" : String(viewOverride())} onChange={(e) => handleViewChange(e.currentTarget.value === "auto" ? null : parseInt(e.currentTarget.value))}>
+                    <option value="auto">Auto</option>
+                    <For each={VIEW_OPTIONS}>{(n) => <option value={n}>{n}</option>}</For>
+                  </select>
+                </div>
               </div>
-              <Show when={totalHits() > 0}><span class="control-total"></span></Show>
             </div>
-            <div class="filter-hint">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              <Show when={browseFilter() === "resourcepack" || browseFilter() === "shader"} fallback={
-                <>Showing for <strong style="color:var(--accent);margin:0 3px">{instance()?.loader.type}</strong> · <strong style="color:var(--text)">{instance()?.game_version}</strong></>
-              }>
-                <>Version: <input class="search-input" style="width:80px;padding:2px 6px;font-size:10px;display:inline-block;margin:0 4px" placeholder={instance()?.game_version || "any"} value={browseVersion()} onInput={(e) => { setBrowseVersion(e.currentTarget.value); setCurrentPage(1); clearTimeout(searchTimeout); searchTimeout = window.setTimeout(() => doSearch(1), 400); }} /> <span style="color:var(--muted);font-size:10px">(leave empty for any)</span></>
-              </Show>
-            </div>
-            <Show when={searching()}><div style="text-align:center;color:var(--muted);padding:20px;font-size:12px">Searching...</div></Show>
-            <div class="mod-grid">
+            <div class="browse-results">
+              <div class="card-grid card-grid--compact browse-grid" style="margin-bottom:80px" ref={browseAdaptive.setEl}>
               <For each={searchResults()}>
                 {(mod) => (
                   <div class={`mod-card ${selectMode() && selectedItems().has(mod.project_id) ? "mod-item-selected" : ""}`}
@@ -1664,7 +1737,7 @@ const InstanceMods: Component = () => {
                     <div class="mod-card-header">
                       <div class="mod-card-icon" style="background:#251a35">
                         <Show when={mod.icon_url} fallback={<IconBolt />}>
-                          <img src={mod.icon_url!} style="width:100%;height:100%;border-radius:6px;object-fit:cover" />
+                          <img src={mod.icon_url!} style="width:100%;height:100%;border-radius:0;object-fit:cover" />
                         </Show>
                       </div>
                       <div class="mod-card-name-wrap">
@@ -1708,16 +1781,16 @@ const InstanceMods: Component = () => {
                         </Show>
                       </div>
                       <Show when={isModInstalled(mod.project_id)}>
-                        <span class="install-btn installed" style="font-size:10px;padding:3px 8px">Installed</span>
+                        <span class="btn btn--sm" style="font-size:10px;padding:3px 8px">Installed</span>
                       </Show>
                       <Show when={!isModInstalled(mod.project_id)}>
                         <Show when={selectMode()} fallback={
-                          <button class="install-btn" style="font-size:10px;padding:3px 8px" disabled={installing() === mod.project_id} onClick={() => handleInstallMod(mod)}>
+                          <button class="btn btn--sm btn--primary" style="font-size:10px;padding:3px 8px" disabled={installing() === mod.project_id} onClick={() => handleInstallMod(mod)}>
                             {installing() === mod.project_id ? "..." : "+ Install"}
                           </button>
                         }>
                           <div class={`select-check ${selectedItems().has(mod.project_id) ? "checked" : ""}`}>
-                            {selectedItems().has(mod.project_id) ? "✓" : ""}
+                            <Show when={selectedItems().has(mod.project_id)}><span class="side-icon"><IconCheck /></span></Show>
                           </div>
                         </Show>
                       </Show>
@@ -1725,15 +1798,16 @@ const InstanceMods: Component = () => {
                   </div>
                 )}
               </For>
+              </div>
             </div>
             {/* Bulk install floating bar */}
             <Show when={selectMode() && selectedItems().size > 0 && !bulkInstalling()}>
               <div class="bulk-install-bar">
                 <span style="font-size:12px;color:var(--text)">{selectedItems().size} selected</span>
-                <button class="install-btn" onClick={handleBulkInstall}>
+                <button class="btn btn--primary" onClick={handleBulkInstall}>
                   Install {selectedItems().size} items
                 </button>
-                <button class="btn btn-ghost" style="font-size:11px" onClick={() => setSelectedItems(new Map())}>Clear</button>
+                <button class="btn btn--ghost" style="font-size:11px" onClick={() => setSelectedItems(new Map())}>Clear</button>
               </div>
             </Show>
           </div>
@@ -1759,7 +1833,11 @@ const InstanceMods: Component = () => {
               {(file) => (
                 <div class="mod-item" style="cursor:pointer" onClick={() => file.is_dir && navigateToFolder(file.path)}>
                   <div class="mod-icon" style={file.is_dir ? "background:#1a2035" : "background:#1e2024"}>
-                    <span style="font-size:14px">{file.is_dir ? "📁" : "📄"}</span>
+                    <Show when={file.is_dir} fallback={
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    }>
+                      <IconFolderOpen />
+                    </Show>
                   </div>
                   <div class="mod-details">
                     <div class="mod-name">{file.name}</div>
@@ -1786,7 +1864,7 @@ const InstanceMods: Component = () => {
               {(world) => (
                 <div class="mod-item">
                   <div class="mod-icon" style="background:#251a35">
-                    <span style="font-size:16px">🌍</span>
+                    <IconGlobe />
                   </div>
                   <div class="mod-details">
                     <div class="mod-name">{world.name}</div>
@@ -1844,7 +1922,7 @@ const InstanceMods: Component = () => {
                       onClick={() => setLogSearch("")}
                       title="Clear search"
                     >
-                      ✕
+                      <span class="side-icon"><IconX /></span>
                     </button>
                   </Show>
                 </div>

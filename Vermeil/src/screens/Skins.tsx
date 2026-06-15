@@ -105,6 +105,12 @@ const Skins: Component = () => {
     });
     viewer.animation = new IdleAnimation();
     viewer.controls.enableZoom = false;
+    // Zoom out from the default (0.9) so the full model — plus the pedestal
+    // below the feet — fits with margin. At 0.9 the model nearly fills the
+    // canvas height, so rotating it (arms/legs swinging out) or the added
+    // platform clipped at the frame edges. 0.62 leaves comfortable headroom
+    // at every angle.
+    viewer.zoom = 0.62;
 
     // Hexagonal figurine pedestal under the model. Two stacked discs:
     // a chunky dark base and a thinner accent rim sitting on top.

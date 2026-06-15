@@ -10,7 +10,20 @@ export interface Instance {
   icon: string;
   game_version: string;
   loader: { type: string; version: string | null };
-  java: { memory_max_mb: number; adaptive_override?: boolean };
+  java: {
+    /** User-set absolute path to a `java(.exe)` for this instance. `null`
+     *  means "use whatever the global per-major Java setting picks". */
+    override_path?: string | null;
+    memory_max_mb: number;
+    memory_min_mb: number;
+    /** Extra JVM flags appended after Vermeil's resolved preset. Stored as
+     *  a list to keep argv-clean across save/load. */
+    extra_args: string[];
+    /** Per-instance opt-out for the global adaptive-RAM allocator. When
+     *  true, this instance ignores `LauncherSettings.adaptive_ram` and
+     *  uses `memory_max_mb` directly. */
+    adaptive_override?: boolean;
+  };
   window: { width: number; height: number };
   mods: any[];
   last_played: string | null;

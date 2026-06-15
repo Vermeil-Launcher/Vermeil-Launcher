@@ -59,10 +59,20 @@ export const IconArrowLeft: Component = () => (
 );
 
 export const IconCube: Component = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="21 16 21 8 12 3 3 8 3 16 12 21 21 16"/>
-    <line x1="3.27" y1="6.96" x2="12" y2="12.01"/><line x1="12" y1="12.01" x2="12" y2="21.08"/>
-    <line x1="12" y1="12.01" x2="20.73" y2="6.96"/>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
+    <polygon points="12,3 21,8 21,16 12,21 3,16 3,8"/>
+    <polyline points="3,8 12,13 21,8"/>
+    <line x1="12" y1="13" x2="12" y2="21"/>
+  </svg>
+);
+
+// Layers — Feather Icons (MIT). https://github.com/feathericons/feather
+// Three stacked plates: a clean "bundle of items" symbol used for modpacks.
+export const IconLayers: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
+    <polygon points="12,2 22,7 12,12 2,7"/>
+    <polyline points="2,12 12,17 22,12"/>
+    <polyline points="2,17 12,22 22,17"/>
   </svg>
 );
 
@@ -217,5 +227,76 @@ export const IconModrinth: Component = () => (
 export const IconCurseForge: Component = () => (
   <svg viewBox="0 0 260 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M196.422 98.77S247.874 90.623 256 66.858h-78.819V48H4l21.334 24.862v25.473s53.83-2.811 74.653 13.047c28.502 26.532-32.058 62.397-32.058 62.397l-10.384 34.512c16.239-15.529 47.188-35.618 103.933-34.65-21.594 6.854-43.307 17.56-60.211 34.65h114.71l-10.802-34.512s-83.139-49.235-8.753-75.005v-.004Z" />
+  </svg>
+);
+
+// Info — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `ℹ` status glyph in `.toast-icon` (info toasts).
+export const IconInfo: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>
+);
+
+// Check — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `✓` status glyph in `.toast-icon` (success toasts).
+export const IconCheck: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
+// Alert-triangle — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `⚠` status glyph in `.toast-icon` (warning/error toasts).
+export const IconAlertTriangle: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    <line x1="12" y1="9" x2="12" y2="13"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+);
+
+// X — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `✕`/`✕` close affordances in `.modal-close`,
+// `.account-card-remove`, `.update-banner-dismiss`, and the `✕` toast-icon.
+export const IconX: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+// Chevron-down — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `▾` glyph in `.custom-dropdown-arrow`.
+export const IconChevronDown: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+);
+
+// Chevron-left — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `‹` glyph in `.page-nav-btn` and `.modpack-page-btn`.
+export const IconChevronLeft: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+);
+
+// Chevron-right — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `›` glyph in `.page-nav-btn` and `.modpack-page-btn`.
+export const IconChevronRight: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+
+// Rotate-ccw — Feather Icons (MIT). https://github.com/feathericons/feather
+// Replaces the `↺` glyph in `.keybind-reset` (reset-to-default affordance).
+export const IconRotateCcw: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="1 4 1 10 7 10"/>
+    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
   </svg>
 );

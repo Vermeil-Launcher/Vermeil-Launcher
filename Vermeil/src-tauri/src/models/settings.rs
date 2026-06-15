@@ -50,6 +50,31 @@ pub struct LauncherSettings {
     /// in the frontend, so a partial / empty map still works.
     #[serde(default)]
     pub keybinds: HashMap<String, String>,
+
+    /// Adaptive RAM allocation. When `true`, the launcher computes a per-
+    /// instance `-Xmx` from mod count, loader, and content categories instead
+    /// of using `instance.java.memory_max_mb`. Each instance can opt out via
+    /// `JavaConfig::adaptive_override`. Defaults to `false` so existing users
+    /// see no behavioural change.
+    #[serde(default)]
+    pub adaptive_ram: bool,
+    /// Minimum bound for adaptive allocation (MB). The formula's clamped
+    /// output never goes below this. `0` means "use the system-derived
+    /// default at runtime" — the actual computation lives in
+    /// `services::memory::default_min_for_system`.
+    #[serde(default)]
+    pub adaptive_ram_min_mb: u32,
+    /// Maximum bound for adaptive allocation (MB). Same `0`-as-sentinel
+    /// pattern as min — `services::memory::default_max_for_system` produces
+    /// a sensible value scaled to total system RAM.
+    #[serde(default)]
+    pub adaptive_ram_max_mb: u32,
+    /// Whether the user has seen the one-time "how adaptive RAM works"
+    /// toast. Flipped to `true` the first time we surface it; never shown
+    /// again. Stored here rather than in localStorage so it persists across
+    /// reinstalls within the same data directory.
+    #[serde(default)]
+    pub adaptive_ram_seen_intro: bool,
 }
 
 /// Video settings that get written into each instance's options.txt before launch.
@@ -117,6 +142,10 @@ impl Default for LauncherSettings {
             sidebar_pinned_instances: Vec::new(),
             video_settings: GlobalVideoSettings::default(),
             keybinds: HashMap::new(),
+            adaptive_ram: false,
+            adaptive_ram_min_mb: 0,
+            adaptive_ram_max_mb: 0,
+            adaptive_ram_seen_intro: false,
         }
     }
 }

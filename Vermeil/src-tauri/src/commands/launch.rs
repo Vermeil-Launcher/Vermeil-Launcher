@@ -356,11 +356,19 @@ pub async fn get_resolved_jvm_args(instance_id: String) -> Result<String, String
 
     let java_major = crate::services::launch::required_java_version(&instance.game_version);
     let gc_preset = settings.gc_preset.as_str();
-    let gc_flags = crate::services::launch::resolve_gc_flags(gc_preset, java_major, instance.java.memory_max_mb);
+    // Display the effective heap (post-adaptive). Without this the args
+    // editor's preview would lie when adaptive RAM bumps the heap up or
+    // down vs the slider.
+    let effective = crate::services::memory::resolve(
+        &instance,
+        &settings,
+        crate::services::memory::system_memory_mb(),
+    );
+    let gc_flags = crate::services::launch::resolve_gc_flags(gc_preset, java_major, effective.value_mb);
 
     // Build the full resolved string: -Xmx, -Xms, GC flags, then user extra args
     let mut all_args = vec![
-        format!("-Xmx{}m", instance.java.memory_max_mb),
+        format!("-Xmx{}m", effective.value_mb),
         format!("-Xms{}m", instance.java.memory_min_mb),
     ];
     all_args.extend(gc_flags);
@@ -384,18 +392,40 @@ pub async fn get_preset_jvm_args(instance_id: String) -> Result<Vec<String>, Str
         .map_err(|e| format!("Load settings: {}", e))?;
 
     let java_major = crate::services::launch::required_java_version(&instance.game_version);
+    let effective = crate::services::memory::resolve(
+        &instance,
+        &settings,
+        crate::services::memory::system_memory_mb(),
+    );
     let gc_flags = crate::services::launch::resolve_gc_flags(
         &settings.gc_preset,
         java_major,
-        instance.java.memory_max_mb,
+        effective.value_mb,
     );
 
     let mut preset = vec![
-        format!("-Xmx{}m", instance.java.memory_max_mb),
+        format!("-Xmx{}m", effective.value_mb),
         format!("-Xms{}m", instance.java.memory_min_mb),
     ];
     preset.extend(gc_flags);
     Ok(preset)
+}
+
+/// Resolve the effective heap allocation + breakdown for an instance.
+///
+/// Returns everything the per-instance Settings tab needs to render the
+/// memory display: the value the launcher will pass as `-Xmx`, the formula's
+/// raw target (so the UI can flag a "capped" condition when the user's max
+/// isn't enough), the active min/max bounds, and a structured breakdown of
+/// the formula's contributions for the "Why this value?" tooltip.
+#[tauri::command]
+pub async fn get_effective_memory(
+    instance_id: String,
+) -> Result<crate::services::memory::EffectiveMemory, String> {
+    let instance = crate::services::instance_service::get_by_id(&instance_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    crate::services::memory::resolve_async(&instance).await
 }
 
 /// Resolve every known GC preset's flag set for a specific instance (memory
@@ -415,7 +445,15 @@ pub async fn get_known_preset_args(
         .map_err(|e| e.to_string())?;
 
     let java_major = crate::services::launch::required_java_version(&instance.game_version);
-    let memory = instance.java.memory_max_mb;
+    let settings = crate::services::settings_service::load()
+        .await
+        .map_err(|e| format!("Load settings: {}", e))?;
+    let effective = crate::services::memory::resolve(
+        &instance,
+        &settings,
+        crate::services::memory::system_memory_mb(),
+    );
+    let memory = effective.value_mb;
 
     // Keep this list in sync with `services::launch::resolve_gc_flags` and the
     // dropdown on the Settings screen. If a new preset is added to one, add

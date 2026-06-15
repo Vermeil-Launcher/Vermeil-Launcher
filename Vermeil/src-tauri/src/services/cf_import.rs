@@ -140,6 +140,7 @@ pub async fn import_zip(
             memory_max_mb: 4096,
             memory_min_mb: 512,
             extra_args: Vec::new(),
+            adaptive_override: false,
         },
         window: WindowConfig {
             width: 1280,
@@ -301,7 +302,7 @@ pub async fn import_profile_code(
                 icon_custom: None,
                 game_version,
                 loader: LoaderConfig { loader_type, version: loader_version },
-                java: JavaConfig { override_path: None, memory_max_mb: 4096, memory_min_mb: 512, extra_args: Vec::new() },
+                java: JavaConfig { override_path: None, memory_max_mb: 4096, memory_min_mb: 512, extra_args: Vec::new(), adaptive_override: false },
                 window: WindowConfig { width: 1280, height: 720, fullscreen: false },
                 mods: mod_entries,
                 last_played: None,

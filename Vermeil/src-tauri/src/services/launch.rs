@@ -971,8 +971,35 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // Done once here rather than at each use site to avoid redundant I/O.
     let global_settings = crate::services::settings_service::load().await.ok();
 
-    // Memory settings first (can be overridden by version args if needed)
-    jvm_args.push(format!("-Xmx{}m", instance.java.memory_max_mb));
+    // Memory settings first (can be overridden by version args if needed).
+    // When global adaptive RAM is on (and the instance hasn't opted out via
+    // `adaptive_override`), we replace the slider's `memory_max_mb` with a
+    // formula-derived value scaled to mod count + loader. -Xms still tracks
+    // the slider so the JVM has a sane initial heap.
+    let effective = global_settings.as_ref().map(|s| {
+        crate::services::memory::resolve(
+            instance,
+            s,
+            crate::services::memory::system_memory_mb(),
+        )
+    });
+    let max_mb = effective
+        .as_ref()
+        .map(|e| e.value_mb)
+        .unwrap_or(instance.java.memory_max_mb);
+    if let Some(ref e) = effective {
+        if e.adaptive_active {
+            tracing::info!(
+                "Adaptive RAM: -Xmx={}m (target {}m, clamp [{}m..{}m]{})",
+                e.value_mb,
+                e.target_mb,
+                e.min_mb,
+                e.max_mb,
+                if e.capped { ", capped" } else { "" }
+            );
+        }
+    }
+    jvm_args.push(format!("-Xmx{}m", max_mb));
     jvm_args.push(format!("-Xms{}m", instance.java.memory_min_mb));
 
     // GC preset flags — selected by the user in Settings → General → GC preset.
@@ -1001,7 +1028,10 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 .as_ref()
                 .map(|s| s.gc_preset.as_str())
                 .unwrap_or("g1gc");
-            let gc_flags = resolve_gc_flags(gc_preset, java_major, instance.java.memory_max_mb);
+            // Use the effective heap (adaptive or manual) — G1's region-size
+            // tuning depends on the actual `-Xmx`, so feeding it the slider
+            // value when adaptive bumped the heap up would mis-tune the GC.
+            let gc_flags = resolve_gc_flags(gc_preset, java_major, max_mb);
             jvm_args.extend(gc_flags);
         }
     }

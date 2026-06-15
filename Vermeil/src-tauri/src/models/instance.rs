@@ -37,6 +37,14 @@ pub struct JavaConfig {
     pub memory_max_mb: u32,
     pub memory_min_mb: u32,
     pub extra_args: Vec<String>,
+    /// Per-instance opt-out for global adaptive RAM. When `true`, the launcher
+    /// ignores `LauncherSettings::adaptive_ram` for this instance and uses the
+    /// stored `memory_max_mb` slider value instead. Set by the per-instance
+    /// "Override for this instance" link in the Settings tab — useful when a
+    /// user wants to push past the global adaptive max for one heavy session
+    /// without flipping the global toggle.
+    #[serde(default)]
+    pub adaptive_override: bool,
 }
 
 impl Default for JavaConfig {
@@ -46,6 +54,7 @@ impl Default for JavaConfig {
             memory_max_mb: 4096,
             memory_min_mb: 512,
             extra_args: Vec::new(),
+            adaptive_override: false,
         }
     }
 }

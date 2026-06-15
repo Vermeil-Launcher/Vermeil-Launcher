@@ -96,10 +96,14 @@ A release happens **only when the user explicitly asks** ("release", "ship", "ta
 
 ### Files to Update Before Tagging
 
-Both files MUST have matching version numbers:
+All three files MUST have matching version numbers — Cargo.toml drives the
+User-Agent and the `${launcher_version}` token in Minecraft launch args via
+`CARGO_PKG_VERSION`, so missing it leaves the launcher advertising the wrong
+version on every outbound request:
 
 1. `Vermeil/package.json` → `"version"` field
 2. `Vermeil/src-tauri/tauri.conf.json` → `"version"` field
+3. `Vermeil/src-tauri/Cargo.toml` → `version = "..."` under `[package]`
 
 ### Version Increment Rules (semver)
 

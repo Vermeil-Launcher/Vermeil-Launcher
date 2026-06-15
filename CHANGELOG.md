@@ -1,21 +1,22 @@
-## 0.3.1
+## 0.4.0
 
 ### Added
 
-- GC presets now actually apply JVM flags at launch (Aikar's G1GC, Generational ZGC, Shenandoah). Previously the setting existed in the UI but was never wired to the launch pipeline.
-- Per-instance Java arguments editor with line numbers, one flag per line (space inserts newline). Pre-fills with preset GC flags; user edits override the preset entirely.
-- Modpack-installed mods now receive metadata enrichment (title, icon, description, author) via batch API lookups after install completes in the background.
-- Source platform badges (Modrinth/CurseForge icons) on instance cards in the Library and instance header. Cross-platform modpacks show both badges.
-- Concurrent downloads slider max raised from 10 to 20 for faster installs on capable connections.
+- Adaptive RAM allocation: per-instance Java heap is computed automatically from mod count, loader, and content. Bounds live in Settings → Global Instance → Memory.
+- Java install chooser: Detect now opens a picker when more than one JRE matches a major version, instead of silently picking one.
+- Delete button on per-major Java slots — only removes Vermeil-downloaded JREs, never your external JDKs.
+- Install recommended Java works even when an external path is already set.
+- Installed-tab pagination with 12 / 24 / 48 entries per page.
 
 ### Changed
 
-- Modpack browser shows all supported loader badges per pack (Fabric + Forge etc.), not just the first.
-- Installer JAR files are now cached in a shared directory — creating a second instance with the same Forge/NeoForge version skips the 15-40MB re-download.
-- Metadata enrichment runs in the background after modpack install instead of blocking the UI. The Library card appears immediately; metadata fills in shortly after.
+- Modpack metadata enrichment is two-phase: titles and icon URLs appear within ~2 s, with local icon caching running in parallel afterwards. Cuts post-install wait from ~20 s to ~3 s on 50-mod packs.
+- Java runtime and GC preset moved from General to Resources, next to the per-major Java slots.
+- Adaptive RAM bounds use dropdowns (Auto plus standard tiers) and stay visible regardless of toggle state.
 
 ### Fixed
 
-- Forge/NeoForge installer no longer fails with "The system cannot find the path specified" when caching is enabled.
-- Progress text no longer flickers between "Downloading loader libraries" and "Resolving loader libraries" during Forge/NeoForge installation. Message updates are now throttled so only the settled phase shows.
-- CurseForge modpack loader filter now correctly applies (selecting "Fabric" narrows results instead of being silently ignored).
+- Maximize-on-launch waits up to 120 s and bails early when the game exits, so heavy modpacks (Cobbleverse, ATM10) get auto-maximized after their longer cold start.
+- Global GC preset switches now propagate to instances whose Java args matched a known preset.
+- Modpack metadata and icons now enrich for resource packs, shader packs, and datapacks, not just mods.
+- Java slot delete button appears reliably when multiple JREs share a major; stale Java paths auto-clear when the underlying folder is gone.

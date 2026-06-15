@@ -253,12 +253,8 @@ const Settings: Component = () => {
     return Math.max(1024, Math.min(aligned, 4096));
   };
 
-  /** Current effective min for the adaptive bounds — user-set value, or the
+  /** Current effective max for the adaptive bounds — user-set value, or the
    *  system-derived default when the stored value is the `0` sentinel. */
-  const adaptiveMin = (): number => {
-    const stored = settings()?.adaptive_ram_min_mb ?? 0;
-    return stored > 0 ? stored : adaptiveDefaultMin(systemMemoryMb() || 0);
-  };
   const adaptiveMax = (): number => {
     const stored = settings()?.adaptive_ram_max_mb ?? 0;
     return stored > 0 ? stored : adaptiveDefaultMax(systemMemoryMb() || 0);

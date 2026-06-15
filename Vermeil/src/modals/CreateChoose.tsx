@@ -1,6 +1,6 @@
 import { Component } from "solid-js";
 import { setActiveScreen } from "../App";
-import { IconCube, IconLayers, IconSettings, IconDownload } from "../components/Icons";
+import { IconLayers, IconSettings, IconDownload } from "../components/Icons";
 
 const CreateChoose: Component = () => {
   return (

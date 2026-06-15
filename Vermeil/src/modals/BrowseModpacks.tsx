@@ -27,7 +27,7 @@ const PAGE_SIZE = 10;
 const BrowseModpacks: Component = () => {
   const [query, setQuery] = createSignal("");
   const [results, setResults] = createSignal<ModHit[]>([]);
-  const [searching, setSearching] = createSignal(false);
+  const [, setSearching] = createSignal(false);
   const [installing, setInstalling] = createSignal<string | null>(null);
   const [confirmPack, setConfirmPack] = createSignal<ModHit | null>(null);
   const [page, setPage] = createSignal(1);

@@ -19,7 +19,7 @@ import {
   JavaInstall,
 } from "../ipc/commands";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { IconDownload, IconSearch, IconFolderOpen, IconCube, IconLayers, IconSettings } from "../components/Icons";
+import { IconDownload, IconSearch, IconFolderOpen, IconLayers, IconSettings } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
 import JavaChooserModal from "./JavaChooserModal";
 

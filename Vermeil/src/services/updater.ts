@@ -141,7 +141,6 @@ export async function downloadUpdate(): Promise<void> {
   setUpdateProgress(0);
   // The plugin-updater check() call assigned the resource to the `Update`
   // object — its `rid` is what Rust uses to find it again.
-  // @ts-expect-error — `rid` is on the resource but not in the public type
   const rid = cachedUpdate.rid as number;
   await invoke<void>("start_update_download", { rid });
   setUpdateDownloading(false);

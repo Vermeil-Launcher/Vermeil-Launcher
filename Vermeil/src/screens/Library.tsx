@@ -1,15 +1,15 @@
 import { Component, For, Show, createSignal, onMount, onCleanup } from "solid-js";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, refetchInstances, refreshPinnedInstanceIds } from "../App";
 import { Instance, deleteInstance, renameInstance, getSettings } from "../ipc/commands";
-import { IconPlus, IconModrinth, IconCurseForge } from "../components/Icons";
+import { IconPlus, IconModrinth, IconCurseForge, IconX } from "../components/Icons";
 
 function loaderBadgeClass(loader: string): string {
   switch (loader) {
-    case "fabric": return "badge-fabric";
-    case "forge": return "badge-forge";
-    case "neoforge": return "badge-neo";
-    case "quilt": return "badge-quilt";
-    default: return "badge-vanilla";
+    case "fabric": return "badge--fabric";
+    case "forge": return "badge--forge";
+    case "neoforge": return "badge--neoforge";
+    case "quilt": return "badge--quilt";
+    default: return "badge--vanilla";
   }
 }
 
@@ -47,6 +47,8 @@ function timeAgo(dateStr: string | null): string {
 }
 
 const Library: Component = () => {
+  // Library is the instance hub. (Download history is its own Downloads
+  // screen, reachable from the dock.)
   const [selectMode, setSelectMode] = createSignal(false);
   const [selected, setSelected] = createSignal<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = createSignal(false);
@@ -103,11 +105,11 @@ const Library: Component = () => {
 
   return (
     <div class="screen-enter">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="section-label" style="margin-bottom:0">Instances</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+        <div class="page-title">Library</div>
         <div style="display:flex;gap:6px">
           <Show when={selectMode()}>
-            <button class="btn" style="font-size:10px;padding:4px 8px;color:#e05252;border-color:#e05252" disabled={selected().size === 0} onClick={async () => {
+            <button class="btn btn--danger btn--sm" disabled={selected().size === 0} onClick={async () => {
               const settings = await getSettings();
               if (settings.force_delete) {
                 await deleteSelected();
@@ -118,110 +120,112 @@ const Library: Component = () => {
               Delete ({selected().size})
             </button>
           </Show>
-          <button class="btn tip-below" style="font-size:10px;padding:4px 8px" data-tip="Multi-select" onClick={() => { setSelectMode(!selectMode()); setSelected(new Set()); }}>
-            {selectMode() ? "✕" : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
+          <button class="btn btn--sm tip-below" data-tip="Multi-select" onClick={() => { setSelectMode(!selectMode()); setSelected(new Set()); }}>
+            {selectMode() ? <IconX /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
           </button>
         </div>
       </div>
 
       {/* Delete confirmation */}
       <Show when={showDeleteConfirm()}>
-        <div style="background:var(--bg3);border:1px solid #e05252;border-radius:8px;padding:12px;margin-bottom:12px">
-          <div style="font-size:12px;color:#e05252;margin-bottom:8px">Delete {selected().size} instance(s)? Type <strong>Confirm</strong> to proceed.</div>
+        <div style="background:var(--bg3);border:1px solid var(--danger);padding:12px;margin-bottom:12px">
+          <div style="font-size:12px;color:var(--danger);margin-bottom:8px">Delete {selected().size} instance(s)? Type <strong>Confirm</strong> to proceed.</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input class="search-input" style="max-width:140px;border-color:#e05252" placeholder="Type Confirm" value={deleteInput()} onInput={(e) => setDeleteInput(e.currentTarget.value)} />
-            <button class="btn" style="font-size:10px;color:#e05252;border-color:#e05252" disabled={deleteInput() !== "Confirm"} onClick={deleteSelected}>Delete All</button>
-            <button class="btn btn-ghost" style="font-size:10px" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }}>Cancel</button>
+            <input class="field-control field-control--text" style="max-width:140px;border-color:var(--danger)" placeholder="Type Confirm" value={deleteInput()} onInput={(e) => setDeleteInput(e.currentTarget.value)} />
+            <button class="btn btn--danger" disabled={deleteInput() !== "Confirm"} onClick={deleteSelected}>Delete All</button>
+            <button class="btn btn--ghost" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }}>Cancel</button>
           </div>
         </div>
       </Show>
-      <div class="instance-grid">
-        <For each={instances()}>
-          {(inst) => (
-            <div
-              class={`inst-card ${selectMode() && selected().has(inst.id) ? "inst-card-selected" : ""}`}
-              onClick={() => {
-                // If a drag occurred, the cards were already added during drag
-                // — skip the click toggle so we don't deselect the start card.
-                if (selectMode() && dragExtended) {
-                  dragExtended = false;
+
+      <div class="card-grid" style="margin-bottom:80px">
+          <For each={instances()}>
+            {(inst) => (
+              <div
+                class={`card card--inst ${selectMode() && selected().has(inst.id) ? "inst-card-selected" : ""}`}
+                style="cursor:pointer"
+                onClick={() => {
+                  // If a drag occurred, the cards were already added during drag
+                  // — skip the click toggle so we don't deselect the start card.
+                  if (selectMode() && dragExtended) {
+                    dragExtended = false;
+                    dragStartId = null;
+                    return;
+                  }
+                  openInstance(inst);
                   dragStartId = null;
-                  return;
-                }
-                openInstance(inst);
-                dragStartId = null;
-              }}
-              onMouseDown={(e) => {
-                if (selectMode() && e.button === 0) {
-                  dragStartId = inst.id;
-                  dragExtended = false;
-                }
-              }}
-              onMouseEnter={(e) => {
-                // Drag-extension: while left mouse is held in select mode,
-                // hovering over a card other than the start card converts the
-                // gesture into a drag-select. The start card and every entered
-                // card are added (additive, never toggles).
-                if (selectMode() && e.buttons === 1 && dragStartId && dragStartId !== inst.id) {
-                  const s = new Set(selected());
-                  if (dragStartId && !s.has(dragStartId)) {
-                    s.add(dragStartId);
+                }}
+                onMouseDown={(e) => {
+                  if (selectMode() && e.button === 0) {
+                    dragStartId = inst.id;
+                    dragExtended = false;
                   }
-                  if (!s.has(inst.id)) {
-                    s.add(inst.id);
+                }}
+                onMouseEnter={(e) => {
+                  // Drag-extension: while left mouse is held in select mode,
+                  // hovering over a card other than the start card converts the
+                  // gesture into a drag-select. The start card and every entered
+                  // card are added (additive, never toggles).
+                  if (selectMode() && e.buttons === 1 && dragStartId && dragStartId !== inst.id) {
+                    const s = new Set(selected());
+                    if (dragStartId && !s.has(dragStartId)) {
+                      s.add(dragStartId);
+                    }
+                    if (!s.has(inst.id)) {
+                      s.add(inst.id);
+                    }
+                    setSelected(s);
+                    dragExtended = true;
                   }
-                  setSelected(s);
-                  dragExtended = true;
-                }
-              }}
-            >
-              <div class="inst-card-row">
-                <div class={`inst-card-icon ${bannerColor(inst.loader.type)}`}>
-                  <Show when={instanceIconUrl(inst)} fallback={
-                    <span class="inst-card-icon-letter">{inst.name.trim().charAt(0).toUpperCase() || "?"}</span>
-                  }>
-                    <img src={instanceIconUrl(inst)!} alt="" draggable={false} />
-                  </Show>
-                </div>
-                <div class="inst-card-content">
-                  <Show when={renamingId() === inst.id} fallback={
-                    <div class="inst-name" onClick={(e: MouseEvent) => { if (!selectMode()) e.stopImmediatePropagation(); }} onDblClick={(e) => { if (!selectMode()) { e.stopImmediatePropagation(); setRenamingId(inst.id); setRenameValue(inst.name); } }}>{inst.name}</div>
-                  }>
-                    <input class="field-input" style="font-size:12px;font-weight:600;padding:2px 6px" value={renameValue()}
-                      onInput={(e) => setRenameValue(e.currentTarget.value)}
-                      onBlur={async () => { if (renameValue().trim()) { await renameInstance(inst.id, renameValue()); refetchInstances(); } setRenamingId(null); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLElement).blur(); if (e.key === "Escape") setRenamingId(null); }}
-                      ref={(el) => setTimeout(() => { el.focus(); el.select(); }, 10)}
-                      onClick={(e: MouseEvent) => { if (!selectMode()) e.stopImmediatePropagation(); }}
-                    />
-                  </Show>
-                  <div class="inst-meta">
-                    {inst.mods.length} mods · {timeAgo(inst.last_played)}
+                }}
+              >
+                <div class="card-body">
+                  <div class={`inst-card-icon ${bannerColor(inst.loader.type)}`}>
+                    <Show when={instanceIconUrl(inst)} fallback={
+                      <span class="inst-card-icon-letter">{inst.name.trim().charAt(0).toUpperCase() || "?"}</span>
+                    }>
+                      <img src={instanceIconUrl(inst)!} alt="" draggable={false} />
+                    </Show>
                   </div>
-                  <div class="inst-card-badges">
-                    <span class="inst-badge badge-version">{inst.game_version}</span>
-                    <span class={`inst-badge ${loaderBadgeClass(inst.loader.type)}`}>
-                      {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
-                    </span>
-                    <span class="inst-badge badge-ram">{inst.java.memory_max_mb} MB</span>
-                    <Show when={(inst.source_platforms || []).includes("modrinth")}>
-                      <span class="inst-badge badge-source-mr" title="Available on Modrinth"><IconModrinth /></span>
+                  <div class="inst-card-content">
+                    <Show when={renamingId() === inst.id} fallback={
+                      <div class="card-title inst-name" onClick={(e: MouseEvent) => { if (!selectMode()) e.stopImmediatePropagation(); }} onDblClick={(e) => { if (!selectMode()) { e.stopImmediatePropagation(); setRenamingId(inst.id); setRenameValue(inst.name); } }}>{inst.name}</div>
+                    }>
+                      <input class="field-control field-control--text" style="font-size:12px;font-weight:600;height:auto;padding:2px 6px" value={renameValue()}
+                        onInput={(e) => setRenameValue(e.currentTarget.value)}
+                        onBlur={async () => { if (renameValue().trim()) { await renameInstance(inst.id, renameValue()); refetchInstances(); } setRenamingId(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLElement).blur(); if (e.key === "Escape") setRenamingId(null); }}
+                        ref={(el) => setTimeout(() => { el.focus(); el.select(); }, 10)}
+                        onClick={(e: MouseEvent) => { if (!selectMode()) e.stopImmediatePropagation(); }}
+                      />
                     </Show>
-                    <Show when={(inst.source_platforms || []).includes("curseforge")}>
-                      <span class="inst-badge badge-source-cf" title="Available on CurseForge"><IconCurseForge /></span>
-                    </Show>
+                    <div class="card-sub inst-meta">
+                      {inst.mods.length} mods · {timeAgo(inst.last_played)}
+                    </div>
+                    <div class="inst-card-badges">
+                      <span class="badge badge--version">{inst.game_version}</span>
+                      <span class={`badge badge--loader ${loaderBadgeClass(inst.loader.type)}`}>
+                        {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
+                      </span>
+                      <span class="badge">{inst.java.memory_max_mb} MB</span>
+                      <Show when={(inst.source_platforms || []).includes("modrinth")}>
+                        <span class="badge badge--source badge--modrinth" title="Available on Modrinth"><IconModrinth /></span>
+                      </Show>
+                      <Show when={(inst.source_platforms || []).includes("curseforge")}>
+                        <span class="badge badge--source badge--curseforge" title="Available on CurseForge"><IconCurseForge /></span>
+                      </Show>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </For>
+            )}
+          </For>
 
-        <div class="add-card" onClick={() => setActiveScreen("create-choose")}>
-          <IconPlus />
-          <div class="add-label">New instance</div>
+          <div class="add-card" onClick={() => setActiveScreen("create-choose")}>
+            <IconPlus />
+            <div class="add-label">New instance</div>
+          </div>
         </div>
-      </div>
     </div>
   );
 };

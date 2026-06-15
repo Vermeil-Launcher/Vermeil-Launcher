@@ -7,10 +7,10 @@ import Library from "./screens/Library";
 import InstanceMods from "./screens/InstanceMods";
 import Settings from "./screens/Settings";
 import Account from "./screens/Account";
+import Downloads from "./screens/Downloads";
 // Lazy-load the Skins screen because skinview3d pulls in ~500 KB of three.js
 // that we don't want to pay for unless the user actually opens Skins.
 const Skins = lazy(() => import("./screens/Skins"));
-import Downloads from "./screens/Downloads";
 import CreateChoose from "./modals/CreateChoose";
 import CreateCustom from "./modals/CreateCustom";
 import BrowseModpacks from "./modals/BrowseModpacks";

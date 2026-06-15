@@ -1,11 +1,11 @@
 import { Component, createSignal, createEffect, createResource, createMemo, For, Show, onCleanup } from "solid-js";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination, clearGameLogs } from "../App";
 import { launchInstance, listInstanceWorlds, getJavaNews, getArticleBody, NewsArticle } from "../ipc/commands";
-import { IconPlay } from "../components/Icons";
+import { IconPlay, IconGlobe } from "../components/Icons";
 import PlayerHead from "../components/PlayerHead";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-const NEWS_PER_PAGE = 4;
+const NEWS_PER_PAGE = 8;
 
 /** Pick a time-of-day greeting. Cheap personalization that makes the home
  *  screen feel less generic without leaning on user data we don't have. */
@@ -122,7 +122,7 @@ const Home: Component = () => {
       {/* Article detail view */}
       <Show when={selectedArticle()}>
         <div class="article-detail">
-          <button class="btn btn-ghost" style="margin-bottom:12px" onClick={() => setSelectedArticle(null)}>← Back to News</button>
+          <button class="btn btn--ghost" style="margin-bottom:12px" onClick={() => setSelectedArticle(null)}>← Back to News</button>
           <div class="article-header">
             <img class="article-hero" src={selectedArticle()!.image_url} />
             <div class="article-title-section">
@@ -141,7 +141,7 @@ const Home: Component = () => {
       <Show when={!selectedArticle()}>
         {/* Greeting — personalizes the empty space at the top of Home and
             grounds the page so it feels less like a bare news feed. */}
-        <div class="home-greeting">
+        <div class="home-greeting panel--bracketed">
           <PlayerHead
             skinUrl={activeSkinUrl()}
             name={displayName()}
@@ -173,15 +173,16 @@ const Home: Component = () => {
         {/* Continue section */}
         <div class="section-label">Continue</div>
         <Show when={recentWorlds() && recentWorlds()!.length > 0} fallback={
-          <div style="color:var(--muted);font-size:12px;margin-bottom:24px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px">
+          <div style="color:var(--muted);font-size:12px;margin-bottom:24px;padding:14px;background:var(--bg3);border:1px solid var(--border)">
             No recent worlds. Play a game to see your worlds here.
           </div>
         }>
-          <div class="continue-grid">
+          <div class="card-grid" style="margin-bottom:24px">
             <For each={recentWorlds()}>
               {(world) => (
                 <div
-                  class="continue-card"
+                  class="card card--compact"
+                  style="cursor:pointer"
                   onClick={() => {
                     // Default click action is to open the instance — matches
                     // the same behavior as clicking an instance card in the
@@ -191,23 +192,24 @@ const Home: Component = () => {
                     setActiveScreen("mods");
                   }}
                 >
-                  <div style="display:flex;align-items:center;justify-content:space-between">
-                    <span style="font-size:18px">🌍</span>
-                    <button
-                      class="play-btn"
-                      style="font-size:9px;padding:3px 8px"
-                      onClick={(e) => {
-                        // Stop the bubble so the card-level handler doesn't
-                        // also fire and double-navigate.
-                        e.stopPropagation();
-                        handlePlayWorld(world.instanceId);
-                      }}
-                    >
-                      <IconPlay /> Play
-                    </button>
+                  <div class="card-body">
+                    <div style="display:flex;align-items:center;justify-content:space-between">
+                      <span class="side-icon"><IconGlobe /></span>
+                      <button
+                        class="btn btn--primary btn--sm"
+                        onClick={(e) => {
+                          // Stop the bubble so the card-level handler doesn't
+                          // also fire and double-navigate.
+                          e.stopPropagation();
+                          handlePlayWorld(world.instanceId);
+                        }}
+                      >
+                        <IconPlay /> Play
+                      </button>
+                    </div>
+                    <div class="card-title">{world.worldName}</div>
+                    <div class="card-sub">{world.instanceName}</div>
                   </div>
-                  <div class="continue-name">{world.worldName}</div>
-                  <div class="continue-meta">{world.instanceName}</div>
                 </div>
               )}
             </For>
@@ -217,18 +219,18 @@ const Home: Component = () => {
         {/* News section */}
         <div class="section-label">Java Edition News</div>
         <Show when={news() && news()!.length > 0} fallback={
-          <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px">
+          <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border)">
             Loading news...
           </div>
         }>
-          <div class="news-grid">
+          <div class="card-grid news-grid" style="margin-bottom:80px">
             <For each={visibleNews()}>
               {(article) => (
-                <div class="news-card" onClick={() => openArticle(article)}>
+                <div class="card card--media" style="cursor:pointer" onClick={() => openArticle(article)}>
                   <div class="news-thumb" style={`background-image:url(${article.image_url})`} />
-                  <div class="news-card-info">
-                    <div class="news-card-title">{article.title}</div>
-                    <div class="news-card-version">{article.version}</div>
+                  <div class="card-body">
+                    <div class="card-title">{article.title}</div>
+                    <div class="card-sub">{article.version}</div>
                   </div>
                 </div>
               )}

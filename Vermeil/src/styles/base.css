@@ -120,6 +120,18 @@
   --control-height-sm: 26px;
   --control-height-md: 32px;
   --control-height-lg: 40px;
+
+  /* --- Dock scale ---
+     Fluid multiplier applied via `zoom` on `.dock-wrap` so the entire
+     bottom dock (pill, FAB, pin carousel, pagination island) sizes up
+     with the window. Stays at 1× on the minimum window (1100w) and ramps
+     to 1.20× by the time the user is on a 1920w monitor.
+
+     Math: ((100vw - 1100px) / 4100px) gives a unitless 0 at 1100w and
+     0.20 at 1920w. Adding 1 yields the multiplier; clamp() pins both ends.
+     The 4100px divisor is intentional — it's the length that produces a
+     0.20 delta over the 1100→1920 span. */
+  --dock-scale: clamp(1, calc(1 + (100vw - 1100px) / 4100px), 1.20);
   --card-track: 240px;          /* fixed card width for shared grid */
   --card-track-compact: 180px;  /* narrow card width for dense grids */
   --content-min: 480px;         /* minimum supported content width */

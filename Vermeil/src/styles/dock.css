@@ -19,6 +19,13 @@
   transform: translateX(-50%);
   z-index: 30;
   pointer-events: none;
+  /* Fluid-scale the entire bottom dock with viewport width. Uses `zoom`
+     instead of `transform: scale` because the wrap already owns the
+     `translateX(-50%)` centering transform and the slide-up entry / hide
+     animations — adding a scale on top would clobber those. `zoom` also
+     scales layout (not just visuals) so hit areas, drop shadows, tooltip
+     anchors, and the pagination island all stay correct. */
+  zoom: var(--dock-scale);
   animation: dockSlideUp 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) 0.1s backwards;
   transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.25s ease;
 }

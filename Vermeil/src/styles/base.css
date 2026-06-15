@@ -132,6 +132,16 @@
      The 4100px divisor is intentional — it's the length that produces a
      0.20 delta over the 1100→1920 span. */
   --dock-scale: clamp(1, calc(1 + (100vw - 1100px) / 4100px), 1.20);
+
+  /* --- Dock clearance ---
+     Reserved bottom space on scrolling content (`.content`) so the floating
+     dock never sits on top of card actions like Install buttons. Sized for
+     the worst case where the pagination island is also visible above the
+     pill. Scales in lockstep with --dock-scale so big windows reserve
+     proportional space. 160px covers: 18px bottom offset + ~24px FAB
+     extension + ~54px pill + ~12px gap + ~22px pagination island + a
+     generous breathing margin so cards don't visually crowd the dock edge. */
+  --dock-clearance: calc(160px * var(--dock-scale));
   --card-track: 240px;          /* fixed card width for shared grid */
   --card-track-compact: 180px;  /* narrow card width for dense grids */
   --content-min: 480px;         /* minimum supported content width */

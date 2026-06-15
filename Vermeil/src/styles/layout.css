@@ -75,12 +75,19 @@
 }
 
 /* Content area. The vertical scrollbar on the right edge shows in accent
-   color when there's content to scroll. No horizontal scrollbar. */
+   color when there's content to scroll. No horizontal scrollbar.
+
+   Bottom padding reserves --dock-clearance so card actions (Install
+   buttons, mod icons, pagination targets) at the end of the list always
+   scroll above the floating dock instead of disappearing behind it. The
+   matching scroll-padding-bottom keeps keyboard/anchor scrolls clear of
+   the dock too. */
 .content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--space-5);
+  padding: var(--space-5) var(--space-5) calc(var(--space-5) + var(--dock-clearance));
+  scroll-padding-bottom: var(--dock-clearance);
   scroll-behavior: smooth;
   /* Flex child of .main (column). min-width:0 lets the content area shrink
      to its container instead of being forced wide by a long unbreakable word

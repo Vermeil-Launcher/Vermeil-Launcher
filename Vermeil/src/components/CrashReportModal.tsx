@@ -1,5 +1,6 @@
 import { Component, Show, createSignal, onMount } from "solid-js";
 import { getCrashReport } from "../ipc/commands";
+import { IconX } from "./Icons";
 
 /**
  * Crash-report viewer. Mounted once at App level and surfaced from any code
@@ -79,12 +80,12 @@ const CrashReportModal: Component = () => {
     <Show when={open()}>
       <div class="modal-overlay" onClick={close}>
         <div
-          class="modal crash-report-modal"
+          class="modal crash-report-modal panel panel--bracketed"
           onClick={(e) => e.stopPropagation()}
         >
           <div class="modal-header">
             <span class="modal-title">Crash report</span>
-            <button class="modal-close" onClick={close}>✕</button>
+            <button class="modal-close" onClick={close}><IconX /></button>
           </div>
           <div class="modal-body">
             <Show when={loading()}>
@@ -98,7 +99,7 @@ const CrashReportModal: Component = () => {
             <Show when={!loading() && !error() && reportText()}>
               <div class="crash-meta">
                 <span class="crash-meta-path">{reportPath()}</span>
-                <button class="btn btn-ghost crash-jump" onClick={scrollToError}>
+                <button class="btn btn--ghost crash-jump" onClick={scrollToError}>
                   Jump to error
                 </button>
               </div>
@@ -114,7 +115,7 @@ const CrashReportModal: Component = () => {
             </Show>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onClick={close}>Close</button>
+            <button class="btn btn--ghost" onClick={close}>Close</button>
           </div>
         </div>
       </div>

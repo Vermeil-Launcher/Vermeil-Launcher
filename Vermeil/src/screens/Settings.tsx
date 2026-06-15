@@ -5,7 +5,7 @@ import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { IconDownload, IconSearch, IconFolderOpen, IconTrash, IconModrinth, IconCurseForge } from "../components/Icons";
+import { IconDownload, IconSearch, IconFolderOpen, IconTrash, IconModrinth, IconCurseForge, IconChevronRight } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
 import JavaChooserModal from "../modals/JavaChooserModal";
 import Dropdown from "../components/Dropdown";
@@ -324,11 +324,11 @@ const Settings: Component = () => {
       <div class="section-label">Settings</div>
 
       {/* Tabs */}
-      <div class="src-tabs" style="margin-bottom:16px">
-        <div class={`src-tab ${tab() === "general" ? "active" : ""}`} onClick={() => setTab("general")}>General</div>
-        <div class={`src-tab ${tab() === "resources" ? "active" : ""}`} onClick={() => setTab("resources")}>Resources</div>
-        <div class={`src-tab ${tab() === "instances" ? "active" : ""}`} onClick={() => setTab("instances")}>Global Instance</div>
-        <div class={`src-tab ${tab() === "keybinds" ? "active" : ""}`} onClick={() => setTab("keybinds")}>Keybinds</div>
+      <div class="tab-strip" style="margin-bottom:16px">
+        <div class={`tab ${tab() === "general" ? "active" : ""}`} onClick={() => setTab("general")}>General</div>
+        <div class={`tab ${tab() === "resources" ? "active" : ""}`} onClick={() => setTab("resources")}>Resources</div>
+        <div class={`tab ${tab() === "instances" ? "active" : ""}`} onClick={() => setTab("instances")}>Global Instance</div>
+        <div class={`tab ${tab() === "keybinds" ? "active" : ""}`} onClick={() => setTab("keybinds")}>Keybinds</div>
       </div>
 
       <Show when={settings()}>
@@ -639,8 +639,7 @@ const Settings: Component = () => {
                             return (
                               <Show when={ownsCurrent}>
                                 <button
-                                  class="btn"
-                                  style="color:#e05252;border-color:#e05252"
+                                  class="btn btn--danger"
                                   onClick={() => runDelete(major)}
                                   disabled={busy() !== null}
                                   title="Delete Vermeil's downloaded copy"
@@ -957,18 +956,18 @@ const Settings: Component = () => {
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:8px">Select an instance to configure</div>
             <div class="settings-val" style="margin-bottom:12px">Configure memory, resolution, Java arguments, and more per instance.</div>
-            <div class="instance-grid">
+            <div class="card-grid" style="margin-bottom:80px">
               <For each={instances() || []}>
                 {(inst) => {
                   const iconUrl = (!inst.icon || inst.icon === "cube") ? undefined : inst.icon;
                   const loaderLabel = inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1);
                   const badgeClass = (() => {
                     switch (inst.loader.type) {
-                      case "fabric": return "badge-fabric";
-                      case "forge": return "badge-forge";
-                      case "neoforge": return "badge-neo";
-                      case "quilt": return "badge-quilt";
-                      default: return "badge-vanilla";
+                      case "fabric": return "badge--fabric";
+                      case "forge": return "badge--forge";
+                      case "neoforge": return "badge--neoforge";
+                      case "quilt": return "badge--quilt";
+                      default: return "badge--vanilla";
                     }
                   })();
                   const colorClass = (() => {
@@ -981,8 +980,8 @@ const Settings: Component = () => {
                     }
                   })();
                   return (
-                    <div class="inst-card" onClick={() => openInstanceOptions(inst.id)}>
-                      <div class="inst-card-row">
+                    <div class="card card--inst" style="cursor:pointer" onClick={() => openInstanceOptions(inst.id)}>
+                      <div class="card-body">
                         <div class={`inst-card-icon ${colorClass}`}>
                           <Show when={iconUrl} fallback={
                             <span class="inst-card-icon-letter">{inst.name.trim().charAt(0).toUpperCase() || "?"}</span>
@@ -991,25 +990,25 @@ const Settings: Component = () => {
                           </Show>
                         </div>
                         <div class="inst-card-content">
-                          <div class="inst-name">{inst.name}</div>
-                          <div class="inst-meta">
+                          <div class="card-title inst-name">{inst.name}</div>
+                          <div class="card-sub inst-meta">
                             {inst.game_version} · {inst.mods.length} mods · {inst.window.width}x{inst.window.height}
                           </div>
                           <div class="inst-card-badges">
-                            <span class={`inst-badge ${badgeClass}`}>{loaderLabel}</span>
-                            <span class="inst-badge badge-ram">{inst.java.memory_max_mb} MB</span>
+                            <span class={`badge badge--loader ${badgeClass}`}>{loaderLabel}</span>
+                            <span class="badge">{inst.java.memory_max_mb} MB</span>
                             <Show when={inst.window.fullscreen}>
-                              <span class="inst-badge" style="background:var(--bg4);color:var(--accent-cyan)">Fullscreen</span>
+                              <span class="badge">Fullscreen</span>
                             </Show>
                             <Show when={(inst.source_platforms || []).includes("modrinth")}>
-                              <span class="inst-badge badge-source-mr"><IconModrinth /></span>
+                              <span class="badge badge--source badge--modrinth"><IconModrinth /></span>
                             </Show>
                             <Show when={(inst.source_platforms || []).includes("curseforge")}>
-                              <span class="inst-badge badge-source-cf"><IconCurseForge /></span>
+                              <span class="badge badge--source badge--curseforge"><IconCurseForge /></span>
                             </Show>
                           </div>
                         </div>
-                        <span style="color:var(--muted);font-size:14px;flex-shrink:0">›</span>
+                        <span class="side-icon" style="color:var(--muted)"><IconChevronRight /></span>
                       </div>
                     </div>
                   );

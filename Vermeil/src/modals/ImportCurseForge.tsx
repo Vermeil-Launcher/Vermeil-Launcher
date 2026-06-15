@@ -48,7 +48,7 @@ const ImportCurseForge: Component = () => {
 
   return (
     <div class="modal-overlay">
-      <div class="modal">
+      <div class="modal panel panel--bracketed">
         <div class="modal-header">
           <span class="modal-title">Import from CurseForge</span>
           <button class="modal-close" onClick={() => setActiveScreen("library")}>✕</button>
@@ -61,7 +61,7 @@ const ImportCurseForge: Component = () => {
               Then import that file here.
             </div>
             <button
-              class="btn btn-accent"
+              class="btn btn--primary"
               style="padding:10px 18px"
               onClick={handleImportZip}
               disabled={importing()}
@@ -71,13 +71,13 @@ const ImportCurseForge: Component = () => {
           </div>
 
           <Show when={error()}>
-            <div style="color:#e05252;font-size:11px;margin-top:12px;padding:8px 10px;background:#1a1214;border:1px solid #3a1a1a;border-radius:6px">
+            <div style="color:#e05252;font-size:11px;margin-top:12px;padding:8px 10px;background:#1a1214;border:1px solid #3a1a1a">
               {error()}
             </div>
           </Show>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-ghost" onClick={() => setActiveScreen("create-choose")}>
+          <button class="btn btn--ghost" onClick={() => setActiveScreen("create-choose")}>
             ← Back
           </button>
         </div>

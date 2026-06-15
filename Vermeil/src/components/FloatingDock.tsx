@@ -21,12 +21,12 @@ import {
 import {
   IconHome,
   IconGrid,
-  IconDownload,
   IconSettings,
   IconUser,
   IconShirt,
   IconPlus,
   IconPlay,
+  IconDownload,
 } from "./Icons";
 import { launchInstance, stopInstance } from "../ipc/commands";
 import { openPinInstancesModal } from "../modals/PinInstancesModal";
@@ -57,6 +57,7 @@ const FloatingDock: Component = () => {
     <button
       type="button"
       class={`dock-btn ${isActive(props.screens) ? "active" : ""}`}
+      onMouseDown={(e) => e.preventDefault()}
       onClick={() => {
         setActiveScreen(props.target);
         if (props.target !== "mods") setActiveInstanceId(null);
@@ -336,6 +337,7 @@ const FloatingDock: Component = () => {
         <button
           type="button"
           class={`dock-center dock-center-${centerMode()}`}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleCenterClick}
           data-tooltip={centerLabel()}
         >

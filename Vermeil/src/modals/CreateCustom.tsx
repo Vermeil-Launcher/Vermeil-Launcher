@@ -132,7 +132,7 @@ const CreateCustom: Component = () => {
 
   return (
     <div class="modal-overlay">
-      <div class="modal">
+      <div class="modal panel panel--bracketed">
         <div class="modal-header">
           <span class="modal-title">Custom setup</span>
           <button class="modal-close" onClick={() => setActiveScreen("library")}>✕</button>
@@ -142,7 +142,7 @@ const CreateCustom: Component = () => {
           <div class="field">
             <div class="field-label">Name</div>
             <input
-              class="field-input"
+              class="field-control field-control--text"
               placeholder="e.g. Fabric 1.21.4"
               value={name()}
               onInput={(e) => setName(e.currentTarget.value)}
@@ -234,11 +234,11 @@ const CreateCustom: Component = () => {
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-ghost" onClick={() => setActiveScreen("create-choose")}>
+          <button class="btn btn--ghost" onClick={() => setActiveScreen("create-choose")}>
             ← Back
           </button>
           <button
-            class="btn btn-accent"
+            class="btn btn--primary"
             onClick={handleCreate}
             disabled={creating() || !name().trim()}
           >

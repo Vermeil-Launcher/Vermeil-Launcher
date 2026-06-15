@@ -9,6 +9,7 @@ import {
   getAccountSkin,
 } from "../ipc/commands";
 import PlayerHead from "../components/PlayerHead";
+import { IconX } from "../components/Icons";
 import type { MinecraftProfile } from "../ipc/commands";
 
 /**
@@ -162,7 +163,7 @@ const Account: Component = () => {
                   onClick={(e) => { e.stopPropagation(); handleRemove(acc.id); }}
                   title="Remove account"
                 >
-                  ✕
+                  <IconX />
                 </button>
               </div>
             )}
@@ -176,7 +177,7 @@ const Account: Component = () => {
 
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
           <button
-            class="btn btn-accent"
+            class="btn btn--primary"
             onClick={handleLogin}
             disabled={loggingIn()}
           >
@@ -189,7 +190,7 @@ const Account: Component = () => {
         </div>
         <div style="display:flex;gap:8px">
           <input
-            class="search-input"
+            class="field-control field-control--text"
             placeholder="Username (1-16 chars)"
             style="max-width:220px"
             value={offlineUsername()}
@@ -204,7 +205,7 @@ const Account: Component = () => {
       </div>
 
       <Show when={error()}>
-        <div style="color:#e05252;font-size:11px;margin-top:12px;padding:8px 10px;background:#1a1214;border:1px solid #3a1a1a;border-radius:6px">
+        <div style="color:var(--danger);font-size:11px;margin-top:12px;padding:8px 10px;background:var(--danger-soft);border:1px solid var(--danger)">
           {error()}
         </div>
       </Show>

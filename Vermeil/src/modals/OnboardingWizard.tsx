@@ -19,7 +19,7 @@ import {
   JavaInstall,
 } from "../ipc/commands";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { IconDownload, IconSearch, IconFolderOpen } from "../components/Icons";
+import { IconDownload, IconSearch, IconFolderOpen, IconCube, IconLayers, IconSettings } from "../components/Icons";
 import JavaPathInput from "../components/JavaPathInput";
 import JavaChooserModal from "./JavaChooserModal";
 
@@ -344,7 +344,7 @@ const OnboardingWizard: Component = () => {
   return (
     <Show when={open()}>
       <div class="modal-overlay">
-        <div class="modal onboarding-modal">
+        <div class="modal onboarding-modal panel panel--bracketed">
           <div class="modal-header">
             <span class="modal-title">Welcome to Vermeil</span>
             <button class="modal-close" onClick={close}>✕</button>
@@ -377,7 +377,7 @@ const OnboardingWizard: Component = () => {
 
               <div style="margin-top:18px">
                 <button
-                  class="btn btn-accent"
+                  class="btn btn--primary"
                   onClick={handleMicrosoftLogin}
                   disabled={loggingIn()}
                   style="width:100%"
@@ -391,7 +391,7 @@ const OnboardingWizard: Component = () => {
               <div class="field-label">Offline username</div>
               <div style="display:flex;gap:8px">
                 <input
-                  class="field-input"
+                  class="field-control field-control--text"
                   placeholder="Username (1-16 chars)"
                   value={offlineUsername()}
                   onInput={(e) => setOfflineUsername(e.currentTarget.value)}
@@ -401,7 +401,7 @@ const OnboardingWizard: Component = () => {
                   maxLength={16}
                 />
                 <button
-                  class="btn"
+                  class="btn btn--neutral"
                   onClick={handleOfflineLogin}
                   disabled={!offlineUsername().trim()}
                 >
@@ -414,9 +414,9 @@ const OnboardingWizard: Component = () => {
               </Show>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-ghost" onClick={close}>Skip setup</button>
+              <button class="btn btn--ghost" onClick={close}>Skip setup</button>
               <button
-                class="btn btn-accent"
+                class="btn btn--primary"
                 onClick={() => setStep(2)}
                 disabled={!account()}
               >
@@ -498,8 +498,8 @@ const OnboardingWizard: Component = () => {
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-ghost" onClick={() => setStep(1)}>Back</button>
-              <button class="btn btn-accent" onClick={handleMemoryNext}>
+              <button class="btn btn--ghost" onClick={() => setStep(1)}>Back</button>
+              <button class="btn btn--primary" onClick={handleMemoryNext}>
                 Next
               </button>
             </div>
@@ -557,7 +557,7 @@ const OnboardingWizard: Component = () => {
                         </Show>
                         <div class="java-slot-actions">
                           <button
-                            class="btn"
+                            class="btn btn--neutral"
                             onClick={() => handleJavaInstall(major)}
                             disabled={busy() !== null}
                             title={installed() ? "Replace with a fresh Adoptium download" : "Download from Adoptium"}
@@ -566,7 +566,7 @@ const OnboardingWizard: Component = () => {
                             {busy() === "install" ? "Installing..." : "Install recommended"}
                           </button>
                           <button
-                            class="btn"
+                            class="btn btn--neutral"
                             onClick={() => handleJavaDetect(major)}
                             disabled={busy() !== null}
                           >
@@ -574,7 +574,7 @@ const OnboardingWizard: Component = () => {
                             {busy() === "detect" ? "Detecting..." : "Detect"}
                           </button>
                           <button
-                            class="btn"
+                            class="btn btn--neutral"
                             onClick={() => handleJavaBrowse(major)}
                             disabled={busy() !== null}
                           >
@@ -589,8 +589,8 @@ const OnboardingWizard: Component = () => {
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-ghost" onClick={() => setStep(2)}>Back</button>
-              <button class="btn btn-accent" onClick={() => setStep(4)}>
+              <button class="btn btn--ghost" onClick={() => setStep(2)}>Back</button>
+              <button class="btn btn--primary" onClick={() => setStep(4)}>
                 Continue
               </button>
             </div>
@@ -607,7 +607,7 @@ const OnboardingWizard: Component = () => {
 
               <div class="onboarding-choices">
                 <div class="onboarding-choice" onClick={goToModpacks}>
-                  <div class="onboarding-choice-icon" style="color:var(--blue)">📦</div>
+                  <div class="onboarding-choice-icon" style="color:var(--blue)"><IconLayers /></div>
                   <div class="onboarding-choice-text">
                     <div class="onboarding-choice-title">Install a modpack</div>
                     <div class="onboarding-choice-desc">
@@ -616,7 +616,7 @@ const OnboardingWizard: Component = () => {
                   </div>
                 </div>
                 <div class="onboarding-choice" onClick={goToCustom}>
-                  <div class="onboarding-choice-icon" style="color:var(--accent)">⚙</div>
+                  <div class="onboarding-choice-icon" style="color:var(--accent)"><IconSettings /></div>
                   <div class="onboarding-choice-text">
                     <div class="onboarding-choice-title">Custom setup</div>
                     <div class="onboarding-choice-desc">
@@ -627,8 +627,8 @@ const OnboardingWizard: Component = () => {
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-ghost" onClick={() => setStep(3)}>Back</button>
-              <button class="btn btn-ghost" onClick={close}>I'll decide later</button>
+              <button class="btn btn--ghost" onClick={() => setStep(3)}>Back</button>
+              <button class="btn btn--ghost" onClick={close}>I'll decide later</button>
             </div>
           </Show>
         </div>

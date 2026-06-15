@@ -8,6 +8,7 @@ import {
 } from "../App";
 import { downloadUpdate, applyUpdate, dismissUpdate } from "../services/updater";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { IconX } from "./Icons";
 
 const RELEASES_URL = "https://github.com/davekb1976-beep/Vermeil-Launcher/releases/tag";
 
@@ -58,7 +59,7 @@ const UpdateBanner: Component = () => {
               onClick={() => dismissUpdate()}
               title="Dismiss"
             >
-              ✕
+              <IconX />
             </button>
           </Show>
         </div>
@@ -70,13 +71,13 @@ const UpdateBanner: Component = () => {
             </div>
             <div class="update-banner-actions">
               <button
-                class="btn btn-accent"
+                class="btn btn--primary"
                 onClick={() => downloadUpdate().catch((e) => console.error(e))}
               >
                 Download
               </button>
               <button
-                class="btn btn-ghost"
+                class="btn btn--ghost"
                 onClick={() =>
                   openUrl(`${RELEASES_URL}/v${updateAvailable()?.version}`).catch(() => {})
                 }
@@ -84,7 +85,7 @@ const UpdateBanner: Component = () => {
               >
                 Release notes
               </button>
-              <button class="btn btn-ghost" onClick={() => dismissUpdate()}>
+              <button class="btn btn--ghost" onClick={() => dismissUpdate()}>
                 Later
               </button>
             </div>
@@ -105,12 +106,12 @@ const UpdateBanner: Component = () => {
             </div>
             <div class="update-banner-actions">
               <button
-                class="btn btn-accent"
+                class="btn btn--primary"
                 onClick={() => applyUpdate().catch((e) => console.error(e))}
               >
                 Restart and install
               </button>
-              <button class="btn btn-ghost" onClick={() => dismissUpdate()}>
+              <button class="btn btn--ghost" onClick={() => dismissUpdate()}>
                 Later
               </button>
             </div>

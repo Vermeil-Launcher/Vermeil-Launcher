@@ -1,6 +1,6 @@
 import { Component, createSignal, Show, onMount, onCleanup } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
-import { IconDownload } from "./Icons";
+import { IconDownload, IconX } from "./Icons";
 
 interface ProgressEvent {
   section: string;
@@ -178,7 +178,7 @@ const InstallProgress: Component = () => {
         <div class="install-progress-header">
           <IconDownload />
           <span class="install-progress-title">{title()}</span>
-          <button class="install-progress-close" onClick={() => { setVisible(false); setDone(false); setFraction(0); }}>✕</button>
+          <button class="install-progress-close" onClick={() => { setVisible(false); setDone(false); setFraction(0); }}><IconX /></button>
         </div>
         <div class="install-progress-body">
           <div class="install-progress-section">

@@ -43,7 +43,7 @@ const JavaChooserModal: Component<Props> = (props) => {
     <Show when={props.options.length > 0}>
       <div class="modal-overlay" onClick={props.onCancel}>
         <div
-          class="modal java-chooser-modal"
+          class="modal java-chooser-modal panel panel--bracketed"
           style="max-width:520px"
           onClick={(e) => e.stopPropagation()}
         >
@@ -82,8 +82,8 @@ const JavaChooserModal: Component<Props> = (props) => {
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onClick={props.onCancel}>Cancel</button>
-            <button class="btn btn-accent" onClick={confirm}>Use this</button>
+            <button class="btn btn--ghost" onClick={props.onCancel}>Cancel</button>
+            <button class="btn btn--primary" onClick={confirm}>Use this</button>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { Component, createSignal, For, Show } from "solid-js";
 import { setActiveScreen, refetchInstances, instances, trackDownload, completeDownload, failDownload } from "../App";
 import { searchModpacks, searchCurseforge, installModpack, installCfModpack, ModHit } from "../ipc/commands";
 import Dropdown from "../components/Dropdown";
-import { IconModrinth, IconCurseForge } from "../components/Icons";
+import { IconModrinth, IconCurseForge, IconLayers } from "../components/Icons";
 
 /** Extract ALL supported loaders from a ModHit's categories array.
  *  Returns them in a stable display order so badge arrangement is predictable. */
@@ -143,12 +143,9 @@ const BrowseModpacks: Component = () => {
 
   return (
     <div class="modal-overlay">
-      <div class="modal" style="width:520px">
+      <div class="modal panel panel--bracketed" style="width:520px">
         <div class="modal-header">
           <span class="modal-title">Browse Modpacks</span>
-          <Show when={searching()}>
-            <div class="modpack-spinner" />
-          </Show>
           <div class="modpack-filters">
             <button
               class="btn mod-source-toggle"
@@ -191,7 +188,7 @@ const BrowseModpacks: Component = () => {
         <div class="modal-body">
           <div class="search-bar">
             <input
-              class="search-input"
+              class="field-control field-control--text"
               placeholder={modSource() === "modrinth" ? "Search Modrinth modpacks..." : "Search CurseForge modpacks..."}
               value={query()}
               onInput={(e) => handleSearch(e.currentTarget.value)}
@@ -200,7 +197,7 @@ const BrowseModpacks: Component = () => {
 
           {/* Confirmation dialog */}
           <Show when={confirmPack()}>
-            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="background:var(--bg3);border:1px solid var(--border);padding:12px;margin-bottom:12px">
               <div style="font-size:12px;color:var(--text);margin-bottom:8px">
                 You already have <strong>{getInstallCount(confirmPack()!.project_id)}</strong> instance(s) of <strong>{confirmPack()!.title}</strong>:
               </div>
@@ -213,7 +210,7 @@ const BrowseModpacks: Component = () => {
               </div>
               <div style="display:flex;gap:8px;align-items:center">
                 <button class="install-btn" onClick={() => doInstall(confirmPack()!)}>Install Anyway</button>
-                <button class="btn btn-ghost" style="font-size:11px" onClick={() => setConfirmPack(null)}>Cancel</button>
+                <button class="btn btn--ghost" style="font-size:11px" onClick={() => setConfirmPack(null)}>Cancel</button>
               </div>
             </div>
           </Show>
@@ -225,8 +222,8 @@ const BrowseModpacks: Component = () => {
                 return (
                   <div class="mod-item">
                     <div class="mod-icon" style="background:#1a2035">
-                      <Show when={pack.icon_url} fallback={<span style="font-size:16px">📦</span>}>
-                        <img src={pack.icon_url!} style="width:36px;height:36px;border-radius:8px;object-fit:cover" />
+                      <Show when={pack.icon_url} fallback={<IconLayers />}>
+                        <img src={pack.icon_url!} style="width:36px;height:36px;border-radius:0;object-fit:cover" />
                       </Show>
                     </div>
                     <div class="mod-details">
@@ -237,10 +234,10 @@ const BrowseModpacks: Component = () => {
                       <div class="mod-desc">{pack.description}</div>
                       <div class="mod-card-tags" style="margin-top:4px">
                         <For each={extractLoaders(pack)}>
-                          {(l) => <span class={`mod-tag mod-tag-loader loader-${l}`}>{l}</span>}
+                          {(l) => <span class={`badge badge--loader badge--${l}`}>{l}</span>}
                         </For>
                         <Show when={extractVersionRange(pack)}>
-                          <span class="mod-tag">{extractVersionRange(pack)}</span>
+                          <span class="badge badge--version">{extractVersionRange(pack)}</span>
                         </Show>
                       </div>
                       <div class="mod-stats">↓ {formatDownloads(pack.downloads)} · ♥ {formatDownloads(pack.follows)}</div>
@@ -273,7 +270,7 @@ const BrowseModpacks: Component = () => {
               <button class="modpack-page-btn" disabled={page() >= totalPages()} onClick={() => goPage(page() + 1)}>›</button>
             </div>
           </Show>
-          <button class="btn btn-ghost" onClick={() => setActiveScreen("create-choose")}>← Back</button>
+          <button class="btn btn--ghost" onClick={() => setActiveScreen("create-choose")}>← Back</button>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { Component, createSignal, onCleanup, onMount } from "solid-js";
 import { formatBindingForDisplay, formatBindingFromEvent } from "../lib/keybinds";
+import { IconRotateCcw } from "./Icons";
 
 /**
  * Inline keybind editor — shows the current binding as a "key cap"
@@ -89,7 +90,7 @@ const KeybindCapture: Component<{
         disabled={isDefault()}
         title="Reset to default"
       >
-        ↺
+        <IconRotateCcw />
       </button>
     </div>
   );

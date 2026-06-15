@@ -1,5 +1,6 @@
 import { Component, For, Show } from "solid-js";
 import { downloads, clearDownloadHistory, DownloadEntry } from "../App";
+import { IconCheck, IconX } from "../components/Icons";
 
 function getCategoryLabel(category: string): string {
   switch (category) {
@@ -31,15 +32,15 @@ const Downloads: Component = () => {
       <div style="display:flex;align-items:center;justify-content:space-between">
         <div class="section-label">Download History</div>
         <Show when={history().length > 0}>
-          <button class="btn" style="font-size:10px;padding:4px 8px" onClick={clearDownloadHistory}>Clear</button>
+          <button class="btn btn--sm" onClick={clearDownloadHistory}>Clear</button>
         </Show>
       </div>
       <Show when={history().length > 0} fallback={
-        <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;text-align:center">
+        <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border);text-align:center">
           Download history will appear here.
         </div>
       }>
-        <div class="dl-grid">
+        <div class="card-grid" style="margin-bottom:16px">
           <For each={history()}>
             {(dl) => <DownloadCard entry={dl} timeAgo={timeAgo} />}
           </For>
@@ -55,33 +56,35 @@ const DownloadCard: Component<{ entry: DownloadEntry; timeAgo: (ts: number) => s
   const failed = () => dl().status === "failed";
 
   return (
-    <div class="dl-card" classList={{ "dl-card-failed": failed() }}>
-      <div class="dl-card-icon">
-        <Show when={dl().iconUrl} fallback={
-          <span class="dl-card-icon-fallback">{dl().name.charAt(0).toUpperCase()}</span>
-        }>
-          <img src={dl().iconUrl!} alt="" draggable={false} />
-        </Show>
-      </div>
-      <div class="dl-card-body">
-        <div class="dl-card-header">
-          <span class="dl-card-name">{dl().name}</span>
-          <Show when={dl().author}>
-            <span class="dl-card-author">by {dl().author}</span>
+    <div class="card card--inst" classList={{ "dl-card-failed": failed() }}>
+      <div class="card-body">
+        <div class="dl-card-icon">
+          <Show when={dl().iconUrl} fallback={
+            <span class="dl-card-icon-fallback">{dl().name.charAt(0).toUpperCase()}</span>
+          }>
+            <img src={dl().iconUrl!} alt="" draggable={false} />
           </Show>
-          <span class={`dl-card-status ${failed() ? "failed" : "success"}`}>
-            {failed() ? "✕" : "✓"}
-          </span>
         </div>
-        <div class="dl-card-meta">
-          <span class="dl-card-badge">{getCategoryLabel(dl().category)}</span>
-          <Show when={dl().loader}>
-            <span class={`dl-card-badge loader-${dl().loader}`}>{dl().loader}</span>
-          </Show>
-          <Show when={dl().gameVersion}>
-            <span class="dl-card-badge">{dl().gameVersion}</span>
-          </Show>
-          <span class="dl-card-time">{props.timeAgo(dl().timestamp)}</span>
+        <div class="dl-card-body">
+          <div class="dl-card-header">
+            <span class="dl-card-name">{dl().name}</span>
+            <Show when={dl().author}>
+              <span class="dl-card-author">by {dl().author}</span>
+            </Show>
+            <span class={`dl-card-status side-icon ${failed() ? "failed" : "success"}`}>
+              {failed() ? <IconX /> : <IconCheck />}
+            </span>
+          </div>
+          <div class="dl-card-meta">
+            <span class="badge">{getCategoryLabel(dl().category)}</span>
+            <Show when={dl().loader}>
+              <span class={`badge badge--loader badge--${dl().loader}`}>{dl().loader}</span>
+            </Show>
+            <Show when={dl().gameVersion}>
+              <span class="badge badge--version">{dl().gameVersion}</span>
+            </Show>
+            <span class="dl-card-time">{props.timeAgo(dl().timestamp)}</span>
+          </div>
         </div>
       </div>
     </div>

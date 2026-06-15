@@ -109,7 +109,7 @@ const PinInstancesModal: Component = () => {
   return (
     <Show when={open()}>
       <div class="modal-overlay" onClick={close}>
-        <div class="modal pin-instances-modal" onClick={(e) => e.stopPropagation()}>
+        <div class="modal pin-instances-modal panel panel--bracketed" onClick={(e) => e.stopPropagation()}>
           <div class="modal-header">
             <span class="modal-title">Pin instances to sidebar</span>
             <button class="modal-close" onClick={close}>✕</button>
@@ -164,14 +164,14 @@ const PinInstancesModal: Component = () => {
               <Show when={totalPages() > 1}>
                 <div class="pin-instances-pager">
                   <button
-                    class="btn"
+                    class="btn btn--neutral"
                     style="font-size:10px;padding:3px 8px"
                     disabled={page() === 0}
                     onClick={() => setPage(page() - 1)}
                   >‹</button>
                   <span style="font-size:10px;color:var(--muted)">{page() + 1} / {totalPages()}</span>
                   <button
-                    class="btn"
+                    class="btn btn--neutral"
                     style="font-size:10px;padding:3px 8px"
                     disabled={page() >= totalPages() - 1}
                     onClick={() => setPage(page() + 1)}
@@ -184,8 +184,8 @@ const PinInstancesModal: Component = () => {
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onClick={close}>Cancel</button>
-            <button class="btn btn-accent" onClick={save} disabled={saving()}>
+            <button class="btn btn--ghost" onClick={close}>Cancel</button>
+            <button class="btn btn--primary" onClick={save} disabled={saving()}>
               {saving() ? "Saving..." : "Save"}
             </button>
           </div>

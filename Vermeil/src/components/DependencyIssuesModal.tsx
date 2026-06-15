@@ -1,4 +1,5 @@
 import { Component, For, Show, createSignal } from "solid-js";
+import { IconX } from "./Icons";
 
 export interface DependencyIssue {
   parent_title: string;
@@ -69,12 +70,12 @@ const DependencyIssuesModal: Component = () => {
     <Show when={open()}>
       <div class="modal-overlay" onClick={close}>
         <div
-          class="modal dep-issues-modal"
+          class="modal dep-issues-modal panel panel--bracketed"
           onClick={(e) => e.stopPropagation()}
         >
           <div class="modal-header">
             <span class="modal-title">Dependency issues</span>
-            <button class="modal-close" onClick={close}>✕</button>
+            <button class="modal-close" onClick={close}><IconX /></button>
           </div>
           <div class="modal-body">
             <div class="dep-issue-summary">
@@ -126,7 +127,7 @@ const DependencyIssuesModal: Component = () => {
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn" onClick={close}>Got it</button>
+            <button class="btn btn--neutral" onClick={close}>Got it</button>
           </div>
         </div>
       </div>

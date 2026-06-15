@@ -43,15 +43,13 @@
   position: relative;
   display: flex;
   align-items: center;
-  background: rgba(28, 30, 34, 0.85);
+  background: var(--surface-glass);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-  padding: 6px;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: var(--space-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   transition: padding 0.25s ease, background 0.25s ease;
 }
@@ -59,8 +57,8 @@
 /* When pin selector is open, give the pill more breathing room to
    accommodate the carousel and use a slightly different surface tint. */
 .dock-wrap.pin-mode .dock {
-  padding: 8px 12px;
-  background: rgba(28, 30, 34, 0.92);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-glass-strong);
 }
 
 /* In pin mode, raise the FAB above the pill like before so it reads
@@ -76,11 +74,17 @@
   transform: translateX(-50%) scale(0.95);
 }
 
-/* Left/right nav groups — each holds 3 buttons. */
+/* Left/right nav groups — each holds nav buttons. Both groups reserve the
+   same width so the absolutely-centered FAB stays centered even when the two
+   sides hold different button counts (3 left / 2 right after the Downloads
+   pill was consolidated into Library). Contents are centered within each
+   equal-width half so the pill reads as symmetric around the FAB. */
 .dock-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: var(--space-1);
+  width: 122px;
   animation: dockGroupIn 0.2s ease-out;
 }
 @keyframes dockGroupIn {
@@ -94,13 +98,13 @@
   flex-shrink: 0;
 }
 
-/* Individual nav button. */
+/* Individual nav button — sharp square. */
 .dock-btn {
   width: 38px;
   height: 38px;
   border: none;
   background: transparent;
-  border-radius: 999px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,20 +130,19 @@
 .dock-btn:hover svg { transform: scale(1.08); }
 .dock-btn:active { transform: scale(0.92); }
 .dock-btn.active {
-  background: var(--accent-tint);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 .dock-btn.active::after {
   content: "";
   position: absolute;
-  bottom: -1px;
+  bottom: -2px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 14px;
+  height: 2px;
+  border-radius: 0;
   background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
   animation: dotIn 0.2s ease-out;
 }
 @keyframes dotIn {
@@ -157,41 +160,68 @@
   transform: translate(-50%, -50%);
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  border: 3px solid var(--bg2);
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff;
+  border-radius: 0;
+  border: 1px solid var(--accent-strong);
+  background: var(--accent);
+  color: var(--accent-contrast);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow:
-    0 4px 16px rgba(124, 92, 252, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.15) inset;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
   transition:
     box-shadow 0.2s ease,
-    transform 0.15s ease;
+    transform 0.15s ease,
+    background 0.15s ease;
   pointer-events: auto;
   z-index: 1;
   padding: 0;
 }
 .dock-center:hover {
-  transform: translate(-50%, -50%) scale(1.08);
-  box-shadow:
-    0 6px 24px rgba(124, 92, 252, 0.6),
-    0 0 0 4px rgba(124, 92, 252, 0.15),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+  background: var(--accent-strong);
+  transform: translate(-50%, -50%) scale(1.04);
+  box-shadow: 0 6px 18px rgba(139, 92, 246, 0.55);
 }
-.dock-center:active { transform: translate(-50%, -50%) scale(0.95); }
+.dock-center:active { transform: translate(-50%, -50%) scale(0.96); }
 
 .dock-center-icon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
+  overflow: hidden;
   animation: centerIconIn 0.22s ease-out;
+}
+
+/* Enchanted glint — a violet shimmer that pans diagonally across the FAB,
+   mix-blend-mode: screen so it brightens both the purple background and the
+   white icon as it sweeps over them. Same vibe as a Minecraft enchanted item. */
+.dock-center-icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 30%,
+    rgba(230, 150, 255, 0.45) 42%,
+    rgba(255, 220, 255, 0.7) 50%,
+    rgba(230, 150, 255, 0.45) 58%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: enchantGlint 3.2s linear infinite;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+@keyframes enchantGlint {
+  from { background-position: 100% 0; }
+  to   { background-position: -200% 0; }
 }
 .dock-center-icon svg {
   width: 22px;
@@ -203,21 +233,21 @@
 }
 
 .dock-center-stop {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  background: var(--danger);
   box-shadow:
-    0 4px 16px rgba(239, 68, 68, 0.4),
+    var(--shadow-md),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 .dock-center-stop:hover {
   box-shadow:
-    0 6px 24px rgba(239, 68, 68, 0.6),
-    0 0 0 4px rgba(239, 68, 68, 0.15),
+    var(--shadow-lg),
+    0 0 0 4px var(--danger-soft),
     0 1px 0 rgba(255, 255, 255, 0.2) inset;
 }
 
-/* Close mode (pin selector open) — neutral grey so it reads as "dismiss". */
+/* Close mode (pin selector open) — neutral warm surface so it reads as "dismiss". */
 .dock-center-close {
-  background: linear-gradient(135deg, #4a4d55, #34363c);
+  background: linear-gradient(135deg, var(--surface-raised), var(--surface-panel));
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.35),
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
@@ -229,12 +259,12 @@
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 
-/* Play state — pulsing ring */
+/* Play state — pulsing accent border (sharp). */
 .dock-center-play::before {
   content: "";
   position: absolute;
-  inset: -4px;
-  border-radius: 50%;
+  inset: -3px;
+  border-radius: 0;
   border: 2px solid var(--accent);
   opacity: 0;
   animation: playPulse 2s ease-out infinite;
@@ -265,13 +295,13 @@
 .dock-pin-track {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
   scrollbar-width: none;
   width: 100%;
-  padding: 0 calc(50% - 40px) 0 0;
+  padding: 0 calc(50% - var(--dock-pin-center-offset)) 0 0;
   scroll-snap-type: x mandatory;
   mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
@@ -290,11 +320,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--space-1);
+  padding: var(--space-1);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   scroll-snap-align: center;
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -307,7 +337,7 @@
 }
 .dock-pin-tile:hover {
   transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--border);
   background: rgba(255, 255, 255, 0.03);
 }
 .dock-pin-tile:active { transform: translateY(0) scale(0.97); }
@@ -315,7 +345,7 @@
 .dock-pin-tile-img {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -323,7 +353,7 @@
   flex-shrink: 0;
   font-size: 18px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--text);
   user-select: none;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
@@ -331,7 +361,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   -webkit-user-drag: none;
   pointer-events: none;
 }
@@ -357,16 +387,16 @@
 }
 
 /* Loader-tinted backgrounds for tiles. */
-.dock-pin-tile.loader-vanilla .dock-pin-tile-img { background: linear-gradient(135deg, #2a4a30, #1f3a26); }
-.dock-pin-tile.loader-fabric  .dock-pin-tile-img { background: linear-gradient(135deg, #5a4a30, #3f3220); }
-.dock-pin-tile.loader-quilt   .dock-pin-tile-img { background: linear-gradient(135deg, #4a3a5a, #322240); }
-.dock-pin-tile.loader-forge   .dock-pin-tile-img { background: linear-gradient(135deg, #5a3520, #402415); }
-.dock-pin-tile.loader-neoforge .dock-pin-tile-img { background: linear-gradient(135deg, #2a3a5a, #1c2a40); }
+.dock-pin-tile.loader-vanilla .dock-pin-tile-img { background: var(--grad-loader-vanilla); }
+.dock-pin-tile.loader-fabric  .dock-pin-tile-img { background: var(--grad-loader-fabric); }
+.dock-pin-tile.loader-quilt   .dock-pin-tile-img { background: var(--grad-loader-quilt); }
+.dock-pin-tile.loader-forge   .dock-pin-tile-img { background: var(--grad-loader-forge); }
+.dock-pin-tile.loader-neoforge .dock-pin-tile-img { background: var(--grad-loader-neoforge); }
 
 /* Manage tile — slightly different so it reads as "secondary action". */
 .dock-pin-tile-manage .dock-pin-tile-img {
   background: rgba(255, 255, 255, 0.04);
-  border: 1.5px dashed rgba(255, 255, 255, 0.18);
+  border: 1.5px dashed var(--border);
   color: var(--muted);
 }
 .dock-pin-tile-manage .dock-pin-tile-img svg { width: 18px; height: 18px; }
@@ -381,19 +411,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
   color: var(--muted);
   font-size: 12px;
 }
 .dock-pin-empty-btn {
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: var(--text);
   font-size: 11px;
   font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-family: var(--font);
   transition: background 0.12s;
@@ -407,14 +437,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 10px;
-  padding: 6px 12px;
+  margin: 0 auto var(--space-3);
+  padding: var(--space-2) var(--space-3);
   width: fit-content;
-  background: rgba(28, 30, 34, 0.85);
+  background: var(--surface-glass);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 2px solid rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-pill);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.3),
     0 1px 0 rgba(255, 255, 255, 0.04) inset;
@@ -433,28 +463,27 @@
 
 /* When input is showing, subtle border. */
 .dock-page-island.holding {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-hover);
 }
 
 /* Dot row */
 .dock-page-dots {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 /* Individual dot */
 .dock-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--muted);
   transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
   cursor: pointer;
 }
 .dock-dot.active {
   background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
 }
 .dock-dot:hover:not(.active) {
   background: var(--text);
@@ -465,7 +494,7 @@
 .dock-page-hold-input {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
@@ -474,9 +503,9 @@
 .dock-page-input {
   width: 32px;
   height: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   background: var(--bg4);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: var(--text);
   font-size: 11px;
   font-weight: 600;
@@ -506,8 +535,8 @@
   color: var(--text);
   font-size: 11px;
   font-weight: 500;
-  padding: 5px 9px;
-  border-radius: 6px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -527,13 +556,13 @@
 .keybind-capture-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .keybind-capture {
   background: var(--bg4);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
@@ -554,7 +583,7 @@
 }
 @keyframes keybindCapturePulse {
   0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
-  50% { box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.2); }
+  50% { box-shadow: var(--glow-accent); }
 }
 .keybind-keys, .keybind-capturing-text {
   display: inline-block;
@@ -565,7 +594,7 @@
   color: var(--muted);
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
   display: flex;

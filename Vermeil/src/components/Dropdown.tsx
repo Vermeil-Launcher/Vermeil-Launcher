@@ -1,4 +1,5 @@
 import { Component, For, Show, createSignal } from "solid-js";
+import { IconChevronDown } from "./Icons";
 
 interface DropdownOption {
   value: string;
@@ -34,11 +35,11 @@ const Dropdown: Component<DropdownProps> = (props) => {
     >
       <div
         class="custom-dropdown-selected"
-        style="padding:4px 10px;font-size:11px;border-radius:6px"
+        style="padding:4px 10px;font-size:11px;border-radius:0"
         onClick={() => setOpen(!open())}
       >
         <span>{selectedLabel()}</span>
-        <span class="custom-dropdown-arrow" classList={{ open: open() }}>▾</span>
+        <span class="custom-dropdown-arrow" classList={{ open: open() }}><IconChevronDown /></span>
       </div>
       <Show when={open()}>
         <div class="custom-dropdown-options" style="max-height:180px">

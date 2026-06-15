@@ -1,33 +1,28 @@
 /* components.css — Reusable UI: cards, buttons, fields, badges, modals (base), forms, controls */
 
-/* Instance grid */
-.instance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 80px; align-items: start; }
-.inst-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; cursor: pointer; transition: border-color .15s;
-  padding: 8px 10px;
-}
-.inst-card:hover { border-color: #4a4d55; }
+/* Instance card sub-elements — the card container itself is now the
+   canonical `.card .card--inst`; these layout helpers compose inside it. */
 .inst-card-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
 }
 .inst-card-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 0;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border: 1px solid var(--border);
 }
 .inst-card-icon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 .inst-card-icon-letter {
   font-size: 14px;
@@ -39,30 +34,26 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 .inst-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inst-meta { font-size: 10px; color: var(--muted); }
 .inst-card-badges {
   display: flex;
-  gap: 5px;
-  margin-top: 2px;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
-.inst-badge {
-  font-size: 9px; font-weight: 600;
-  padding: 2px 7px; border-radius: 4px; letter-spacing: .02em;
-  white-space: nowrap;
-}
+/* Loader-identity badge colors — still composed onto the instance context
+   bar via `.ctx-badge badge-<loader>`. */
 .badge-fabric { background: #2e2518; color: #dbb588; }
 .badge-forge { background: #2e2218; color: #e8834a; }
 .badge-vanilla { background: #1a2030; color: var(--accent-cyan); }
 .badge-neo { background: #1a2640; color: #5b8af0; }
 .badge-quilt { background: #241a35; color: #c084e8; }
-.badge-ram { background: var(--bg4); color: var(--muted); }
-.badge-version { background: var(--bg4); color: var(--text); }
-.badge-source-mr { background: rgba(27, 217, 106, 0.12); color: #1bd96a; display: inline-flex; align-items: center; padding: 2px 5px; }
+.badge-source-mr { background: rgba(27, 217, 106, 0.12); color: #1bd96a; display: inline-flex; align-items: center; padding: var(--space-1) var(--space-1); }
 .badge-source-mr svg { width: 12px; height: 12px; }
-.badge-source-cf { background: rgba(241, 100, 54, 0.12); color: #f16436; display: inline-flex; align-items: center; padding: 2px 5px; }
+.badge-source-cf { background: rgba(241, 100, 54, 0.12); color: #f16436; display: inline-flex; align-items: center; padding: var(--space-1) var(--space-1); }
 .badge-source-cf svg { width: 12px; height: 12px; }
 
 
@@ -70,154 +61,627 @@
 .add-card {
   background: var(--bg3); border: 1.5px dashed var(--border); border-radius: var(--radius);
   display: flex; flex-direction: row;
-  align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  align-items: center; justify-content: center; gap: var(--space-2); cursor: pointer;
   color: var(--muted); transition: border-color .15s, color .15s, background .15s;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-3);
 }
 .add-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
 .add-card svg { width: 18px; height: 18px; flex-shrink: 0; }
 .add-label { font-size: 11px; font-weight: 500; }
 
-/* Buttons */
+/* ============================================================
+   Canonical button — one .btn vocabulary
+   (Requirements 5.1, 5.2, 7.1, 7.2, 7.3, 7.6)
+
+   Size variants  : .btn--sm / .btn--md (default) / .btn--lg —
+                    each a FIXED height from --control-height-*.
+   Intent variants: .btn--primary / .btn--neutral (default) /
+                    .btn--ghost / .btn--danger.
+   Width control  : .btn--fixed (label-independent width the markup
+                    sizes via the --btn-fixed-width custom property,
+                    set to the longest label in the set) and
+                    .btn--block (full width). Non-block buttons hug
+                    content with a min-width floor and never stretch
+                    to the container (Requirement 7.6).
+   Label handling : white-space:nowrap + overflow:hidden +
+                    text-overflow:ellipsis hold the width constant and
+                    truncate an over-long label instead of growing
+                    (Requirements 7.1, 7.3).
+   Every radius/padding/border/background/font-size references a token.
+   Legacy button classes (.btn-accent, .btn-ghost, .install-btn,
+   .play-btn, .choice-btn, .page-nav-btn) remain until task 12.4.
+   ============================================================ */
 .btn {
-  background: var(--bg4); border: 1px solid var(--border); color: var(--text); border-radius: 7px;
-  padding: 7px 14px; font-size: 12px; font-family: var(--font); cursor: pointer;
-  transition: background .15s; display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  width: fit-content;        /* hug content; never stretch */
+  max-width: 100%;
+  align-self: start;         /* don't stretch in a flex/grid parent */
+  flex-shrink: 0;
+  height: var(--control-height-md);   /* default = medium, fixed height */
+  min-width: var(--control-height-md);
+  padding: 0 var(--space-3);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  background: var(--surface-raised);  /* neutral intent by default */
+  color: var(--text);
+  border: var(--border-line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.btn:hover { background: #2e3035; }
-.btn svg { width: 13px; height: 13px; }
-.btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:hover { background: var(--surface-panel); border-color: var(--border-hover); }
+.btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* Size variants — each fixes height (Requirement 7.2) */
+.btn--sm { height: var(--control-height-sm); min-width: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--fs-xs); }
+.btn--md { height: var(--control-height-md); min-width: var(--control-height-md); padding: 0 var(--space-3); font-size: var(--fs-sm); }
+.btn--lg { height: var(--control-height-lg); min-width: var(--control-height-lg); padding: 0 var(--space-4); font-size: var(--fs-md); }
+
+/* Intent variants */
+.btn--neutral { background: var(--surface-raised); color: var(--text); border: var(--border-line); }
+.btn--neutral:hover { background: var(--surface-panel); border-color: var(--border-hover); }
+.btn--primary { background: var(--accent); color: var(--accent-contrast); border: var(--bw-hairline) solid var(--accent); }
+.btn--primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn--ghost { background: transparent; color: var(--text-muted); border: var(--bw-hairline) solid transparent; }
+.btn--ghost:hover { background: var(--surface-raised); color: var(--text); }
+.btn--danger { background: var(--danger-soft); color: var(--danger); border: var(--bw-hairline) solid var(--danger); }
+.btn--danger:hover { background: var(--danger); color: var(--text); border-color: var(--danger); }
+
+/* Width control */
+.btn--fixed {
+  /* Markup sizes the set to its longest label via --btn-fixed-width so the
+     rendered width is identical across all labels (Requirement 7.1). The
+     button respects the explicit basis without stretching. */
+  width: var(--btn-fixed-width, auto);
+  min-width: var(--btn-fixed-width, var(--control-height-md));
+  flex: 0 0 auto;
+  justify-content: center;
+}
+.btn--block { width: 100%; align-self: stretch; }
+
+/* Disabled */
+.btn:disabled, .btn.disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Legacy intent classes (still referenced by markup; removed in 12.4) --- */
+.btn-accent { background: var(--accent); border-color: var(--accent); color: var(--text); }
 .btn-accent:hover { background: var(--accent2); border-color: var(--accent2); }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
 .btn-ghost:hover { background: var(--bg4); color: var(--text); }
 
-/* Play button */
-.play-btn {
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent)); color: #fff; border: none; border-radius: 6px;
-  padding: 5px 12px; font-size: 12px; font-weight: 600; font-family: var(--font);
-  cursor: pointer; display: flex; align-items: center; gap: 5px; transition: opacity .15s;
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
-}
-.play-btn:hover { opacity: 0.85; }
-.play-btn svg { width: 11px; height: 11px; }
-
-/* Modpack grid */
-.modpack-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.mp-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; cursor: pointer; transition: border-color .15s;
-}
-.mp-card:hover { border-color: var(--accent); }
-.mp-banner { height: 64px; display: flex; align-items: center; justify-content: center; }
-.mp-banner svg { width: 26px; height: 26px; }
-.mp-banner.g1 { background: linear-gradient(135deg, #2a1f3d, #1f1530); }
-.mp-banner.g2 { background: linear-gradient(135deg, #25182a, #2e1e35); }
-.mp-banner.g3 { background: linear-gradient(135deg, #1a2035, #1e2a45); }
-.mp-banner.g4 { background: linear-gradient(135deg, #2a1e18, #352418); }
-.mp-info { padding: 9px 11px; }
-.mp-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
-.mp-sub { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-.mp-stats { display: flex; gap: 8px; font-size: 10px; color: var(--muted); }
-
 /* Context bar */
 .inst-context-bar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; background: var(--bg); border-bottom: 1px solid var(--border);
-  flex-shrink: 0; font-size: 12px; color: var(--muted); margin: -20px -20px 16px;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); background: var(--bg); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; font-size: 12px; color: var(--muted); margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-4);
   flex-wrap: wrap;
 }
 .ctx-badge {
-  background: var(--bg4); border: 1px solid var(--border); border-radius: 20px;
-  padding: 2px 9px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px;
+  background: var(--bg4); border: 1px solid var(--border); border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-2); font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: var(--space-1);
 }
-.ctx-badge.badge-source-mr { background: rgba(27, 217, 106, 0.12); border-color: rgba(27, 217, 106, 0.3); color: #1bd96a; padding: 2px 7px; }
+.ctx-badge.badge-source-mr { background: rgba(27, 217, 106, 0.12); border-color: rgba(27, 217, 106, 0.3); color: #1bd96a; padding: var(--space-1) var(--space-2); }
 .ctx-badge.badge-source-mr svg { width: 13px; height: 13px; }
-.ctx-badge.badge-source-cf { background: rgba(241, 100, 54, 0.12); border-color: rgba(241, 100, 54, 0.3); color: #f16436; padding: 2px 7px; }
+.ctx-badge.badge-source-cf { background: rgba(241, 100, 54, 0.12); border-color: rgba(241, 100, 54, 0.3); color: #f16436; padding: var(--space-1) var(--space-2); }
 .ctx-badge.badge-source-cf svg { width: 13px; height: 13px; }
-.ctx-tabs {
-  display: flex; gap: 4px; margin-left: 12px;
-}
-.ctx-tab {
-  padding: 3px 10px; font-size: 11px; font-weight: 500; color: var(--muted);
-  border-radius: 5px; cursor: pointer; transition: all .12s;
-}
-.ctx-tab:hover { color: var(--text); background: var(--bg4); }
-.ctx-tab.active { color: var(--accent); background: var(--accent-tint); }
-.ctx-tab:last-child { font-size: 14px; }
-
 /* Mod list */
-.mod-list { display: flex; flex-direction: column; gap: 6px; }
-.mod-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
-  margin-bottom: 80px;
-}
+.mod-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .mod-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface-panel); border: 1px solid var(--border); border-radius: 0;
+  padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
   transition: border-color .12s; min-height: 120px;
 }
-.mod-card:hover { border-color: #3a3d44; }
-.mod-card-header { display: flex; align-items: center; gap: 8px; }
-.mod-card-icon { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mod-card:hover { border-color: var(--accent); }
+.mod-card-header { display: flex; align-items: center; gap: var(--space-2); }
+.mod-card-icon { width: 38px; height: 38px; border-radius: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid var(--border); }
 .mod-card-name { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mod-card-desc { font-size: 10px; color: var(--muted); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; flex: 1; }
 .mod-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
-.mod-card-meta { font-size: 9px; color: var(--muted); display: flex; align-items: center; gap: 3px; }
+.mod-card-meta { font-size: 9px; color: var(--muted); display: flex; align-items: center; gap: var(--space-1); }
 .side-icon { display: inline-flex; width: 13px; height: 13px; opacity: 0.75; }
 .side-icon svg { width: 100%; height: 100%; }
-.mod-card-actions { display: flex; gap: 4px; align-items: center; }
+.mod-card-actions { display: flex; gap: var(--space-1); align-items: center; }
 .mod-item {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 12px; display: flex; align-items: center; gap: 10px; transition: border-color .12s;
+  background: var(--surface-panel); border: 1px solid var(--border); border-radius: 0;
+  padding: var(--space-3) var(--space-3); display: flex; align-items: center; gap: var(--space-3); transition: border-color .12s;
 }
-.mod-item:hover { border-color: #3a3d44; }
+.mod-item:hover { border-color: var(--accent); }
 .mod-icon {
-  width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 0; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
 }
 .mod-icon svg { width: 18px; height: 18px; }
 .mod-details { flex: 1; min-width: 0; }
 .mod-name { font-size: 12px; font-weight: 600; color: var(--text); }
-.mod-desc { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.mod-stats { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+.mod-desc { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: var(--space-0); }
+.mod-stats { font-size: 10px; color: var(--muted); margin-top: var(--space-1); font-family: var(--font-mono); }
 
-/* Tabs */
-.src-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
-.src-tab {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
-  padding: 5px 13px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer;
-  transition: all .12s;
+/* ============================================================
+   Canonical tab — one .tab inside a .tab-strip
+   (Requirements 6.1, 6.2, 6.3, 6.4, 6.5)
+
+   Unified replacement for the three divergent legacy tab styles:
+   .src-tab / .src-tabs (components.css), .ctx-tab / .ctx-tabs
+   (components.css), and .content-cat / .content-mode
+   (notifications.css). One canonical tab applied to all three tab
+   strips — the instance context bar, the content source tabs, and
+   the settings tabs.
+
+   States:
+     default (inactive, enabled) — --text-muted label, no indicator
+     .active                     — --accent label + accent underline
+     :hover (inactive ONLY)      — label color -> --text
+     :disabled / .disabled       — single reduced-opacity treatment
+                                   + cursor:not-allowed, with NO hover
+                                   or active treatment
+
+   Active indicator: a bottom underline drawn by ::after with
+   IDENTICAL position, thickness, and shape for EVERY tab. Only its
+   color/visibility changes between states, so every strip renders the
+   same indicator geometry (Requirement 6.2). The active label uses the
+   accent color.
+
+   Every value references a token — no literals (the disabled opacity
+   matches the canonical .btn:disabled precedent; opacity is not a
+   tokenized category).
+
+   Legacy tab classes (.src-tab, .ctx-tab, .content-cat, .content-mode)
+   remain in place until task 12.4 removes them.
+   ============================================================ */
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
-.src-tab.active { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
-.src-tab:hover:not(.active) { color: var(--text); }
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: none;
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--text-muted);          /* inactive label color (Req 6.3) */
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .12s;
+}
+/* Active indicator — identical geometry for every tab; only color /
+   visibility changes between states (Requirement 6.2). */
+.tab::after {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: 0;
+  height: var(--bw-frame);
+  border-radius: var(--radius-pill);
+  background: transparent;           /* inactive: no indicator (Req 6.3) */
+  transition: background .12s;
+}
+/* Hover — inactive, enabled tabs ONLY (Requirement 6.4) */
+.tab:hover:not(.active):not(:disabled):not(.disabled) {
+  color: var(--text);
+}
+/* Active — accent label + accent underline (Requirement 6.2) */
+.tab.active {
+  color: var(--accent);
+}
+.tab.active::after {
+  background: var(--accent);
+}
+/* Disabled — single treatment, no hover/active applied. Declared after
+   the active rules so an .active.disabled tab still resolves to the
+   disabled (non-active) treatment (Requirement 6.5). */
+.tab:disabled,
+.tab.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-muted);
+}
+.tab:disabled::after,
+.tab.disabled::after {
+  background: transparent;
+}
+
+/* ============================================================
+   Canonical card — one .card vocabulary
+   (Requirements 5.3, 5.6, 7.5)
+
+   Unified replacement for the bespoke card definitions
+   (.inst-card, .mod-card, .mp-card, .dl-card, .continue-card,
+   .news-card, .account-card). Every Card_Grid item resolves to one
+   of the documented variants below.
+
+   Variants (differing content footprints):
+     .card--inst    — instance cards: horizontal icon + content row
+     .card--mod     — mod cards: vertical body with a min-height floor
+     .card--media   — banner/thumbnail cards: a media region on top,
+                      body below
+     .card--compact — denser footprint (tighter body padding)
+
+   Role consistency (Requirement 5.6): EVERY variant shares the same
+   surface (--surface-panel), the same frame (--border-frame), and the
+   SAME radius token (--radius-lg). Variants change only layout and
+   internal spacing — never the border-radius, border, or surface — so
+   two same-role instances resolve to equal computed
+   border-radius / border / surface.
+
+   Overflow (Requirement 7.5): the card clips its content with
+   overflow:hidden so a card never grows past its allotted box; text
+   sub-elements truncate with ellipsis (single line) or line-clamp
+   (multi-line) rather than overflowing.
+
+   Every radius/padding/border/background/font-size references a token.
+   Legacy card classes (.inst-card, .mod-card, .mp-card, .dl-item,
+   .account-card, .add-card) remain in place until task 12.4 removes
+   them.
+   ============================================================ */
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface-panel);
+  border: var(--border-frame);
+  border-radius: 0;
+  overflow: hidden;
+  transition: border-color .15s, transform .1s;
+}
+.card:hover { border-color: var(--accent); }
+
+/* Card sub-elements — shared structure with built-in truncation */
+.card-media {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 64px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-media > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.card-body {
+  flex: 1;
+  min-width: 0;                       /* enables ellipsis on children */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+.card-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;            /* single-line truncation (Req 7.5) */
+}
+.card-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;            /* single-line truncation (Req 7.5) */
+}
+.card-text {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;              /* multi-line clamp (Req 7.5) */
+  -webkit-box-orient: vertical;
+}
+
+/* Variant — instance card: icon + content laid out in a row */
+.card--inst .card-body {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Variant — mod card: vertical body with a min-height floor so equal-row
+   heights are easy to honor; content beyond the box is clipped (Req 7.5) */
+.card--mod { min-height: 120px; }
+
+/* Variant — media card: media region sits flush at the top edge, body
+   below. (Base .card is already a column; this variant is a semantic
+   marker that composes with .card-media + .card-body.) */
+.card--media { }
+
+/* Variant — compact: denser footprint via tighter body padding. Radius,
+   border, and surface are unchanged so role consistency holds (Req 5.6) */
+.card--compact .card-body { padding: var(--space-2); gap: var(--space-0); }
+
+/* ============================================================
+   Canonical card grid — one .card-grid track policy
+   (Requirements 9.1, 9.2, 9.3, 9.4, 9.5)
+
+   The single track-based grid policy that replaces every per-grid
+   rule (.instance-grid, .mod-grid, .modpack-grid, .dl-grid,
+   .continue-grid, .news-grid). Those bespoke rules diverged: some used
+   auto-fill/auto-fit with 1fr tracks (cards stretched to absorb
+   leftover space), .modpack-grid hardcoded two columns, and
+   .dl-grid/.continue-grid/.news-grid fixed two or three columns
+   regardless of width.
+
+   Policy:
+     grid-template-columns: repeat(auto-fill, var(--card-track))
+       — a FIXED track width, never 1fr. Identical container widths
+         therefore yield identical column counts and uniform card
+         widths; the column count changes only when the available width
+         crosses a track threshold (Requirements 9.1, 9.4). Recomputing
+         the column count from a new width never alters card widths
+         (Requirement 9.5).
+     justify-content: start
+       — partial rows align from the leading edge, leaving unused space
+         at the trailing edge rather than stretching cards or
+         distributing the gap (Requirements 9.2, 9.3).
+     gap: var(--space-3)
+       — uniform spacing between cards.
+
+   A .card-grid--compact variant swaps in --card-track-compact for
+   denser grids (e.g. mods) while keeping the same track policy.
+
+   Every value references a token — no literals. Legacy per-grid rules
+   (.instance-grid, .mod-grid, .modpack-grid, .dl-grid in this file;
+   .continue-grid, .news-grid in logs.css) remain in place until task
+   12.4 removes them.
+   ============================================================ */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--card-track), 1fr));
+  gap: var(--space-3);
+}
+/* Compact variant — narrower track for denser grids; same fill policy */
+.card-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(var(--card-track-compact), 1fr));
+}
+
+/* ============================================================
+   Canonical badge — one .badge vocabulary
+   (Requirement 5.4)
+
+   Unified replacement for the bespoke badge definitions
+   (.inst-badge / .badge-fabric / .badge-forge / .badge-vanilla /
+   .badge-neo / .badge-quilt / .badge-version / .badge-source-mr /
+   .badge-source-cf / .ctx-badge / .badge-ram). Every loader badge,
+   version badge, and source badge resolves to one of the documented
+   variants below (Requirement 5.4).
+
+   Variants:
+     .badge--loader  — loader identity. Carries a per-loader COLOR
+                       MODIFIER (.badge--fabric / --forge / --neoforge /
+                       --quilt / --vanilla), each pairing a soft tinted
+                       background with the loader's brand hue via the
+                       --loader-* / --loader-*-soft tokens.
+     .badge--version — game/loader version. Monospace (--font-mono) on a
+                       neutral raised surface.
+     .badge--source  — content source. Carries a per-source brand
+                       modifier (.badge--modrinth / --curseforge) using
+                       the --source-* / --source-*-soft brand tokens, and
+                       sizes the small inline source-logo SVG.
+
+   The --loader-* and --source-* brand hues are the documented brand-color
+   exceptions to the no-literal token rule; every other value references a
+   scale token. SVG width/height are intrinsic icon dimensions (not a
+   tokenized spacing/color/radius property), matching the canonical
+   .btn svg precedent.
+
+   Legacy badge classes (.inst-badge, .badge-fabric, .badge-forge,
+   .badge-vanilla, .badge-neo, .badge-quilt, .badge-version,
+   .badge-source-mr, .badge-source-cf, .badge-ram) remain in place until
+   task 12.4 removes them.
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  border-radius: var(--radius-xs);
+  background: var(--surface-raised);   /* neutral default surface */
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Variant — loader identity (color set by a per-loader modifier) */
+.badge--loader.badge--fabric   { background: var(--loader-fabric-soft);   color: var(--loader-fabric); }
+.badge--loader.badge--forge    { background: var(--loader-forge-soft);    color: var(--loader-forge); }
+.badge--loader.badge--neoforge { background: var(--loader-neoforge-soft); color: var(--loader-neoforge); }
+.badge--loader.badge--quilt    { background: var(--loader-quilt-soft);    color: var(--loader-quilt); }
+.badge--loader.badge--vanilla  { background: var(--loader-vanilla-soft);  color: var(--loader-vanilla); }
+
+/* Variant — version (monospace on a neutral raised surface) */
+.badge--version {
+  font-family: var(--font-mono);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+/* Variant — source (brand tints + inline source-logo SVG sizing) */
+.badge--source.badge--modrinth   { background: var(--source-modrinth-soft);   color: var(--source-modrinth); }
+.badge--source.badge--curseforge { background: var(--source-curseforge-soft); color: var(--source-curseforge); }
+.badge--source svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+/* ============================================================
+   Canonical form field — one .field-control vocabulary
+   (Requirement 5.5)
+
+   Unified replacement for the bespoke field definitions
+   (.field-input, .search-input, .control-select,
+   .custom-dropdown-selected, .concurrency-number, .java-slot-input).
+   Every text input, dropdown, and select control resolves to one of
+   the documented variants below (Requirement 5.5).
+
+   Variants:
+     .field-control--text   — plain single-line text input (the base
+                              box; this modifier is the explicit
+                              semantic marker for text fields).
+     .field-control--select — dropdown / select. Carries the
+                              dropdown-arrow affordance: a token-drawn
+                              caret rendered by ::after (a pure-CSS
+                              triangle built from token border widths +
+                              token color — no raster asset, no data
+                              URI, no literal), and reserves trailing
+                              space for it. Laid out as a flex row so a
+                              custom-dropdown trigger's label sits left
+                              and the caret sits right.
+     .field-control--search — search input. Reserves leading space for
+                              a search icon; the icon is an Icons.tsx
+                              SVG positioned by the surrounding
+                              .search-bar wrapper (Requirement 10.6),
+                              never an emoji glyph.
+
+   Role consistency: every variant shares the same surface
+   (--surface-panel), the same border (--border-line), the same radius
+   token (--radius-sm), the same fixed height (--control-height-md),
+   and the same focus treatment (--accent border + accent glow).
+   Variants change only layout, the leading/trailing affordance, and
+   the reserved padding — never the radius, border, or surface.
+
+   Focus: border switches to --accent with the --glow-accent ring
+   (Requirement consistency). Placeholder text uses the --text-faint
+   token. Disabled uses a reduced-opacity + not-allowed treatment.
+
+   Composability with Dropdown.tsx (note only — markup migration is a
+   later task, 12.x): the custom dropdown keeps its existing DOM
+   (.custom-dropdown wrapper > .custom-dropdown-selected trigger >
+   label span + .custom-dropdown-arrow; .custom-dropdown-options
+   popup). When migrated, the .custom-dropdown-selected trigger adopts
+   `.field-control .field-control--select` so it inherits these field
+   tokens; the trigger is already a flex <div> so the ::after caret and
+   flex layout below compose with its structure without restructuring
+   it. The options popup keeps its own positioning rules; only the
+   trigger box adopts the field-control surface/border/radius/height.
+
+   Every radius/padding/border/background/font-size/color references a
+   token — no literals. Legacy field classes (.field-input,
+   .search-input, .control-select, .custom-dropdown-selected,
+   .concurrency-number, .java-slot-input) remain in place until task
+   12.4 removes them.
+   ============================================================ */
+.field-control {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: var(--control-height-md);   /* fixed height (shared) */
+  padding: 0 var(--space-3);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: 1;
+  color: var(--text);
+  background: var(--surface-panel);    /* shared surface */
+  border: var(--border-line);          /* shared border */
+  border-radius: var(--radius-sm);     /* shared radius token */
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.field-control:hover { border-color: var(--border-hover); }
+/* Shared focus treatment — --accent border + accent glow ring. Covers
+   both real form controls (:focus) and the custom-dropdown trigger
+   <div> that gains focus on a focusable ancestor (:focus-within). */
+.field-control:focus,
+.field-control:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+.field-control::placeholder { color: var(--text-faint); }
+.field-control:disabled,
+.field-control.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Variant — text: the plain input. Base box already covers it; this is
+   the explicit semantic marker so every text field resolves to a named
+   variant (Requirement 5.5). */
+.field-control--text { }
+
+/* Variant — select / dropdown. Flex row so a label sits left and the
+   caret affordance sits right; reserve trailing space for the caret. */
+.field-control--select {
+  position: relative;                  /* anchor for the ::after caret */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-right: var(--space-6);       /* room for the caret */
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+}
+/* Dropdown-arrow affordance — a token-drawn caret (pure-CSS triangle
+   from token border widths + token color; no data URI, no literal). */
+.field-control--select::after {
+  content: "";
+  position: absolute;
+  right: var(--space-3);
+  width: 0;
+  height: 0;
+  border-left: var(--space-1) solid transparent;
+  border-right: var(--space-1) solid transparent;
+  border-top: var(--space-1) solid var(--text-muted);
+  pointer-events: none;
+  transition: transform .15s;
+}
+
+/* Variant — search. Reserve leading space for the Icons.tsx search SVG
+   that the .search-bar wrapper positions over the input. */
+.field-control--search {
+  padding-left: var(--space-6);
+}
 
 /* Filter hint */
 .filter-hint {
-  font-size: 11px; color: var(--muted); margin-bottom: 10px;
-  display: flex; align-items: center; gap: 6px; padding: 7px 10px;
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 7px;
+  font-size: 11px; color: var(--muted); margin-bottom: var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-md);
 }
 
 /* Search */
-.search-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.search-bar { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
 .search-input {
-  flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-  padding: 7px 12px; color: var(--text); font-size: 12px; font-family: var(--font); outline: none;
+  flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3); color: var(--text); font-size: 12px; font-family: var(--font); outline: none;
   transition: border-color .15s;
 }
 .search-input:focus { border-color: var(--accent); }
-.search-input::placeholder { color: #4a4d55; }
+.search-input::placeholder { color: var(--text-faint); }
 
 /* Settings */
-.settings-section { margin-bottom: 24px; }
+.settings-section { margin-bottom: var(--space-6); }
 .settings-group {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 4px 16px;
+  background: var(--surface-panel); border: 1px solid var(--border); border-radius: 0;
+  padding: var(--space-1) var(--space-4);
 }
 .settings-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 0; border-bottom: 1px solid var(--border);
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--border);
 }
 .settings-row:last-child { border-bottom: none; }
 .settings-key { font-size: 13px; color: var(--text); font-weight: 500; }
@@ -229,18 +693,18 @@
 .vs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 6px;
+  gap: var(--space-2);
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 6px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
 }
 .vs-cell {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   min-height: 36px;
 }
 .vs-key {
@@ -260,43 +724,42 @@
 }
 
 /* Downloads */
-.dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
 .dl-item {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
 }
 .dl-name { font-size: 11px; font-weight: 600; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
-.dl-bar-bg { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
-.dl-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width .3s; }
-.dl-meta { font-size: 10px; color: var(--muted); margin-top: 5px; font-family: var(--font-mono); }
+.dl-bar-bg { height: 4px; background: var(--bg4); border-radius: var(--radius-xs); overflow: hidden; }
+.dl-bar-fill { height: 100%; border-radius: var(--radius-xs); background: var(--accent); transition: width .3s; }
+.dl-meta { font-size: 10px; color: var(--muted); margin-top: var(--space-1); font-family: var(--font-mono); }
 
 /* Account */
 .account-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
-  display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-5);
+  display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4);
 }
 .avatar {
-  width: 52px; height: 52px; border-radius: 10px;
-  background: linear-gradient(135deg, #1a3a2a, #1a2e40);
+  width: 52px; height: 52px; border-radius: var(--radius-lg);
+  background: var(--grad-avatar);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   border: 1px solid var(--border);
 }
 .avatar svg { width: 28px; height: 28px; color: var(--muted); }
-.account-name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.account-name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: var(--space-1); }
 .account-uuid { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
 .account-badge-active {
   margin-left: auto; font-size: 10px; font-weight: 600;
   background: var(--accent-tint); border: 1px solid var(--accent); color: var(--accent);
-  padding: 3px 10px; border-radius: 20px; flex-shrink: 0;
+  padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); flex-shrink: 0;
 }
 
 /* Account list (multi-account) */
 .account-list {
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: var(--space-1);
 }
 .account-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px; border-radius: 8px;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-3); border-radius: var(--radius-md);
   background: var(--bg3); border: 1px solid var(--border);
   cursor: pointer; transition: all .12s;
 }
@@ -306,8 +769,8 @@
   cursor: default;
 }
 .account-row-avatar {
-  width: 36px; height: 36px; border-radius: 8px;
-  background: linear-gradient(135deg, #1a3a2a, #1a2e40);
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  background: var(--grad-avatar);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   border: 1px solid var(--border);
 }
@@ -317,30 +780,30 @@
 .account-row-type { font-size: 10px; color: var(--muted); }
 .account-row-remove {
   background: none; border: none; color: var(--muted); cursor: pointer;
-  font-size: 14px; padding: 4px 6px; border-radius: 4px; opacity: 0;
+  font-size: 14px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-xs); opacity: 0;
   transition: all .12s;
 }
 .account-row:hover .account-row-remove { opacity: 1; }
-.account-row-remove:hover { color: #e05252; background: rgba(224,82,82,0.1); }
+.account-row-remove:hover { color: var(--danger); background: rgba(224,82,82,0.1); }
 
 /* Install button */
 .install-btn {
   background: var(--bg4); border: 1px solid var(--border); color: var(--text);
-  border-radius: 6px; padding: 5px 11px; font-size: 11px; font-weight: 500;
+  border-radius: var(--radius-sm); padding: var(--space-1) var(--space-3); font-size: 11px; font-weight: 500;
   font-family: var(--font); cursor: pointer; white-space: nowrap; transition: all .12s;
 }
-.install-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.install-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--text); }
 .install-btn.installed { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); cursor: default; }
 
 /* Bulk select */
 .mod-item-selected { border-color: var(--accent) !important; background: var(--accent-tint); }
 .select-check {
-  width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--border);
+  width: 22px; height: 22px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
   display: flex; align-items: center; justify-content: center; font-size: 12px;
   color: transparent; transition: all .12s; flex-shrink: 0;
 }
-.select-check.checked { border-color: var(--accent); background: var(--accent); color: #fff; }
-.btn-active { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
+.select-check.checked { border-color: var(--accent); background: var(--accent); color: var(--text); }
+.btn-active { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--text) !important; }
 .bulk-install-bar {
   position: fixed;
   bottom: 20px;
@@ -349,19 +812,19 @@
   width: 360px;
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
   z-index: 60;
   animation: fadeIn .15s ease;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-3);
 }
 .bulk-install-bar .install-btn {
   font-size: 11px;
-  padding: 5px 12px;
+  padding: var(--space-1) var(--space-3);
 }
 
 /* Animations */
@@ -375,42 +838,42 @@
   background: rgba(0,0,0,.55); z-index: 50;
 }
 .modal {
-  background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl);
   width: 440px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
 }
 .modal-header {
-  padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+  padding: var(--space-5) var(--space-5) var(--space-4); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
 }
 .modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
 .modal-close {
   background: none; border: none; color: var(--muted); cursor: pointer;
-  padding: 4px; border-radius: 6px; font-size: 16px;
+  padding: var(--space-1); border-radius: var(--radius-sm); font-size: 16px;
   transition: background .15s, color .15s;
 }
 .modal-close:hover { background: var(--bg4); color: var(--text); }
-.modal-body { padding: 20px; }
+.modal-body { padding: var(--space-5); }
 .modal-body .mod-list::-webkit-scrollbar { width: 4px; }
-.modal-body .mod-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+.modal-body .mod-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: var(--radius-xs); }
 .modal-body .mod-list::-webkit-scrollbar-track { background: transparent; }
 .modal-footer {
-  padding: 14px 20px; border-top: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2);
 }
 
 /* Form fields */
-.field { margin-bottom: 16px; }
+.field { margin-bottom: var(--space-4); }
 .field-label {
-  font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 7px;
+  font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: var(--space-2);
   letter-spacing: .04em; text-transform: uppercase;
 }
 .field-input {
-  width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-  padding: 9px 12px; color: var(--text); font-size: 13px; font-family: var(--font); outline: none;
+  width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3); color: var(--text); font-size: 13px; font-family: var(--font); outline: none;
   transition: border-color .15s;
 }
 .field-input:focus { border-color: var(--accent); }
-.field-input::placeholder { color: #4a4d55; }
+.field-input::placeholder { color: var(--text-faint); }
 select.field-input { cursor: pointer; appearance: none; color-scheme: dark; }
 select.field-input option { background: var(--bg3); color: var(--text); }
 select.field-input[size] { appearance: none; }
@@ -422,13 +885,13 @@ select.field-input[size] { appearance: none; }
 .java-args-panel {
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .java-args-panel-header {
-  padding: 6px 12px;
+  padding: var(--space-2) var(--space-3);
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
@@ -449,10 +912,10 @@ select.field-input[size] { appearance: none; }
 }
 .code-editor-gutter {
   flex: 0 0 auto;
-  padding: 8px 8px 8px 12px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   background: var(--bg2);
   border-right: 1px solid var(--border);
-  color: #4a4d55;
+  color: var(--text-faint);
   text-align: right;
   user-select: none;
   min-width: 32px;
@@ -466,7 +929,7 @@ select.field-input[size] { appearance: none; }
 }
 .code-editor-input {
   flex: 1;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-3);
   background: transparent;
   border: none;
   outline: none;
@@ -480,7 +943,7 @@ select.field-input[size] { appearance: none; }
   caret-color: var(--accent);
 }
 .code-editor-input::placeholder {
-  color: #3a3d45;
+  color: var(--text-faint);
   white-space: pre;
 }
 
@@ -493,8 +956,8 @@ select.field-input[size] { appearance: none; }
   width: 100%;
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
@@ -517,13 +980,13 @@ select.field-input[size] { appearance: none; }
   z-index: 50;
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   max-height: 210px;
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .custom-dropdown-option {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   font-size: 12px;
   color: var(--text);
   cursor: pointer;
@@ -537,43 +1000,49 @@ select.field-input[size] { appearance: none; }
 }
 
 /* Choice pills */
-.choice-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.choice-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .choice-btn {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 7px;
-  padding: 6px 13px; font-size: 12px; font-family: var(--font); color: var(--muted);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3); font-size: 12px; font-family: var(--font); color: var(--muted);
   cursor: pointer; transition: all .12s;
 }
-.choice-btn:hover { border-color: #4a4d55; color: var(--text); }
+.choice-btn:hover { border-color: var(--border-hover); color: var(--text); }
 .choice-btn.selected { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
 
 /* Create choice grid — single column so each option is a full-width card.
    Looks balanced with three options instead of leaving one orphaned in the
    second row of a 2-column layout. */
-.create-choice-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.create-choice-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
 .create-choice-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
-  padding: 16px 18px; cursor: pointer; text-align: left; transition: border-color .15s, background .15s;
-  display: flex; align-items: center; gap: 14px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5); cursor: pointer; text-align: left; transition: border-color .15s, background .15s;
+  display: flex; align-items: center; gap: var(--space-4);
 }
 .create-choice-card.green:hover { border-color: var(--accent); background: var(--accent-tint); }
-.create-choice-card.blue:hover { border-color: var(--blue); background: #111629; }
-.create-choice-card.orange:hover { border-color: var(--orange); background: #1f1a14; }
+.create-choice-card.blue:hover { border-color: var(--blue); background: var(--info-soft); }
+.create-choice-card.orange:hover { border-color: var(--orange); background: var(--surface-panel); }
 .create-choice-icon {
   font-size: 24px;
   margin-bottom: 0;
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.create-choice-text { display: flex; flex-direction: column; gap: 4px; }
+.create-choice-icon svg {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  shape-rendering: geometricPrecision;
+}
+.create-choice-text { display: flex; flex-direction: column; gap: var(--space-1); }
 .create-choice-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 0; }
 .create-choice-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
 
-/* Disabled button */
-.btn:disabled, .btn-accent:disabled {
+/* Disabled legacy accent button (canonical .btn:disabled handled above) */
+.btn-accent:disabled {
   opacity: 0.5; cursor: not-allowed;
 }
 
@@ -582,25 +1051,25 @@ select.field-input[size] { appearance: none; }
   display: block;
 }
 .browse-controls {
-  display: flex; align-items: center; gap: 14px; margin-bottom: 10px;
-  padding: 8px 0;
+  display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-3);
+  padding: var(--space-2) 0;
 }
-.control-group { display: flex; align-items: center; gap: 6px; }
+.control-group { display: flex; align-items: center; gap: var(--space-2); }
 .control-label { font-size: 11px; color: var(--muted); font-weight: 500; }
 .control-select {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
-  padding: 4px 10px; color: var(--text); font-size: 11px; font-family: var(--font);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3); color: var(--text); font-size: 11px; font-family: var(--font);
   cursor: pointer; outline: none;
   -webkit-appearance: none; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b8f98'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
-  padding-right: 24px;
+  padding-right: var(--space-6);
   color-scheme: dark;
 }
 .control-select:focus { border-color: var(--accent); }
 .control-select option {
-  background: var(--bg3); color: var(--text); padding: 4px 8px;
+  background: var(--bg3); color: var(--text); padding: var(--space-1) var(--space-2);
 }
 
 /* Memory slider */
@@ -610,7 +1079,7 @@ select.field-input[size] { appearance: none; }
 }
 .memory-slider-track-wrap {
   position: relative;
-  padding: 6px 0;
+  padding: var(--space-2) 0;
 }
 .memory-slider-dots {
   position: absolute;
@@ -625,7 +1094,7 @@ select.field-input[size] { appearance: none; }
   top: 50%;
   width: 4px;
   height: 12px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--bg4);
   transform: translate(-50%, -50%);
   transition: background 0.12s;
@@ -639,12 +1108,12 @@ select.field-input[size] { appearance: none; }
   appearance: none;
   width: 100%;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   outline: none;
   cursor: pointer;
   position: relative;
   z-index: 1;
-  margin: 4px 0;
+  margin: var(--space-1) 0;
   background: linear-gradient(
     to right,
     var(--accent) 0%,
@@ -682,7 +1151,7 @@ select.field-input[size] { appearance: none; }
   justify-content: space-between;
   font-size: 10px;
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .memory-slider-value {
   color: var(--accent);
@@ -691,13 +1160,13 @@ select.field-input[size] { appearance: none; }
 }
 .memory-hint {
   font-size: 10px;
-  margin-top: 6px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
   font-weight: 500;
 }
 .memory-hint.good {
-  color: #4ade80;
+  color: var(--success);
   background: rgba(74, 222, 128, 0.08);
 }
 .memory-hint.low {
@@ -705,11 +1174,11 @@ select.field-input[size] { appearance: none; }
   background: var(--bg3);
 }
 .memory-hint.high {
-  color: #f59e0b;
+  color: var(--warn);
   background: rgba(245, 158, 11, 0.08);
 }
 .memory-hint.warn {
-  color: #ef4444;
+  color: var(--danger);
   background: rgba(239, 68, 68, 0.08);
 }
 
@@ -719,12 +1188,12 @@ select.field-input[size] { appearance: none; }
 
 /* Page nav */
 .page-nav {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  padding: 12px 0; margin-top: 8px;
+  display: flex; align-items: center; justify-content: center; gap: var(--space-3);
+  padding: var(--space-3) 0; margin-top: var(--space-2);
 }
 .page-nav-btn {
   background: var(--bg3); border: 1px solid var(--border); color: var(--muted);
-  width: 28px; height: 28px; border-radius: 6px; font-size: 16px;
+  width: 28px; height: 28px; border-radius: var(--radius-sm); font-size: 16px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all .12s;
 }
@@ -732,14 +1201,14 @@ select.field-input[size] { appearance: none; }
 .page-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .page-num {
   font-size: 12px; font-family: var(--font-mono); color: var(--muted);
-  cursor: default; padding: 4px 8px; border-radius: 4px;
+  cursor: default; padding: var(--space-1) var(--space-2); border-radius: var(--radius-xs);
   transition: background .12s;
 }
 .page-num:hover { background: var(--bg4); }
 .page-num-input {
   width: 50px; text-align: center;
-  background: var(--bg3); border: 1px solid var(--accent); border-radius: 5px;
-  padding: 3px 6px; color: var(--text); font-size: 12px; font-weight: 600;
+  background: var(--bg3); border: 1px solid var(--accent); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2); color: var(--text); font-size: 12px; font-weight: 600;
   font-family: var(--font-mono); outline: none;
 }
 
@@ -752,7 +1221,7 @@ select.field-input[size] { appearance: none; }
 .mod-card-name-wrap {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--space-0);
   min-width: 0;
   flex: 1;
 }
@@ -768,32 +1237,14 @@ select.field-input[size] { appearance: none; }
   font-size: 10px;
   color: var(--muted);
   font-weight: 500;
-  margin-top: 1px;
+  margin-top: var(--space-0);
 }
 .dl-card-author {
   font-size: 10px;
   color: var(--muted);
   font-weight: 500;
-  margin-left: 8px;
+  margin-left: var(--space-2);
 }
-
-/* ============================================================
-   Disabled category tab — for Browse + Installed filter rows
-   on the InstanceMods screen. Used when a category isn't usable
-   on the current loader (e.g. mods on vanilla).
-   ============================================================ */
-.src-tab.disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  pointer-events: auto; /* keep title tooltip working */
-  color: var(--muted);
-}
-.src-tab.disabled:hover {
-  background: transparent;
-  color: var(--muted);
-  border-color: var(--border);
-}
-
 
 /* Adaptive RAM readout — replaces the manual `.memory-hint` row in the
    per-instance Settings tab when global adaptive RAM is on. Renders the
@@ -803,8 +1254,8 @@ select.field-input[size] { appearance: none; }
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
   font-size: 11px;
   font-weight: 500;
   color: var(--text);
@@ -815,14 +1266,14 @@ select.field-input[size] { appearance: none; }
   text-underline-offset: 3px;
 }
 .memory-adaptive-warn {
-  color: #f59e0b;
+  color: var(--warn);
   font-weight: 500;
 }
 .memory-adaptive-overridden {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
   font-size: 11px;
   color: var(--muted);
 }
@@ -840,4 +1291,92 @@ select.field-input[size] { appearance: none; }
 }
 .memory-adaptive-override-btn:hover {
   color: var(--text);
+}
+
+/* ============================================================
+   Canonical framed panel — .panel / .panel--bracketed
+   (Requirements 10.2, 10.3, 10.5)
+
+   .panel is the canonical Dungeon_Theme frame PRIMITIVE: a visible
+   bordered frame (--border-frame) over the elevated panel surface
+   (--surface-panel), deliberately distinct from the deepest page
+   background (--surface-base) so every primary container reads as a
+   framed panel (Requirement 10.2). It carries the SAME surface, frame,
+   and radius tokens as the canonical .card, so the frame treatment is
+   one shared definition.
+
+   Composability: adding .panel to a surface frames it. Because this
+   block is defined AFTER .card, .modal, and .settings-group (and uses
+   equal single-class specificity), composing `.modal.panel`,
+   `.settings-group.panel`, or `.card.panel` resolves the surface,
+   border, and radius to these canonical frame tokens — so two surfaces
+   of the same framed-panel type render an identical frame (Req 10.5).
+   .card already shares these exact tokens, so .card.panel is a no-op
+   visual match rather than an override.
+
+   .panel--bracketed adds the ornate corner-bracket decoration at ALL
+   FOUR corners (Requirement 10.3). Two pseudo-elements alone give only
+   two corners, so instead a SINGLE full-cover ::before overlay paints
+   eight token-sized gradient bars — a horizontal arm + a vertical arm
+   at each of the four corners, forming an identical L-shaped bracket in
+   every corner. Each arm is sized purely from --bracket-size /
+   --bracket-thickness and filled with --bracket-color; no raster asset,
+   no data URI, no literal. Because all four corners are produced by one
+   rule from the same tokens, the treatment is identical per corner, and
+   two surfaces of the same bracketed panel type render identical
+   brackets (Requirement 10.5). The overlay is decorative only
+   (pointer-events: none) and inset by a token so the brackets sit just
+   inside the frame as an accent layer.
+   ============================================================ */
+.panel {
+  position: relative;
+  background: var(--surface-panel);
+  border: var(--border-frame);
+  border-radius: 0;
+}
+
+/* Sunken variant — recessed well (slot backgrounds, inset wells). */
+.panel--sunken {
+  background: var(--surface-sunken);
+  box-shadow: none;
+  border-color: var(--border);
+}
+
+/* Bracketed variant — disabled in the redesign. The class is kept so existing
+   markup (modal panels, hero) compiles, but the decorative ::before is hidden:
+   the redesign is clean and minimal, with no ornamental corner trim. */
+.panel--bracketed { position: relative; }
+.panel--bracketed::before { display: none; }
+
+
+/* ============================================================
+   Browse tab — context+controls bar and a results area with a
+   centered loading spinner overlay. The grid stays mounted and
+   dims while searching, so switching category/source/sort never
+   shifts the layout (no inserted "Searching..." line).
+   ============================================================ */
+.browse-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+}
+.browse-bar-context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 0;
+}
+.browse-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-shrink: 0;
 }

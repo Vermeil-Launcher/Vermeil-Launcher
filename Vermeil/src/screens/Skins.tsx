@@ -393,14 +393,14 @@ const Skins: Component = () => {
               <div class="field-label">Model variant</div>
               <div class="choice-row">
                 <button
-                  class={`choice-btn ${variant() === "CLASSIC" ? "selected" : ""}`}
+                  class={`btn ${variant() === "CLASSIC" ? "btn--primary" : "btn--neutral"}`}
                   disabled={busy() !== null}
                   onClick={() => handleVariantSwitch("CLASSIC")}
                 >
                   Classic (4px arms)
                 </button>
                 <button
-                  class={`choice-btn ${variant() === "SLIM" ? "selected" : ""}`}
+                  class={`btn ${variant() === "SLIM" ? "btn--primary" : "btn--neutral"}`}
                   disabled={busy() !== null}
                   onClick={() => handleVariantSwitch("SLIM")}
                 >
@@ -410,7 +410,7 @@ const Skins: Component = () => {
             </div>
 
             <div class="skins-actions">
-              <button class="btn btn-accent" onClick={handleUpload} disabled={busy() !== null}>
+              <button class="btn btn--primary" onClick={handleUpload} disabled={busy() !== null}>
                 <IconUpload />
                 {busy() === "upload" ? "Uploading..." : "Upload skin"}
               </button>
@@ -418,7 +418,7 @@ const Skins: Component = () => {
                 <IconReload />
                 {busy() === "reset" ? "Resetting..." : "Reset to default"}
               </button>
-              <button class="btn btn-ghost" onClick={handleRefresh} disabled={busy() !== null}>
+              <button class="btn btn--ghost" onClick={handleRefresh} disabled={busy() !== null}>
                 Refresh
               </button>
             </div>
@@ -492,14 +492,14 @@ const Skins: Component = () => {
                         </div>
                         <div class="skins-library-actions">
                           <button
-                            class="btn btn-accent"
+                            class="btn btn--primary"
                             onClick={() => handleEquipLocal(skin)}
                             disabled={busy() !== null}
                           >
                             {busy() === `equip-${skin.hash}` ? "..." : "Equip"}
                           </button>
                           <button
-                            class="btn btn-ghost skins-library-remove"
+                            class="btn btn--ghost skins-library-remove"
                             onClick={() => handleRemoveLocal(skin)}
                             disabled={busy() !== null}
                             title="Remove from library"

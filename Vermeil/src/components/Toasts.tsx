@@ -1,4 +1,5 @@
 import { Component, For, createSignal } from "solid-js";
+import { IconInfo, IconCheck, IconAlertTriangle, IconX } from "./Icons";
 
 export interface ToastAction {
   /** Visible button label. */
@@ -56,11 +57,17 @@ export function dismissToast(id: string) {
   setToasts((prev) => prev.filter((t) => t.id !== id));
 }
 
-const typeIcons: Record<Toast["type"], string> = {
-  info: "ℹ",
-  success: "✓",
-  warning: "⚠",
-  error: "✕",
+const typeIcon = (type: Toast["type"]) => {
+  switch (type) {
+    case "info":
+      return <IconInfo />;
+    case "success":
+      return <IconCheck />;
+    case "warning":
+      return <IconAlertTriangle />;
+    case "error":
+      return <IconX />;
+  }
 };
 
 const Toasts: Component = () => {
@@ -69,7 +76,7 @@ const Toasts: Component = () => {
       <For each={toasts()}>
         {(toast) => (
           <div class={`toast-item toast-${toast.type}`}>
-            <span class="toast-icon">{typeIcons[toast.type]}</span>
+            <span class="toast-icon">{typeIcon(toast.type)}</span>
             <div class="toast-body">
               <div class="toast-title">{toast.title}</div>
               {toast.message && <div class="toast-msg">{toast.message}</div>}
@@ -85,7 +92,7 @@ const Toasts: Component = () => {
                 {toast.action.label}
               </button>
             )}
-            <button class="toast-dismiss" onClick={() => dismissToast(toast.id)}>✕</button>
+            <button class="toast-dismiss" onClick={() => dismissToast(toast.id)}><IconX /></button>
           </div>
         )}
       </For>

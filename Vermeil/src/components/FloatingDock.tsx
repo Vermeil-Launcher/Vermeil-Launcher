@@ -234,7 +234,7 @@ const FloatingDock: Component = () => {
                         <div
                           class={`dock-dot ${isActive() ? "active" : ""} ${isActive() && scrolling() ? "expanded" : ""}`}
                           style={`opacity: ${Math.max(0.2, 1 - dist() * 0.2)}; transform: scale(${isActive() ? 1 : Math.max(0.5, 1 - dist() * 0.15)})`}
-                          onClick={() => pag().onPageChange(page)}
+                          onClick={() => { pag().onPageChange(page); flashScroll(); }}
                         >
                           <Show when={isActive() && scrolling()}>
                             <span class="dock-dot-num">{page}</span>

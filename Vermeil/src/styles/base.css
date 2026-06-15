@@ -135,13 +135,12 @@
 
   /* --- Dock clearance ---
      Reserved bottom space on scrolling content (`.content`) so the floating
-     dock never sits on top of card actions like Install buttons. Sized for
-     the worst case where the pagination island is also visible above the
-     pill. Scales in lockstep with --dock-scale so big windows reserve
-     proportional space. 160px covers: 18px bottom offset + ~24px FAB
-     extension + ~54px pill + ~12px gap + ~22px pagination island + a
-     generous breathing margin so cards don't visually crowd the dock edge. */
-  --dock-clearance: calc(160px * var(--dock-scale));
+     dock never sits on top of card actions like Install buttons. Sized to
+     the dock's actual visual footprint without excess whitespace — most
+     cards span full-width, so the centered pagination island only obscures
+     the middle column. The pill/FAB strip is what every card needs to
+     clear, so the budget targets that. Scales with --dock-scale. */
+  --dock-clearance: calc(100px * var(--dock-scale));
   --card-track: 240px;          /* fixed card width for shared grid */
   --card-track-compact: 180px;  /* narrow card width for dense grids */
   --content-min: 480px;         /* minimum supported content width */

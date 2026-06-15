@@ -1102,7 +1102,6 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // Resolve window dimensions from global settings, falling back to
     // per-instance values (for backwards compat) and then hard defaults.
     let global_vs = global_settings.as_ref().map(|s| &s.video_settings);
-    let win_fullscreen = global_vs.and_then(|v| v.fullscreen).unwrap_or(instance.window.fullscreen);
     let win_maximized = global_vs.and_then(|v| v.start_maximized).unwrap_or(false);
     // Initial window dimensions used by Minecraft's GLFW window. When
     // `start_maximized` is on, the window briefly appears at this size
@@ -1112,7 +1111,7 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // window-manager interaction we don't currently implement.
     let win_width = global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width);
     let win_height = global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height);
-    let (win_width, win_height) = if win_maximized && !win_fullscreen && !cfg!(windows) {
+    let (win_width, win_height) = if win_maximized && !cfg!(windows) {
         // Non-Windows fallback: launch at near-monitor size since we can't
         // call ShowWindow(SW_MAXIMIZE) without Win32. WM/compositor decides
         // whether to render this as maximized.
@@ -1195,18 +1194,14 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     }
 
     // Append explicit resolution args for legacy versions (pre-1.13) that don't
-    // use the feature-rule system, and always append --fullscreen when enabled.
-    // Modern versions (1.13+) get --width/--height from the version.json feature
-    // rules when has_custom_resolution is true, but legacy versions need them
-    // injected manually.
+    // use the feature-rule system. Modern versions (1.13+) get --width/--height
+    // from the version.json feature rules when has_custom_resolution is true,
+    // but legacy versions need them injected manually.
     if version.minecraft_arguments.is_some() && has_custom_resolution {
         game_args.push("--width".to_string());
         game_args.push(win_width.to_string());
         game_args.push("--height".to_string());
         game_args.push(win_height.to_string());
-    }
-    if win_fullscreen {
-        game_args.push("--fullscreen".to_string());
     }
 
     // 7b. Patch options.txt with global video settings (if any are configured)
@@ -1279,14 +1274,14 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         // so in-game toggles don't persist unexpectedly across launches.
         let options_path = game_dir.join("options.txt");
         let mut content = fs::read_to_string(&options_path).unwrap_or_default();
-        let fullscreen_line = format!("fullscreen:{}", if win_fullscreen { "true" } else { "false" });
+        let fullscreen_line = "fullscreen:false";
         let prefix = "fullscreen:";
         if let Some(pos) = content.find(prefix) {
             let end = content[pos..].find('\n').map(|i| pos + i).unwrap_or(content.len());
-            content.replace_range(pos..end, &fullscreen_line);
+            content.replace_range(pos..end, fullscreen_line);
         } else if !content.is_empty() {
             if !content.ends_with('\n') { content.push('\n'); }
-            content.push_str(&fullscreen_line);
+            content.push_str(fullscreen_line);
             content.push('\n');
         }
         let _ = fs::write(&options_path, &content);
@@ -1328,12 +1323,12 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     let mut child = cmd.spawn().map_err(|e| format!("Failed to launch: {}", e))?;
     let pid = child.id();
 
-    // If the user wants the game window maximized (and not fullscreen),
-    // spawn the Win32 polling helper that watches for Minecraft's GLFW
-    // window and calls ShowWindow(SW_MAXIMIZE) once it appears. On other
-    // platforms the launch dimensions already cover the screen.
+    // If the user wants the game window maximized, spawn the Win32 polling
+    // helper that watches for Minecraft's GLFW window and calls
+    // ShowWindow(SW_MAXIMIZE) once it appears. On other platforms the launch
+    // dimensions already cover the screen.
     #[cfg(windows)]
-    if win_maximized && !win_fullscreen {
+    if win_maximized {
         maximize_minecraft_window_async(pid);
     }
 

@@ -11,7 +11,7 @@ export interface Instance {
   game_version: string;
   loader: { type: string; version: string | null };
   java: { memory_max_mb: number; adaptive_override?: boolean };
-  window: { width: number; height: number; fullscreen: boolean };
+  window: { width: number; height: number };
   mods: any[];
   last_played: string | null;
   total_play_seconds: number;
@@ -130,7 +130,6 @@ export interface LauncherSettings {
     music_volume: number | null;
     window_width: number | null;
     window_height: number | null;
-    fullscreen: boolean | null;
     start_maximized: boolean | null;
   };
   /**
@@ -163,7 +162,7 @@ export const prepareInstance = (id: string) => invoke<void>("prepare_instance", 
 export const getInstance = (id: string) => invoke<Instance>("get_instance", { id });
 export const deleteInstance = (id: string) => invoke<void>("delete_instance", { id });
 export const updateInstanceMemory = (id: string, memoryMaxMb: number) => invoke<void>("update_instance_memory", { id, memoryMaxMb });
-export const updateInstanceOptions = (id: string, opts: { memoryMaxMb?: number; width?: number; height?: number; fullscreen?: boolean; extraArgs?: string[]; adaptiveOverride?: boolean }) =>
+export const updateInstanceOptions = (id: string, opts: { memoryMaxMb?: number; width?: number; height?: number; extraArgs?: string[]; adaptiveOverride?: boolean }) =>
   invoke<void>("update_instance_options", { id, ...opts });
 export const renameInstance = (id: string, newName: string) => invoke<void>("rename_instance", { id, newName });
 export const setInstanceIcon = (id: string, sourcePath: string) =>

@@ -665,7 +665,7 @@ const Settings: Component = () => {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
               <div class="section-label" style="margin-bottom:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Video</div>
               <button class="btn" style="font-size:9px;padding:3px 10px" onClick={() => {
-                updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null, window_width: null, window_height: null, fullscreen: null, start_maximized: null });
+                updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null, window_width: null, window_height: null, start_maximized: null });
               }}>Reset All</button>
             </div>
             <div class="vs-grid">
@@ -858,13 +858,6 @@ const Settings: Component = () => {
                 />
               </div>
 
-              {/* Fullscreen toggle */}
-              <div class="vs-cell">
-                <div class="vs-key">Fullscreen</div>
-                <div style="flex:1" />
-                <div class={`toggle ${vs().fullscreen ? "on" : ""}`} onClick={() => updateVideoSettings({ fullscreen: !vs().fullscreen })} />
-              </div>
-
               {/* Maximized toggle */}
               <div class="vs-cell">
                 <div class="vs-key">Maximized</div>
@@ -997,9 +990,6 @@ const Settings: Component = () => {
                           <div class="inst-card-badges">
                             <span class={`badge badge--loader ${badgeClass}`}>{loaderLabel}</span>
                             <span class="badge">{inst.java.memory_max_mb} MB</span>
-                            <Show when={inst.window.fullscreen}>
-                              <span class="badge">Fullscreen</span>
-                            </Show>
                             <Show when={(inst.source_platforms || []).includes("modrinth")}>
                               <span class="badge badge--source badge--modrinth"><IconModrinth /></span>
                             </Show>

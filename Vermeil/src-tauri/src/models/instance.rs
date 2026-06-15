@@ -63,7 +63,6 @@ impl Default for JavaConfig {
 pub struct WindowConfig {
     pub width: u32,
     pub height: u32,
-    pub fullscreen: bool,
 }
 
 impl Default for WindowConfig {
@@ -71,7 +70,6 @@ impl Default for WindowConfig {
         Self {
             width: 1280,
             height: 720,
-            fullscreen: false,
         }
     }
 }

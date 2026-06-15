@@ -89,7 +89,6 @@ pub async fn update_instance_options(
     memory_max_mb: Option<u32>,
     width: Option<u32>,
     height: Option<u32>,
-    fullscreen: Option<bool>,
     extra_args: Option<Vec<String>>,
     adaptive_override: Option<bool>,
 ) -> Result<(), String> {
@@ -100,7 +99,6 @@ pub async fn update_instance_options(
     if let Some(mem) = memory_max_mb { instance.java.memory_max_mb = mem; }
     if let Some(w) = width { instance.window.width = w; }
     if let Some(h) = height { instance.window.height = h; }
-    if let Some(fs) = fullscreen { instance.window.fullscreen = fs; }
     if let Some(args) = extra_args { instance.java.extra_args = args; }
     if let Some(ovr) = adaptive_override { instance.java.adaptive_override = ovr; }
 

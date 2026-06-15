@@ -111,9 +111,6 @@ pub struct GlobalVideoSettings {
     /// None = use 720 (launcher default).
     #[serde(default)]
     pub window_height: Option<u32>,
-    /// Launch in fullscreen mode.
-    #[serde(default)]
-    pub fullscreen: Option<bool>,
     /// Launch the game window maximized (fills screen, but not fullscreen).
     #[serde(default)]
     pub start_maximized: Option<bool>,

@@ -59,6 +59,14 @@ pub struct JavaInstall {
     /// Absolute path to the `java`/`javaw`/`java.exe` executable.
     pub path: String,
     pub source: JavaSource,
+    /// True when the executable resolves to somewhere inside `paths::java_dir()`,
+    /// i.e. Vermeil owns it and is allowed to delete it. Path-based rather than
+    /// source-based so a manually-typed path that happens to point into our
+    /// own dir is still recognized as deletable, and a path tagged
+    /// `auto_installed` from a stale cache can't trick the UI into offering
+    /// to delete a JRE outside the dir we manage.
+    #[serde(default)]
+    pub is_vermeil_managed: bool,
 }
 
 /// Public entry point: detect every JRE we can find on the system.
@@ -223,12 +231,25 @@ async fn validate_java(exe: &Path, source: JavaSource) -> Option<JavaInstall> {
     let display_path = exe_for_display.canonicalize().ok()?;
     let display_string = strip_extended_prefix(&display_path.to_string_lossy());
 
+    // Path-based "is this ours?" check. Both sides go through canonicalize
+    // so symlinks, junctions, and case-insensitive Windows paths all
+    // resolve consistently. If `paths::java_dir()` doesn't exist yet (clean
+    // install, no JREs downloaded), the canonicalize fails and we fall
+    // through to `false`, which is correct: nothing can be inside a
+    // directory that doesn't exist.
+    let is_vermeil_managed = paths::java_dir()
+        .canonicalize()
+        .ok()
+        .map(|root| display_path.starts_with(&root))
+        .unwrap_or(false);
+
     Some(JavaInstall {
         major,
         full_version,
         arch,
         path: display_string,
         source,
+        is_vermeil_managed,
     })
 }
 

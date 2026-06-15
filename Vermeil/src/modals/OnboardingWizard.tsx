@@ -15,6 +15,7 @@ import {
   validateJavaPath,
   setJavaPath,
   installRecommendedJava,
+  pruneInvalidJavaPaths,
   JavaInstall,
 } from "../ipc/commands";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
@@ -153,7 +154,29 @@ const OnboardingWizard: Component = () => {
   // `java -version` once per candidate path and caches the results. The
   // detection populates the read-only path display under each slot before
   // the user even reaches step 3.
+  //
+  // We also prune any configured paths that no longer exist on disk so the
+  // slot inputs never display a string pointing at nothing — same self-heal
+  // pass the Settings tab does on mount.
   onMount(() => {
+    pruneInvalidJavaPaths()
+      .then((cleared) => {
+        if (cleared.length === 0) return;
+        // Reflect the prune in the local copy so the UI stays in sync.
+        setJavaPaths((prev) => {
+          const next = { ...prev };
+          for (const m of cleared) delete next[m];
+          return next;
+        });
+        for (const m of cleared) {
+          showToast({
+            title: `Java ${m} path cleared`,
+            message: "The previous file no longer exists on disk.",
+            type: "info",
+          });
+        }
+      })
+      .catch((e) => console.error("Java path prune failed:", e));
     detectJavaInstallations()
       .then(setJavaDetections)
       .catch(() => {});

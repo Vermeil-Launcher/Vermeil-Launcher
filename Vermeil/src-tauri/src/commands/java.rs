@@ -80,3 +80,40 @@ pub async fn delete_java_install(major: u8) -> Result<String, String> {
     }
     Ok(deleted)
 }
+
+/// Walk every configured per-major Java path and drop entries whose
+/// underlying file no longer exists on disk. Covers two real cases:
+///
+///   1. The user manually deleted a Vermeil-managed `<data>/java/jdk-N/`
+///      folder from the file system. Settings still remembered the path,
+///      so the UI showed a string that pointed at nothing.
+///   2. The user uninstalled a JDK they had previously pointed Vermeil at
+///      (Oracle Java, an external Adoptium install, etc.).
+///
+/// Returns the list of major versions that were cleared so the frontend can
+/// surface a toast per slot. Called from the Settings tab + Onboarding step
+/// on mount; also safe to call after Install / Browse if we ever want a
+/// belt-and-braces cleanup pass.
+#[tauri::command]
+pub async fn prune_invalid_java_paths() -> Result<Vec<u8>, String> {
+    let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
+    let majors: Vec<u8> = settings.java_paths.keys().copied().collect();
+    let mut cleared: Vec<u8> = Vec::new();
+
+    for major in majors {
+        let Some(path) = settings.java_paths.get(&major).cloned() else { continue };
+        // `Path::exists()` follows symlinks — broken symlinks resolve to
+        // false, which is what we want (the target JDK is gone).
+        if !std::path::Path::new(&path).exists() {
+            settings.java_paths.remove(&major);
+            cleared.push(major);
+        }
+    }
+
+    if !cleared.is_empty() {
+        settings_service::save(&settings)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(cleared)
+}

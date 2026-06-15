@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, Show, For, onMount, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -124,12 +124,13 @@ const Settings: Component = () => {
   const runDelete = async (major: number) => {
     setJavaSlotBusy(major, "delete");
     try {
-      await deleteJavaInstall(major);
+      const deletedDir = await deleteJavaInstall(major);
       await refetch();
-      // Drop the deleted install from the local cache. The detector key is
-      // path-based — anything pointing into the now-removed `jdk-{major}/`
-      // is stale, but we just nuke any matching `major` entries to be safe.
-      setJavaDetections((prev) => prev.filter((i) => i.major !== major));
+      // Path-scoped cache invalidation: only drop detections inside the
+      // directory we just removed. Filtering by `major` would also wipe an
+      // unrelated user JDK for the same major (Oracle / Microsoft / etc.),
+      // hiding it from the slot until the next full re-detect.
+      setJavaDetections((prev) => prev.filter((i) => !i.path.startsWith(deletedDir)));
       showToast({ title: `Java ${major} removed`, message: "Vermeil's downloaded copy was deleted.", type: "success" });
     } catch (e) {
       showToast({ title: `Java ${major} delete failed`, message: String(e), type: "error" });
@@ -194,6 +195,26 @@ const Settings: Component = () => {
 
   onMount(async () => {
     try { setCacheSize(await getCacheSize()); } catch {}
+    // Self-heal stale Java overrides. The user may have deleted a JRE
+    // manually (or uninstalled an external one) since the last launch — we
+    // clear those entries before showing them so the input never displays
+    // a path pointing at nothing. Each cleared major gets its own toast so
+    // the cause-effect is visible to the user.
+    try {
+      const cleared = await pruneInvalidJavaPaths();
+      if (cleared.length > 0) {
+        await refetch();
+        for (const m of cleared) {
+          showToast({
+            title: `Java ${m} path cleared`,
+            message: "The previous file no longer exists on disk.",
+            type: "info",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Java path prune failed:", e);
+    }
     // Fire-and-forget initial detection so the Java section has paths to show
     // when the user first opens the Resources tab.
     detectJavaInstallations().then(setJavaDetections).catch(() => {});
@@ -548,18 +569,18 @@ const Settings: Component = () => {
                           <IconFolderOpen />
                           {busy() === "browse" ? "Picking..." : "Browse"}
                         </button>
-                        {/* Delete is gated on the *current* slot being one of
-                            ours (source: auto_installed). The backend repeats
-                            the path-prefix check before any rm-rf so a stale
-                            UI state can't trick us into wiping a user JDK,
-                            but we hide the button when it'd be a no-op so
-                            users don't reach for it on their own installs. */}
+                        {/* Delete is gated on the *current slot's path*
+                            being a Vermeil-managed install (path lives
+                            inside `<data>/java/`). We look up the detection
+                            by exact path — not by major — because multiple
+                            JREs can share a major (e.g. Oracle + Adoptium)
+                            and a `.find(major)` would return the wrong one
+                            after we splice in a new install. The backend
+                            also re-checks the path-prefix before any rm-rf,
+                            so a stale UI state can never wipe a user JDK. */}
                           {(() => {
-                            const det = detectionFor(major);
-                            const ownsCurrent =
-                              det !== undefined &&
-                              det.path === path() &&
-                              det.source === "auto_installed";
+                            const det = javaDetections().find((i) => i.path === path());
+                            const ownsCurrent = det?.is_vermeil_managed === true;
                             return (
                               <Show when={ownsCurrent}>
                                 <button

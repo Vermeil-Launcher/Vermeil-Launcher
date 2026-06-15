@@ -212,6 +212,7 @@ pub fn run() {
             java::set_java_path,
             java::install_recommended_java,
             java::delete_java_install,
+            java::prune_invalid_java_paths,
             // Skins & capes
             skins::get_skin_profile,
             skins::upload_skin,

@@ -271,6 +271,14 @@ export interface JavaInstall {
   arch: string;
   path: string;
   source: "auto_installed" | "bundled" | "env_path" | "common_dir" | "registry" | "manual";
+  /**
+   * True when the executable lives inside Vermeil's `<data>/java/` directory,
+   * meaning we own it and the Settings UI may offer a Delete button. Computed
+   * server-side via canonical path-prefix so symlinks/junctions can't fool it,
+   * and so manually-typed paths that happen to point into our dir are still
+   * recognized as deletable.
+   */
+  is_vermeil_managed: boolean;
 }
 
 // Java location finder commands
@@ -288,6 +296,14 @@ export const installRecommendedJava = (major: number) =>
  */
 export const deleteJavaInstall = (major: number) =>
   invoke<string>("delete_java_install", { major });
+/**
+ * Validate every configured per-major Java path and remove the ones whose
+ * underlying file no longer exists (user uninstalled the JDK, manually
+ * deleted Vermeil's java folder, etc.). Returns the list of major versions
+ * that were cleared. Safe to call on every Settings/Onboarding mount.
+ */
+export const pruneInvalidJavaPaths = () =>
+  invoke<number[]>("prune_invalid_java_paths");
 
 // ─── Skins / capes ───
 //

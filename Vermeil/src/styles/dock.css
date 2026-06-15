@@ -187,21 +187,16 @@
 .dock-center:hover {
   background: var(--accent-strong);
   transform: translate(-50%, -50%) scale(1.04);
-  /* Hover bg is darker than default and the FAB scales up, so the under-shadow
-     needs to GROW (not just deepen) to keep the chunky depth visible. Bigger
-     offset and deeper alpha together amplify the 3D plate look on hover instead
-     of letting it flatten as the button lifts. */
-  box-shadow:
-    0 6px 18px rgba(139, 92, 246, 0.55),
-    inset 0 -8px 0 rgba(0, 0, 0, 0.40);
+  /* Drop the inset under-shadow on hover so the button visually "presses
+     flat into the dock". The chunky depth is the resting state; hover and
+     press both flatten it for the pushed-in feel. */
+  box-shadow: 0 6px 18px rgba(139, 92, 246, 0.55);
 }
 .dock-center:active {
   transform: translate(-50%, -50%) scale(0.96);
-  /* Compress the inset on press so the FAB reads as "pushed into the dock" —
-     smaller offset, deeper alpha, against the same darker hover bg. */
-  box-shadow:
-    0 2px 8px rgba(139, 92, 246, 0.4),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.45);
+  /* Pressed and held — keep the button flat against the dock with a tighter
+     drop shadow to amplify the "sunk in" sense paired with the scale shrink. */
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
 }
 
 .dock-center-icon {
@@ -262,7 +257,6 @@
   box-shadow:
     var(--shadow-lg),
     0 0 0 4px var(--danger-soft),
-    inset 0 -6px 0 rgba(0, 0, 0, 0.30),
     0 1px 0 rgba(255, 255, 255, 0.2) inset;
 }
 
@@ -278,7 +272,6 @@
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.5),
     0 0 0 4px rgba(255, 255, 255, 0.05),
-    inset 0 -6px 0 rgba(0, 0, 0, 0.35),
     0 1px 0 rgba(255, 255, 255, 0.15) inset;
 }
 

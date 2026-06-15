@@ -107,29 +107,27 @@ const Skins: Component = () => {
     viewer.controls.enableZoom = false;
 
     // Hexagonal figurine pedestal under the model. Two stacked discs:
-    // - a wider, slightly taller dark base (panel surface color)
-    // - a thinner accent rim sitting on top of it
-    // Skinview3d's player model has its origin at the feet, so the platform
-    // sits at y = 0 with a small downward offset so the disc visibly extends
-    // past the soles. Sizes are in skinview3d scene units (the player model
-    // is roughly 32 units tall internally).
+    // a chunky dark base and a thinner accent rim sitting on top.
+    //
+    // Coordinate system (traced from skinview3d's PlayerObject): the skin is
+    // offset +8 inside the player, legs sit at y=-12 and extend ~12 units
+    // down, so the FEET BOTTOM lands at scene Y ≈ -16. Y=0 is chest/waist
+    // height (which is why a platform at y≈0 floated at the chest). Place the
+    // pedestal so the rim's top surface meets the foot plane at -16.
     const platform = new Group();
     const base = new Mesh(
       // radiusTop, radiusBottom, height, 6 sides for a chunky hex pedestal
-      new CylinderGeometry(7, 8, 1.2, 6),
+      new CylinderGeometry(7, 8, 1.5, 6),
       new MeshBasicMaterial({ color: 0x1d1b24 }),
     );
-    base.position.y = -0.6;
+    base.position.y = -17.0; // top surface at -16.25, just below the feet
     const rim = new Mesh(
-      new CylinderGeometry(8.1, 8.1, 0.25, 6),
+      new CylinderGeometry(8.2, 8.2, 0.3, 6),
       new MeshBasicMaterial({ color: 0x8b5cf6 }),
     );
-    rim.position.y = 0.05;
+    rim.position.y = -16.1; // sits on the base, top surface ≈ foot plane (-16)
     platform.add(base);
     platform.add(rim);
-    // Sink the whole thing slightly so the rim sits flush at the model's
-    // foot plane rather than poking through.
-    platform.position.y = -0.4;
     viewer.scene.add(platform);
 
     computeCanvasSize();

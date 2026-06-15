@@ -81,20 +81,17 @@ const Skins: Component = () => {
   let viewerCanvas: HTMLCanvasElement | undefined;
   let viewer: SkinViewer | undefined;
   let heroEl: HTMLDivElement | undefined;
+  let stageEl: HTMLDivElement | undefined;
 
-  // Resize the skinview3d canvas to fit the hero. Goes square so rotated
-  // arms and capes don't clip at the edges. Reserves horizontal space for
-  // the two side docks (saved skins on the left, capes on the right) so
-  // they never sit on top of the model.
+  // Resize the skinview3d canvas to fit the central stage between the two
+  // side docks. Goes square so rotated arms and capes don't clip at the
+  // edges. The flex layout already reserves dock space, so we just measure
+  // the inner stage element directly.
   const computeCanvasSize = () => {
-    if (!viewer || !heroEl) return;
-    const rect = heroEl.getBoundingClientRect();
-    // Side docks are ~88px wide each, plus a comfortable gap on either side.
-    const dockReservation = (88 + 32) * 2;
-    const availW = Math.max(rect.width - dockReservation, 360);
-    const availH = rect.height * 0.92;
-    const size = Math.min(availW, availH, 800);
-    viewer.setSize(Math.round(size), Math.round(size));
+    if (!viewer || !stageEl) return;
+    const rect = stageEl.getBoundingClientRect();
+    const size = Math.min(rect.width, rect.height * 0.95, 800);
+    if (size > 0) viewer.setSize(Math.round(size), Math.round(size));
   };
 
   onMount(() => {
@@ -110,7 +107,7 @@ const Skins: Component = () => {
 
     computeCanvasSize();
     const ro = new ResizeObserver(computeCanvasSize);
-    if (heroEl) ro.observe(heroEl);
+    if (stageEl) ro.observe(stageEl);
     onCleanup(() => ro.disconnect());
 
     // Prime the idle timer so chrome shows on first paint then settles.
@@ -397,15 +394,7 @@ const Skins: Component = () => {
           ref={heroEl}
           onMouseMove={wakeChrome}
         >
-          {/* The 3D model — the centerpiece. Crossfade overlay flag dims
-              the canvas during a texture swap so the change reads as a
-              transition, not a hard cut. */}
-          <canvas
-            ref={viewerCanvas}
-            class={`skins-hero-canvas ${canvasFading() ? "fading" : ""}`}
-          />
-
-          {/* Top floating toolbar: variant + actions + elytra. */}
+          {/* Top floating toolbar — variant + actions + elytra. */}
           <div class="skins-floating skins-toolbar-floating">
             <div class="skins-toolbar-group">
               <button
@@ -464,91 +453,103 @@ const Skins: Component = () => {
             </button>
           </div>
 
-          {/* Left side dock — saved skins library, vertical column.
-              Click a chip to equip; hover reveals the remove button. */}
-          <div class="skins-floating skins-dock-side skins-dock-left">
-            <Show
-              when={(localSkins() ?? []).length > 0}
-              fallback={
-                <div class="skins-dock-empty">
-                  Skins you upload save here.
-                </div>
-              }
-            >
-              <For each={localSkins()}>
-                {(skin) => {
-                  const isActive = () => {
-                    const p = profile();
-                    const a = p?.skins.find((s) => s.state === "ACTIVE") ?? p?.skins[0];
-                    return a?.texture === skin.texture;
-                  };
-                  return (
-                    <div
-                      class={`skins-lib-chip ${isActive() ? "active" : ""}`}
-                      title={`${skin.name} — ${skin.variant === "SLIM" ? "Slim" : "Classic"}`}
-                    >
-                      <button
-                        class="skins-lib-chip-equip"
-                        onClick={() => handleEquipLocal(skin)}
-                        disabled={busy() !== null}
-                      >
-                        <SkinAvatar
-                          texture={skin.texture}
-                          variant={skin.variant as "CLASSIC" | "SLIM" | "Unknown"}
-                          size={48}
-                        />
-                      </button>
-                      <button
-                        class="skins-lib-chip-remove"
-                        onClick={() => handleRemoveLocal(skin)}
-                        disabled={busy() !== null}
-                        title="Remove from library"
-                      >
-                        <IconTrash2 />
-                      </button>
-                    </div>
-                  );
-                }}
-              </For>
-            </Show>
-          </div>
-
-          {/* Right side dock — capes, vertical column. */}
-          <div class="skins-floating skins-dock-side skins-dock-right">
-            <Show
-              when={(profile()?.capes ?? []).length > 0}
-              fallback={
-                <div class="skins-dock-empty">
-                  Capes you've earned appear here.
-                </div>
-              }
-            >
-              <button
-                class={`skins-cape-chip ${
-                  !profile()?.capes.some((c) => c.state === "ACTIVE") ? "active" : ""
-                }`}
-                onClick={() => handleEquipCape(null)}
-                disabled={busy() !== null}
-                title="No cape"
+          {/* Flex row: left dock | model stage | right dock. Layout flow,
+              not absolute positioning, so docks sit immediately next to the
+              canvas regardless of window size. */}
+          <div class="skins-hero-row">
+            {/* Left side dock — saved skins library. */}
+            <div class="skins-fade-on-idle skins-dock-side">
+              <Show
+                when={(localSkins() ?? []).length > 0}
+                fallback={
+                  <div class="skins-dock-empty">
+                    Skins you upload save here.
+                  </div>
+                }
               >
-                <span class="skins-cape-empty-glyph">×</span>
-              </button>
-              <For each={profile()?.capes ?? []}>
-                {(cape) => (
-                  <button
-                    class={`skins-cape-chip ${cape.state === "ACTIVE" ? "active" : ""}`}
-                    onClick={() => handleEquipCape(cape.id)}
-                    disabled={busy() !== null}
-                    title={cape.alias}
-                  >
-                    <div
-                      class="skins-cape-chip-thumb"
-                      style={{ "background-image": `url(${cape.texture})` }}
-                    />
-                  </button>
-                )}
-              </For>
-            </Show>
+                <For each={localSkins()}>
+                  {(skin) => {
+                    const isActive = () => {
+                      const p = profile();
+                      const a = p?.skins.find((s) => s.state === "ACTIVE") ?? p?.skins[0];
+                      return a?.texture === skin.texture;
+                    };
+                    return (
+                      <div
+                        class={`skins-lib-chip ${isActive() ? "active" : ""}`}
+                        title={`${skin.name} — ${skin.variant === "SLIM" ? "Slim" : "Classic"}`}
+                      >
+                        <button
+                          class="skins-lib-chip-equip"
+                          onClick={() => handleEquipLocal(skin)}
+                          disabled={busy() !== null}
+                        >
+                          <SkinAvatar
+                            texture={skin.texture}
+                            variant={skin.variant as "CLASSIC" | "SLIM" | "Unknown"}
+                            size={48}
+                          />
+                        </button>
+                        <button
+                          class="skins-lib-chip-remove"
+                          onClick={() => handleRemoveLocal(skin)}
+                          disabled={busy() !== null}
+                          title="Remove from library"
+                        >
+                          <IconTrash2 />
+                        </button>
+                      </div>
+                    );
+                  }}
+                </For>
+              </Show>
+            </div>
+
+            {/* Model stage — flex middle, holds the canvas. */}
+            <div class="skins-stage" ref={stageEl}>
+              <canvas
+                ref={viewerCanvas}
+                class={`skins-hero-canvas ${canvasFading() ? "fading" : ""}`}
+              />
+            </div>
+
+            {/* Right side dock — capes. */}
+            <div class="skins-fade-on-idle skins-dock-side">
+              <Show
+                when={(profile()?.capes ?? []).length > 0}
+                fallback={
+                  <div class="skins-dock-empty">
+                    Capes you've earned appear here.
+                  </div>
+                }
+              >
+                <button
+                  class={`skins-cape-chip ${
+                    !profile()?.capes.some((c) => c.state === "ACTIVE") ? "active" : ""
+                  }`}
+                  onClick={() => handleEquipCape(null)}
+                  disabled={busy() !== null}
+                  title="No cape"
+                >
+                  <span class="skins-cape-empty-glyph">×</span>
+                </button>
+                <For each={profile()?.capes ?? []}>
+                  {(cape) => (
+                    <button
+                      class={`skins-cape-chip ${cape.state === "ACTIVE" ? "active" : ""}`}
+                      onClick={() => handleEquipCape(cape.id)}
+                      disabled={busy() !== null}
+                      title={cape.alias}
+                    >
+                      <div
+                        class="skins-cape-chip-thumb"
+                        style={{ "background-image": `url(${cape.texture})` }}
+                      />
+                    </button>
+                  )}
+                </For>
+              </Show>
+            </div>
           </div>
         </div>
       </Show>

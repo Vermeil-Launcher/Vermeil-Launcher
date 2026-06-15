@@ -61,4 +61,4 @@ windows-dpapi = "0.2"
 # JVM spawns its GLFW window. Minecraft has no `--maximized` CLI flag, so we
 # poll for the window by PID and toggle its show-state via ShowWindow. Pulled
 # in transitively by other deps already; this just enables the features we need.
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Dwm"] }

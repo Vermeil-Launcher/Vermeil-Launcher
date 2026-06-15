@@ -54,6 +54,30 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_shadow(true);
 
+                // Square the window corners on Windows 11. DWM otherwise rounds
+                // every top-level window's corners by default; for our blocky
+                // sharp-edge UI that round halo at the very edges of the frame
+                // looks out of place. Asks the compositor to render the corners
+                // as `DWMWCP_DONOTROUND`. No-op on Win10 / Linux. Logged but
+                // never fatal — a missing rounded-corner override is cosmetic.
+                #[cfg(windows)]
+                {
+                    use windows_sys::Win32::Graphics::Dwm::{
+                        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+                    };
+                    if let Ok(hwnd) = window.hwnd() {
+                        let pref: u32 = DWMWCP_DONOTROUND as u32;
+                        unsafe {
+                            let _ = DwmSetWindowAttribute(
+                                hwnd.0 as _,
+                                DWMWA_WINDOW_CORNER_PREFERENCE as u32,
+                                &pref as *const _ as *const _,
+                                std::mem::size_of::<u32>() as u32,
+                            );
+                        }
+                    }
+                }
+
                 // Pin the minimum window size in logical pixels. Two reasons
                 // we do this in setup() instead of relying solely on
                 // `tauri.conf.json`:

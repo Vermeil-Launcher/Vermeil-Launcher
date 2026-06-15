@@ -10,7 +10,7 @@ export interface Instance {
   icon: string;
   game_version: string;
   loader: { type: string; version: string | null };
-  java: { memory_max_mb: number };
+  java: { memory_max_mb: number; adaptive_override?: boolean };
   window: { width: number; height: number; fullscreen: boolean };
   mods: any[];
   last_played: string | null;
@@ -139,6 +139,21 @@ export interface LauncherSettings {
    * missing entries fall back to that file's hardcoded defaults.
    */
   keybinds: Record<string, string>;
+  /**
+   * Adaptive RAM allocation. When `true`, the launcher computes `-Xmx` per
+   * instance from a tier-calibrated formula instead of using the slider's
+   * `memory_max_mb`. Each instance can opt out via
+   * `Instance.java.adaptive_override`. Defaults to `false`.
+   */
+  adaptive_ram: boolean;
+  /** Lower bound for adaptive allocation in MB. `0` means "use the
+   *  system-RAM-derived default at runtime" (see `default_min_for_system`). */
+  adaptive_ram_min_mb: number;
+  /** Upper bound for adaptive allocation in MB. `0` sentinel = derive at runtime. */
+  adaptive_ram_max_mb: number;
+  /** Whether the user has seen the one-time intro toast that explains how
+   *  adaptive RAM works. The Settings UI flips this to `true` after firing. */
+  adaptive_ram_seen_intro: boolean;
 }
 
 // Instance commands
@@ -148,7 +163,7 @@ export const prepareInstance = (id: string) => invoke<void>("prepare_instance", 
 export const getInstance = (id: string) => invoke<Instance>("get_instance", { id });
 export const deleteInstance = (id: string) => invoke<void>("delete_instance", { id });
 export const updateInstanceMemory = (id: string, memoryMaxMb: number) => invoke<void>("update_instance_memory", { id, memoryMaxMb });
-export const updateInstanceOptions = (id: string, opts: { memoryMaxMb?: number; width?: number; height?: number; fullscreen?: boolean; extraArgs?: string[] }) =>
+export const updateInstanceOptions = (id: string, opts: { memoryMaxMb?: number; width?: number; height?: number; fullscreen?: boolean; extraArgs?: string[]; adaptiveOverride?: boolean }) =>
   invoke<void>("update_instance_options", { id, ...opts });
 export const renameInstance = (id: string, newName: string) => invoke<void>("rename_instance", { id, newName });
 export const setInstanceIcon = (id: string, sourcePath: string) =>
@@ -250,6 +265,36 @@ export const getPresetJvmArgs = (instanceId: string) => invoke<string[]>("get_pr
  */
 export const getKnownPresetArgs = (instanceId: string) =>
   invoke<Record<string, string[]>>("get_known_preset_args", { instanceId });
+
+/**
+ * One row of the adaptive-RAM formula's contribution. Rendered as a
+ * "Why this value?" breakdown tooltip on the per-instance memory display.
+ */
+export interface MemoryBreakdown {
+  label: string;
+  value_mb: number;
+}
+
+/**
+ * Resolved heap allocation for an instance. `value_mb` is the post-clamp
+ * `-Xmx` the launcher will use; `target_mb` is the formula's pre-clamp
+ * output so the UI can flag a "capped" condition when the user's max
+ * isn't enough for the pack. `adaptive_active` is `false` when global
+ * adaptive RAM is off OR the instance opted out via `adaptive_override`,
+ * in which case the slider stays editable and `value_mb == memory_max_mb`.
+ */
+export interface EffectiveMemory {
+  value_mb: number;
+  target_mb: number;
+  min_mb: number;
+  max_mb: number;
+  capped: boolean;
+  adaptive_active: boolean;
+  breakdown: MemoryBreakdown[];
+}
+
+export const getEffectiveMemory = (instanceId: string) =>
+  invoke<EffectiveMemory>("get_effective_memory", { instanceId });
 
 // Settings commands
 export const getSettings = () => invoke<LauncherSettings>("get_settings");

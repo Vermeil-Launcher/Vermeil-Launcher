@@ -91,6 +91,7 @@ pub async fn update_instance_options(
     height: Option<u32>,
     fullscreen: Option<bool>,
     extra_args: Option<Vec<String>>,
+    adaptive_override: Option<bool>,
 ) -> Result<(), String> {
     let meta_path = crate::util::paths::instances_dir().join(&id).join("instance.json");
     let content = std::fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
@@ -101,6 +102,7 @@ pub async fn update_instance_options(
     if let Some(h) = height { instance.window.height = h; }
     if let Some(fs) = fullscreen { instance.window.fullscreen = fs; }
     if let Some(args) = extra_args { instance.java.extra_args = args; }
+    if let Some(ovr) = adaptive_override { instance.java.adaptive_override = ovr; }
 
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
     crate::util::paths::atomic_write(&meta_path, json.as_bytes()).map_err(|e| e.to_string())?;

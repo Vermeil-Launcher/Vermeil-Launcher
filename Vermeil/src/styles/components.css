@@ -793,3 +793,51 @@ select.field-input[size] { appearance: none; }
   color: var(--muted);
   border-color: var(--border);
 }
+
+
+/* Adaptive RAM readout — replaces the manual `.memory-hint` row in the
+   per-instance Settings tab when global adaptive RAM is on. Renders the
+   computed value with a hover-for-breakdown tooltip and an inline
+   "Override for this instance" link. */
+.memory-adaptive-readout {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+}
+.memory-adaptive-readout .tip-breakdown {
+  cursor: help;
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+.memory-adaptive-warn {
+  color: #f59e0b;
+  font-weight: 500;
+}
+.memory-adaptive-overridden {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.memory-adaptive-override-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.memory-adaptive-override-btn:hover {
+  color: var(--text);
+}

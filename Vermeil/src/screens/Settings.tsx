@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, Show, For, onMount, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -24,6 +24,7 @@ const Settings: Component = () => {
   const [tab, setTab] = createSignal<SettingsTab>("general");
   const [settings, { refetch }] = createResource(getSettings);
   const [appVersion] = createResource(getVersion);
+  const [systemMemoryMb] = createResource(getSystemMemory);
   const [cacheSize, setCacheSize] = createSignal(0);
   const [purging, setPurging] = createSignal(false);
 
@@ -231,8 +232,62 @@ const Settings: Component = () => {
     finally { setPurging(false); }
   };
 
-  // Auto-save settings on every change. No explicit indicator — settings always
-  // persist. Errors are surfaced via console; users can re-attempt if needed.
+  // Adaptive RAM defaults — mirrors `services::memory::default_max_for_system`
+  // and `default_min_for_system` so the Settings UI can show real numbers in
+  // placeholders without an extra IPC round trip. **PARALLEL SURFACE**: if
+  // either Rust function changes its constants, update this too.
+  const adaptiveDefaultMax = (systemMb: number): number => {
+    if (!systemMb) return 4096;
+    const [reserve, pct] = systemMb <= 6144
+      ? [1024, 0.90]
+      : systemMb <= 12288
+        ? [1536, 0.85]
+        : [4096, 0.75];
+    const usable = Math.max(0, systemMb - reserve);
+    const aligned = Math.floor(Math.floor(usable * pct) / 256) * 256;
+    return Math.max(1024, Math.min(aligned, 16384));
+  };
+  const adaptiveDefaultMin = (systemMb: number): number => {
+    const max = adaptiveDefaultMax(systemMb);
+    const aligned = Math.floor(Math.floor(max * 0.40) / 256) * 256;
+    return Math.max(1024, Math.min(aligned, 4096));
+  };
+
+  /** Current effective min for the adaptive bounds — user-set value, or the
+   *  system-derived default when the stored value is the `0` sentinel. */
+  const adaptiveMin = (): number => {
+    const stored = settings()?.adaptive_ram_min_mb ?? 0;
+    return stored > 0 ? stored : adaptiveDefaultMin(systemMemoryMb() || 0);
+  };
+  const adaptiveMax = (): number => {
+    const stored = settings()?.adaptive_ram_max_mb ?? 0;
+    return stored > 0 ? stored : adaptiveDefaultMax(systemMemoryMb() || 0);
+  };
+
+  /** Format MB as "X.X GB" matching the rest of the launcher's memory text. */
+  const formatMemoryGb = (mb: number): string => {
+    const gb = mb / 1024;
+    return `${gb.toFixed(gb < 10 ? 1 : 0).replace(/\.0$/, "")} GB`;
+  };
+
+  /** Toggle the master adaptive switch. Fires the intro toast on first
+   *  enable so users understand what they just turned on. */
+  const handleAdaptiveToggle = async () => {
+    const s = settings();
+    if (!s) return;
+    const next = !s.adaptive_ram;
+    await updateSetting("adaptive_ram", next);
+    if (next && !s.adaptive_ram_seen_intro) {
+      const max = adaptiveMax();
+      showToast({
+        title: "Adaptive RAM is on",
+        message: `Vermeil now picks an allocation per instance, capped at ${formatMemoryGb(max)} on this system. Heavy packs may show a "capped" warning — that's normal on systems with limited RAM.`,
+        type: "info",
+        autoCloseMs: 8000,
+      });
+      await updateSetting("adaptive_ram_seen_intro", true);
+    }
+  };
   const updateSetting = async <K extends keyof LauncherSettings>(key: K, value: LauncherSettings[K]) => {
     const current = settings();
     if (!current) return;
@@ -461,6 +516,88 @@ const Settings: Component = () => {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="section-label" style="margin-bottom:8px">Memory</div>
+            <div class="settings-val" style="margin-bottom:10px">
+              When adaptive RAM is on, Vermeil picks an allocation per instance based on
+              mod count, loader, and content. The per-instance memory slider is read-only
+              while adaptive is active; turn it off to set RAM manually per instance.
+            </div>
+            <div class="settings-group">
+              <div class="settings-row">
+                <div>
+                  <div class="settings-key">Adaptive RAM allocation</div>
+                  <div class="settings-val">
+                    {settings()!.adaptive_ram
+                      ? `On — capped at ${formatMemoryGb(adaptiveMax())} on this system`
+                      : "Off — each instance uses its own slider value"}
+                  </div>
+                </div>
+                <div
+                  class={`toggle ${settings()!.adaptive_ram ? "on" : ""}`}
+                  onClick={handleAdaptiveToggle}
+                />
+              </div>
+              <Show when={settings()!.adaptive_ram}>
+                {/* Min RAM. Stored value of 0 means "use the system-derived
+                    default at runtime"; the placeholder shows that default
+                    so users see what would apply if they leave the input
+                    blank. Clamping rules are enforced server-side too. */}
+                <div class="settings-row" style="align-items:center">
+                  <div>
+                    <div class="settings-key">Minimum RAM</div>
+                    <div class="settings-val">
+                      Floor for any instance · default {formatMemoryGb(adaptiveDefaultMin(systemMemoryMb() || 0))}
+                    </div>
+                  </div>
+                  <input
+                    class="concurrency-number"
+                    type="number"
+                    min="1024"
+                    max="16384"
+                    step="256"
+                    value={settings()!.adaptive_ram_min_mb || ""}
+                    placeholder={String(adaptiveDefaultMin(systemMemoryMb() || 0))}
+                    onChange={(e) => {
+                      const raw = parseInt(e.currentTarget.value);
+                      // Empty / NaN reverts to the runtime default by storing
+                      // the `0` sentinel — backend `services::memory::resolve`
+                      // re-derives from system RAM.
+                      const safe = Number.isNaN(raw) ? 0 : Math.max(1024, Math.min(raw, 16384));
+                      e.currentTarget.value = safe ? String(safe) : "";
+                      updateSetting("adaptive_ram_min_mb", safe);
+                    }}
+                    style="width:100px;text-align:right"
+                  />
+                </div>
+                <div class="settings-row" style="align-items:center">
+                  <div>
+                    <div class="settings-key">Maximum RAM</div>
+                    <div class="settings-val">
+                      Ceiling for any instance · default {formatMemoryGb(adaptiveDefaultMax(systemMemoryMb() || 0))}
+                    </div>
+                  </div>
+                  <input
+                    class="concurrency-number"
+                    type="number"
+                    min="1024"
+                    max="16384"
+                    step="256"
+                    value={settings()!.adaptive_ram_max_mb || ""}
+                    placeholder={String(adaptiveDefaultMax(systemMemoryMb() || 0))}
+                    onChange={(e) => {
+                      const raw = parseInt(e.currentTarget.value);
+                      const safe = Number.isNaN(raw) ? 0 : Math.max(1024, Math.min(raw, 16384));
+                      e.currentTarget.value = safe ? String(safe) : "";
+                      updateSetting("adaptive_ram_max_mb", safe);
+                    }}
+                    style="width:100px;text-align:right"
+                  />
+                </div>
+              </Show>
             </div>
           </div>
 

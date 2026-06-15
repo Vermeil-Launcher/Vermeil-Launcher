@@ -32,15 +32,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(
-            tauri_plugin_window_state::Builder::new()
-                .with_state_flags(
-                    tauri_plugin_window_state::StateFlags::POSITION
-                        | tauri_plugin_window_state::StateFlags::SIZE
-                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
-                )
-                .build(),
-        )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Focus the existing window when a second instance is launched
             if let Some(win) = app.get_webview_window("main") {
@@ -94,6 +85,31 @@ pub fn run() {
                 // on a 4k monitor at 200% scale as it does at 100%.
                 const MIN_WIDTH: f64 = 1100.0;
                 const MIN_HEIGHT: f64 = 720.0;
+
+                // Restore the window's last position / size / maximized flag
+                // from our in-tree persister (replaces tauri-plugin-window-state
+                // — see services/window_state.rs for the migration story).
+                // Apply BEFORE `set_min_size` so a restored size below the new
+                // floor gets clamped up by the migration block below.
+                if let Some(saved) = services::window_state::load() {
+                    if let (Some(x), Some(y)) = (saved.x, saved.y) {
+                        let _ = window.set_position(tauri::Position::Physical(
+                            tauri::PhysicalPosition { x, y },
+                        ));
+                    }
+                    if saved.width > 0 && saved.height > 0 {
+                        let _ = window.set_size(tauri::Size::Physical(
+                            tauri::PhysicalSize {
+                                width: saved.width,
+                                height: saved.height,
+                            },
+                        ));
+                    }
+                    if saved.maximized {
+                        let _ = window.maximize();
+                    }
+                }
+
                 let _ = window.set_min_size(Some(tauri::Size::Logical(
                     tauri::LogicalSize {
                         width: MIN_WIDTH,
@@ -120,6 +136,42 @@ pub fn run() {
                         }
                     }
                 }
+
+                // Persist window position / size / maximized on every move,
+                // resize, or close. Filesystem write is ~200 bytes via
+                // atomic_write — cheap enough to skip a debounce. While
+                // maximized we keep the previous unmaximized geometry so
+                // unmaximize restores the right size, and we ignore
+                // zero-sized resize events (those fire when the window is
+                // hidden / minimized and would clobber the saved size).
+                let win_for_events = window.clone();
+                window.on_window_event(move |event| {
+                    use tauri::WindowEvent;
+                    if !matches!(
+                        event,
+                        WindowEvent::Moved(_)
+                            | WindowEvent::Resized(_)
+                            | WindowEvent::CloseRequested { .. }
+                    ) {
+                        return;
+                    }
+                    let mut state = services::window_state::load().unwrap_or_default();
+                    let maximized = win_for_events.is_maximized().unwrap_or(false);
+                    state.maximized = maximized;
+                    if !maximized {
+                        if let Ok(p) = win_for_events.outer_position() {
+                            state.x = Some(p.x);
+                            state.y = Some(p.y);
+                        }
+                        if let Ok(s) = win_for_events.inner_size() {
+                            if s.width > 0 && s.height > 0 {
+                                state.width = s.width;
+                                state.height = s.height;
+                            }
+                        }
+                    }
+                    let _ = services::window_state::save(&state);
+                });
             }
 
             // Create system tray

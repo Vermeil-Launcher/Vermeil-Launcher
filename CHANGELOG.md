@@ -1,22 +1,22 @@
-## 0.4.0
+## 0.5.0
 
 ### Added
 
-- Adaptive RAM allocation: per-instance Java heap is computed automatically from mod count, loader, and content. Bounds live in Settings → Global Instance → Memory.
-- Java install chooser: Detect now opens a picker when more than one JRE matches a major version, instead of silently picking one.
-- Delete button on per-major Java slots — only removes Vermeil-downloaded JREs, never your external JDKs.
-- Install recommended Java works even when an external path is already set.
-- Installed-tab pagination with 12 / 24 / 48 entries per page.
+- Animated glint on the play button highlighting the launcher logo.
+- Downloads screen restored as its own tab on the floating dock.
+- Browse and Installed grids scale adaptively up to 6 columns by 6 rows based on window size.
+- News page now shows 8 articles in a 4x2 layout that holds at any width.
+- Dedicated Install Modpack icon, plus a corrected generic mod icon.
+- Oswald display font for screen titles and section headers.
 
 ### Changed
 
-- Modpack metadata enrichment is two-phase: titles and icon URLs appear within ~2 s, with local icon caching running in parallel afterwards. Cuts post-install wait from ~20 s to ~3 s on 50-mod packs.
-- Java runtime and GC preset moved from General to Resources, next to the per-major Java slots.
-- Adaptive RAM bounds use dropdowns (Auto plus standard tiers) and stay visible regardless of toggle state.
+- Complete visual redesign: sharp-edged dark gray and purple language across every screen, modal, card, and the floating dock. No more rounded corners.
+- Toggle switches redesigned as chunky 3D switches with a raised thumb.
+- Browse tab merges sort, view, and the "Showing for ..." context into a single bar; switching filters or pages no longer flashes a spinner.
+- Per-instance fullscreen launch option removed. Minecraft launches windowed; the existing maximize-on-launch toggle covers full-window play. Existing instances stay windowed automatically.
 
 ### Fixed
 
-- Maximize-on-launch waits up to 120 s and bails early when the game exits, so heavy modpacks (Cobbleverse, ATM10) get auto-maximized after their longer cold start.
-- Global GC preset switches now propagate to instances whose Java args matched a known preset.
-- Modpack metadata and icons now enrich for resource packs, shader packs, and datapacks, not just mods.
-- Java slot delete button appears reliably when multiple JREs share a major; stale Java paths auto-clear when the underlying folder is gone.
+- Updater now shows the installer UI during updates so you can see progress.
+- Window corners on Windows 11 are square, matching the rest of the UI.

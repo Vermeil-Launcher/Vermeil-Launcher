@@ -131,12 +131,14 @@
   padding: 0 var(--space-4);
 }
 
-/* Middle stage holds the skinview3d canvas. Takes all the leftover space
-   after the side docks; the canvas reads this element's bounds to figure
-   out how big to render. flex:1 (grow to fill) instead of "size to content"
-   because the canvas has no intrinsic size until setSize() runs. */
+/* Middle stage holds the skinview3d canvas. Caps at a sensible max so on
+   wide windows the docks hug the canvas instead of getting pushed to the
+   screen edges; the row's `justify-content: center` lets the leftover
+   horizontal space sit on the outer sides. flex auto-shrinks below the cap
+   on narrow windows so nothing overflows. */
 .skins-stage {
-  flex: 1;
+  flex: 1 1 auto;
+  max-width: 560px;
   min-width: 0;
   height: 100%;
   display: flex;

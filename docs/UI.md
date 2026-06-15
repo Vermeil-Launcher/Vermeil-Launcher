@@ -54,53 +54,200 @@ import "./styles/screens.css";
 import "./styles/dock.css";
 ```
 
-## Design tokens
+## Design language
 
-All colors, fonts, and key sizes are defined as CSS variables in `base.css` under `:root`. Use these instead of hardcoded values.
+The UI is built on a single hardened token layer — defined as CSS variables in `base.css` under `:root`. Every color, type size, spacing value, radius, border, and shadow used by the component and surface layers resolves to a token defined here. Scales are discrete and finite; consumers reference `var(--token)`, never literals.
 
-### Backgrounds (4-level system)
+The current direction:
+
+- **Sharp edges everywhere.** Every `--radius-*` token is `0`. Cards, modals, buttons, badges, fields, tabs, the dock, the FAB, status dots, slider thumbs — all blocky. A global override block at the bottom of `base.css` zeroes the few literal `border-radius: 50%` / `999px` rules that don't go through tokens (spinners, traffic lights, toggle thumb, FAB, etc.).
+- **Flat surfaces with hairline borders.** No bevels, no embossed highlights. Depth comes from contrast (panel vs base) and a single shadow scale, nothing else. The bevel tokens (`--panel-bevel`, `--well-bevel`) exist but resolve to `none` so any straggling references compile to a no-op.
+- **Dark gray + purple.** Cool dark surface ramp + a single purple accent. Decorative tokens for gold / teal / emerald exist but are unused — purple and neutrals carry the whole design.
+- **No ornament.** The `.panel--bracketed` corner-bracket overlay is `display: none`. The bracket-size tokens are `0` / `transparent`. No glowing ticks on section labels, no text-shadow drops on display headings, no gradient backgrounds on panels.
+- **Display font for HUD headers.** Oswald (OFL) handles page titles and section labels (heavy uppercase). DM Sans handles body text. DM Mono handles technical text (versions, paths, mod stats).
+
+> When you add a new token (or a new CSS module), update this document in the same change.
+
+### Surfaces (deepest → raised)
 
 | Variable | Value | Use for |
 |----------|-------|---------|
-| `--bg` | `#111214` | Sidebar, titlebar, app frame |
-| `--bg2` | `#18191c` | Main content area |
-| `--bg3` | `#1e2024` | Cards, surfaces, modals |
-| `--bg4` | `#25272c` | Hover states, elevated buttons, dropdowns |
+| `--surface-base` | `#15141a` | Deepest page background |
+| `--surface-sunken` | `#0f0e13` | Recessed wells / inset areas |
+| `--surface-panel` | `#1d1b24` | Elevated panels and cards |
+| `--surface-raised` | `#28252f` | Hover surfaces / raised controls |
+| `--surface-glass` | `rgba(29, 27, 36, 0.85)` | Translucent dark glass (dock) |
+| `--surface-glass-strong` | `rgba(29, 27, 36, 0.92)` | Stronger glass (pagination island) |
+
+### Borders
+
+| Variable | Value | Use for |
+|----------|-------|---------|
+| `--border` | `#322f3d` | Default hairline border |
+| `--border-strong` | `#45414f` | Framed-panel frame |
+| `--border-hover` | `#5b5570` | Hovered/focused border |
 
 ### Text
 
 | Variable | Value | Use for |
 |----------|-------|---------|
-| `--text` | `#e3e5e8` | Primary text |
-| `--muted` | `#8b8f98` | Secondary text, labels, meta info |
+| `--text` | `#ece9f2` | Primary body text |
+| `--text-muted` | `#a6a1b5` | Secondary text (kept ≥ 4.5:1 contrast) |
+| `--text-faint` | `#6f6a7e` | Tertiary / disabled-ish text, placeholders |
 
-### Accent
+### Accent (brand purple)
 
 | Variable | Value | Use for |
 |----------|-------|---------|
-| `--accent` | `#8B5CF6` (purple) | Active states, primary buttons, focus rings, links |
-| `--accent2` | `#7C4DDE` | Hover variant of accent |
-| `--accent-tint` | `#1a1428` | Subtle background tint when something is active |
-| `--accent-cyan` | `#38BDF8` | Secondary accent (sidebar active icon, vanilla badge) |
+| `--accent` | `#8b5cf6` | Primary purple — active states, links, focus rings, primary fills |
+| `--accent-strong` | `#7c4dde` | Deeper purple hover |
+| `--accent-soft` | `#1a1428` | Deep purple tint for active backgrounds |
+| `--accent-contrast` | `#ffffff` | Light label/icon color on accent fills |
 
-### Loader identity (badges only)
+### Semantic state (+ soft tints)
 
-| Variable | Use for |
-|----------|---------|
-| `--blue` (`#5b8af0`) | NeoForge |
-| `--orange` (`#e8834a`) | Forge |
-| `--purple` (`#c084e8`) | Quilt |
-| `--yellow` (`#f4d04f`) | Warning states |
+| Variable | Value | Soft tint |
+|----------|-------|-----------|
+| `--danger` | `#e05656` | `--danger-soft` `#3a1818` |
+| `--warn` | `#e8a23a` | `--warn-soft` `#322512` |
+| `--success` | `#4caf72` | `--success-soft` `#16291d` |
+| `--info` | `#5b8af0` | `--info-soft` `#16203a` |
 
-### Other
+### Typography
+
+Font sizes are a fluid `clamp()`-based scale (they grow within bounds as the viewport widens):
+
+| Variable | Range | Use for |
+|----------|-------|---------|
+| `--fs-2xs` | `0.625rem → 0.6875rem` | Micro labels, badges |
+| `--fs-xs` | `0.6875rem → 0.75rem` | Meta text |
+| `--fs-sm` | `0.75rem → 0.8125rem` | Controls, secondary text |
+| `--fs-md` | `0.8125rem → 0.875rem` | Body |
+| `--fs-lg` | `0.9375rem → 1rem` | Emphasis |
+| `--fs-xl` | `1.125rem → 1.375rem` | Headings |
+| `--fs-2xl` | `1.375rem → 1.75rem` | Display |
+
+Weights: `--fw-regular` (400), `--fw-medium` (500), `--fw-semibold` (600), `--fw-bold` (700).
+Families: `--font-display` (`'Oswald', 'DM Sans', system-ui, sans-serif` — heavy uppercase HUD headers), `--font` (`'DM Sans', system-ui, sans-serif` — body), `--font-mono` (`'DM Mono', monospace` — technical).
+
+The standard heading patterns are defined in `layout.css`:
+
+- `.page-title` — 28px Oswald 700, uppercase, sharp. The big screen header (e.g. "LIBRARY").
+- `.section-label` — 12px Oswald 600, uppercase, with a thin bottom border rule. The section-header pattern.
+
+### Spacing (discrete 4px scale)
+
+`--space-0` (0), `--space-1` (4px), `--space-2` (8px), `--space-3` (12px), `--space-4` (16px), `--space-5` (20px), `--space-6` (24px), `--space-8` (32px). Reference padding, margin, and gap exclusively from this scale.
+
+### Border-radius scale
+
+`--radius-xs`, `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`, `--radius-pill` — **all `0`** in the current design. Keep referencing these tokens (instead of hardcoding `0`) so the radius scale can be re-introduced cohesively in the future without hunting every consumer.
+
+### Borders (widths + composed shorthands)
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `--border` | `#2e3035` | All 1px borders |
-| `--sidebar` | `52px` | Sidebar width |
-| `--radius` | `10px` | Default border-radius |
-| `--font` | `'DM Sans', system-ui, sans-serif` | Body text |
-| `--font-mono` | `'DM Mono', monospace` | Code, paths, numbers |
+| `--bw-hairline` | `1px` | Hairline width |
+| `--bw-frame` | `1px` | Frame width (same as hairline in the current redesign) |
+| `--border-line` | `1px solid var(--border)` | Default hairline border shorthand |
+| `--border-frame` | `1px solid var(--border-strong)` | Framed-panel border shorthand |
+
+### Shadows
+
+| Variable | Use for |
+|----------|---------|
+| `--shadow-sm` | Subtle lift |
+| `--shadow-md` | Cards, raised controls |
+| `--shadow-lg` | Overlays / popups |
+| `--shadow-inset-frame` | `none` (kept defined for compatibility) |
+| `--glow-accent` | Focus/active accent glow ring (`0 0 0 2px rgba(139,92,246,0.25)`) |
+
+### Decorative / theme tokens
+
+| Variable | Value | Use for |
+|----------|-------|---------|
+| `--bracket-size` | `0` | Disabled in the redesign |
+| `--bracket-thickness` | `0` | Disabled in the redesign |
+| `--bracket-color` | `transparent` | Disabled in the redesign |
+| `--frame-bg` | `var(--surface-panel)` | Panel surface alias |
+| `--control-height-sm` | `26px` | Small control fixed height |
+| `--control-height-md` | `32px` | Medium control fixed height (default) |
+| `--control-height-lg` | `40px` | Large control fixed height |
+| `--card-track` | `240px` | Minimum card width for the shared grid |
+| `--card-track-compact` | `180px` | Minimum card width for dense grids |
+| `--content-min` | `480px` | Minimum supported content width (see below) |
+| `--vignette` | `var(--surface-base)` | Page canvas (flat in the redesign) |
+| `--bevel-light` / `--bevel-dark` | `transparent` | Disabled |
+| `--panel-bevel` / `--well-bevel` | `none` | Disabled |
+| `--dock-pin-center-offset` | `40px` | Half the dock FAB footprint; centers the pin carousel track |
+
+### Decorative gradient tokens
+
+One-off decorative gradients used for the colored instance-icon blocks (Library cards, Account avatars) and the loader-tinted sidebar/dock pin tiles. They have no spacing/color-scale equivalent, so the literal stops live here in the token layer and the consuming layers reference `var(--grad-*)`. The instance-icon `quilt` and `purple` tints share the same stops and both reference `--grad-inst-quilt`.
+
+| Variable | Use for |
+|----------|---------|
+| `--grad-avatar` | Account / account-row avatar block |
+| `--grad-inst-green` / `--grad-inst-fabric` / `--grad-inst-blue` / `--grad-inst-orange` / `--grad-inst-quilt` | Library instance-card icon blocks (by loader tint) |
+| `--grad-loader-vanilla` / `--grad-loader-fabric` / `--grad-loader-quilt` / `--grad-loader-forge` / `--grad-loader-neoforge` | Sidebar `.nav-pin-icon` and dock `.dock-pin-tile` loader-tinted tiles |
+
+### Window-control traffic-light colors
+
+Fixed macOS-style affordance hues for the titlebar close / minimize / maximize buttons. Each keeps a distinct hover shade so hover feedback is preserved; they are not part of the theme color scale.
+
+| Variable | Value | Variable (hover) | Value |
+|----------|-------|------------------|-------|
+| `--win-close` | `#ed6a5e` | `--win-close-hover` | `#e5453a` |
+| `--win-minimize` | `#f4bf4f` | `--win-minimize-hover` | `#e0a520` |
+| `--win-maximize` | `#61c554` | `--win-maximize-hover` | `#4aad3d` |
+
+### Brand colors (intentional literal exceptions)
+
+Loader-identity and content-source brand hues are fixed brand values, not theme tokens, so they're allowed to carry literal hex values:
+
+- Loaders: `--loader-fabric`, `--loader-forge`, `--loader-neoforge`, `--loader-quilt`, `--loader-vanilla` (each with a matching `*-soft` tint).
+- Sources: `--source-modrinth`, `--source-curseforge` (each with a matching `*-soft` tint).
+
+### Decorative palette (defined but unused)
+
+`--gold`, `--teal`, `--emerald` (and their `*-soft` companions), plus `--rarity-common` / `--rarity-rare` / `--rarity-unique` / `--rarity-enchanted` are kept defined so any straggling references resolve, but the redesign uses purple + neutrals only. Don't reach for these in new code — if you need a non-purple accent, surface a discussion first.
+
+### Legacy aliases
+
+A block of legacy names (`--bg`, `--bg2`, `--bg3`, `--bg4`, `--muted`, `--accent2`, `--accent-tint`, `--accent-cyan`, `--blue`, `--orange`, `--purple`, `--yellow`, `--sidebar`, `--radius`) is aliased to the new token layer so older markup retints cohesively without structural change. New code should reference the canonical tokens above.
+
+## Canonical component vocabulary
+
+`components.css` defines one canonical class per element role. Every screen and modal composes these instead of bespoke styles. Each variant's radius, padding, border, background, and font-size resolve to tokens.
+
+| Role | Base class | Variants |
+|------|-----------|----------|
+| Button | `.btn` | Size: `.btn--sm` / `.btn--md` (default) / `.btn--lg` (fixed heights from `--control-height-*`). Intent: `.btn--primary` (solid purple) / `.btn--neutral` (default) / `.btn--ghost` / `.btn--danger`. Width: `.btn--fixed` (label-independent via `--btn-fixed-width`) / `.btn--block` (full width). Labels nowrap + ellipsis so width never tracks text. |
+| Tab | `.tab` inside `.tab-strip` | States: default (inactive), `.active` (accent label + accent underline drawn by `::after` with identical geometry), `:hover` (inactive only), `:disabled` / `.disabled`. Applied to all three tab strips (instance context bar, content source tabs, settings tabs). |
+| Card | `.card` | `.card--inst` (icon + content row), `.card--mod` (vertical, min-height floor), `.card--media` (banner on top), `.card--compact` (denser). All variants share `--surface-panel` + `--border-frame`; `overflow:hidden` clips content. Sub-elements: `.card-media`, `.card-body`, `.card-title`, `.card-sub`, `.card-text`. |
+| Card grid | `.card-grid` | `.card-grid--compact` (uses `--card-track-compact`). `repeat(auto-fill, minmax(track, 1fr))` policy, so cards fill the row evenly and don't clump in the top-left. |
+| Badge | `.badge` | `.badge--loader` (+ `.badge--fabric` / `--forge` / `--neoforge` / `--quilt` / `--vanilla`), `.badge--version` (monospace), `.badge--source` (+ `.badge--modrinth` / `--curseforge`). |
+| Form field | `.field-control` | `.field-control--text`, `.field-control--select` (token-drawn caret), `.field-control--search` (reserves leading icon space). Shared surface/border/height/focus treatment. |
+| Framed panel | `.panel` | `.panel--sunken` (recessed well). `.panel--bracketed` is kept as a no-op class; its decorative `::before` is `display: none` in the redesign. |
+| Toggle | `.toggle` (+ `.on`) | Two-half plate: solid track (dark sunken when off, accent purple when on) with a 1px border, plus a 20×22 white thumb (`::after`) carrying a 3px inset under-shadow that reads as the dark base of a raised plate. The thumb covers exactly half the track, so each state shows one solid colored half + one raised white half. |
+
+> Legacy class names (e.g. `.btn-accent`, `.src-tab`, `.ctx-tab`, `.inst-card`, `.mod-card`, `.inst-badge`, `.field-input`) remain in place until the migration cleanup task removes them. New code should use the canonical classes above.
+
+## Responsive layout and the minimum content width
+
+The layout rules live in `base.css` (token layer) and `layout.css` (the `.content` container + responsive guards). The key contract:
+
+- **`--content-min` is `480px` — the minimum supported content width.** At and above 480px the content area renders every screen within its bounds with no horizontal scrollbar and no element past the left or right edge (covering both ≥720px and the 480–719px band).
+- Card grids reflow through the shared `.card-grid` `auto-fill / minmax` rule. Because the minimum card track (`--card-track` 240px / `--card-track-compact` 180px) is narrower than `--content-min`, grids drop columns down to 480px without clipping. With `1fr` as the max track, cards expand to fill the row evenly instead of clumping in the top-left.
+- **Below `--content-min`, full scaling is no longer guaranteed**, but content keeps rendering without controls overlapping: `.content > *` carries `max-width:100%` + `min-width:0`, and embedded `img` / `video` / `canvas` are capped at `max-width:100%`, so nothing extends past the edges or forces a horizontal scrollbar even below the 480px floor.
+
+## Framed panels (no ornament)
+
+`.panel` is the canonical framed-panel primitive: a visible bordered frame (`--border-frame`) over the elevated panel surface (`--surface-panel`), deliberately distinct from the deepest page background (`--surface-base`) so every primary container reads as a framed panel. It carries the same surface, frame, and `border-radius: 0` as `.card`. Composing `.panel` onto `.modal`, `.settings-group`, or `.card` frames that surface with identical tokens.
+
+`.panel--sunken` inverts the surface (`--surface-sunken`) for recessed wells.
+
+`.panel--bracketed` is **kept as a no-op class** in the current redesign — its `::before` overlay is `display: none`, so applying it has no visual effect. The decorative corner-bracket vocabulary may return in the future; until then, the class stays defined so existing markup compiles, but new code should not rely on it for a visual outcome.
 
 ## Global state (App.tsx)
 

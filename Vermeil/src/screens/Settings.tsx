@@ -520,88 +520,6 @@ const Settings: Component = () => {
           </div>
 
           <div class="settings-section">
-            <div class="section-label" style="margin-bottom:8px">Memory</div>
-            <div class="settings-val" style="margin-bottom:10px">
-              When adaptive RAM is on, Vermeil picks an allocation per instance based on
-              mod count, loader, and content. The per-instance memory slider is read-only
-              while adaptive is active; turn it off to set RAM manually per instance.
-            </div>
-            <div class="settings-group">
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">Adaptive RAM allocation</div>
-                  <div class="settings-val">
-                    {settings()!.adaptive_ram
-                      ? `On — capped at ${formatMemoryGb(adaptiveMax())} on this system`
-                      : "Off — each instance uses its own slider value"}
-                  </div>
-                </div>
-                <div
-                  class={`toggle ${settings()!.adaptive_ram ? "on" : ""}`}
-                  onClick={handleAdaptiveToggle}
-                />
-              </div>
-              <Show when={settings()!.adaptive_ram}>
-                {/* Min RAM. Stored value of 0 means "use the system-derived
-                    default at runtime"; the placeholder shows that default
-                    so users see what would apply if they leave the input
-                    blank. Clamping rules are enforced server-side too. */}
-                <div class="settings-row" style="align-items:center">
-                  <div>
-                    <div class="settings-key">Minimum RAM</div>
-                    <div class="settings-val">
-                      Floor for any instance · default {formatMemoryGb(adaptiveDefaultMin(systemMemoryMb() || 0))}
-                    </div>
-                  </div>
-                  <input
-                    class="concurrency-number"
-                    type="number"
-                    min="1024"
-                    max="16384"
-                    step="256"
-                    value={settings()!.adaptive_ram_min_mb || ""}
-                    placeholder={String(adaptiveDefaultMin(systemMemoryMb() || 0))}
-                    onChange={(e) => {
-                      const raw = parseInt(e.currentTarget.value);
-                      // Empty / NaN reverts to the runtime default by storing
-                      // the `0` sentinel — backend `services::memory::resolve`
-                      // re-derives from system RAM.
-                      const safe = Number.isNaN(raw) ? 0 : Math.max(1024, Math.min(raw, 16384));
-                      e.currentTarget.value = safe ? String(safe) : "";
-                      updateSetting("adaptive_ram_min_mb", safe);
-                    }}
-                    style="width:100px;text-align:right"
-                  />
-                </div>
-                <div class="settings-row" style="align-items:center">
-                  <div>
-                    <div class="settings-key">Maximum RAM</div>
-                    <div class="settings-val">
-                      Ceiling for any instance · default {formatMemoryGb(adaptiveDefaultMax(systemMemoryMb() || 0))}
-                    </div>
-                  </div>
-                  <input
-                    class="concurrency-number"
-                    type="number"
-                    min="1024"
-                    max="16384"
-                    step="256"
-                    value={settings()!.adaptive_ram_max_mb || ""}
-                    placeholder={String(adaptiveDefaultMax(systemMemoryMb() || 0))}
-                    onChange={(e) => {
-                      const raw = parseInt(e.currentTarget.value);
-                      const safe = Number.isNaN(raw) ? 0 : Math.max(1024, Math.min(raw, 16384));
-                      e.currentTarget.value = safe ? String(safe) : "";
-                      updateSetting("adaptive_ram_max_mb", safe);
-                    }}
-                    style="width:100px;text-align:right"
-                  />
-                </div>
-              </Show>
-            </div>
-          </div>
-
-          <div class="settings-section">
             <div class="section-label" style="margin-bottom:8px">Java</div>
             <div class="settings-val" style="margin-bottom:10px">
               Each Minecraft major needs a different JRE. Use Detect to scan your system,
@@ -953,6 +871,85 @@ const Settings: Component = () => {
                 <div class="vs-key">Maximized</div>
                 <div style="flex:1" />
                 <div class={`toggle ${vs().start_maximized ? "on" : ""}`} onClick={() => updateVideoSettings({ start_maximized: !vs().start_maximized })} />
+              </div>
+            </div>
+          </div>
+
+          {/* Memory section — adaptive RAM allocation. Lives here in Global
+              Instance because it's a per-instance behaviour control: every
+              instance's `-Xmx` is computed from this when adaptive is on.
+              The min/max dropdowns stay visible even with the toggle off so
+              users can pre-configure their preferred bounds before flipping
+              the switch (and so they understand the effect before opting in). */}
+          <div class="settings-section">
+            <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Memory</div>
+            <div class="vs-grid">
+              {/* Adaptive toggle */}
+              <div class="vs-cell">
+                <div class="vs-key">Adaptive RAM</div>
+                <div style="flex:1" />
+                <div
+                  class={`toggle ${settings()!.adaptive_ram ? "on" : ""}`}
+                  onClick={handleAdaptiveToggle}
+                />
+              </div>
+
+              {/* Minimum RAM dropdown. Always visible so users can configure
+                  their preferred floor regardless of toggle state. The Auto
+                  label shows the system-derived default so users know what
+                  the sentinel value resolves to. */}
+              <div class="vs-cell">
+                <div class="vs-key">Minimum RAM</div>
+                <div style="flex:1" />
+                <Dropdown
+                  value={String(settings()!.adaptive_ram_min_mb || 0)}
+                  options={(() => {
+                    const sysMb = systemMemoryMb() || 0;
+                    const auto = adaptiveDefaultMin(sysMb);
+                    return [
+                      { value: "0", label: `Auto (${formatMemoryGb(auto)})` },
+                      { value: "1024", label: "1 GB" },
+                      { value: "1536", label: "1.5 GB" },
+                      { value: "2048", label: "2 GB" },
+                      { value: "2560", label: "2.5 GB" },
+                      { value: "3072", label: "3 GB" },
+                      { value: "4096", label: "4 GB" },
+                    ];
+                  })()}
+                  onChange={(val) => {
+                    updateSetting("adaptive_ram_min_mb", parseInt(val) || 0);
+                  }}
+                />
+              </div>
+
+              {/* Maximum RAM dropdown. Capped at 16 GB to keep G1GC pause
+                  times healthy; users on big-memory systems with ZGC can
+                  override per-instance via the in-instance Override link. */}
+              <div class="vs-cell">
+                <div class="vs-key">Maximum RAM</div>
+                <div style="flex:1" />
+                <Dropdown
+                  value={String(settings()!.adaptive_ram_max_mb || 0)}
+                  options={(() => {
+                    const sysMb = systemMemoryMb() || 0;
+                    const auto = adaptiveDefaultMax(sysMb);
+                    return [
+                      { value: "0", label: `Auto (${formatMemoryGb(auto)})` },
+                      { value: "2048", label: "2 GB" },
+                      { value: "3072", label: "3 GB" },
+                      { value: "4096", label: "4 GB" },
+                      { value: "6144", label: "6 GB" },
+                      { value: "8192", label: "8 GB" },
+                      { value: "10240", label: "10 GB" },
+                      { value: "12288", label: "12 GB" },
+                      { value: "14336", label: "14 GB" },
+                      { value: "16384", label: "16 GB" },
+                    ];
+                  })()}
+                  onChange={(val) => {
+                    updateSetting("adaptive_ram_max_mb", parseInt(val) || 0);
+                  }}
+                />
               </div>
             </div>
           </div>

@@ -119,7 +119,7 @@ impl Default for LauncherSettings {
             java_runtime: "auto".to_string(),
             default_memory_mb: 4096,
             gc_preset: "g1gc".to_string(),
-            close_on_launch: true,
+            close_on_launch: false,
             auto_update: true,
             discord_rpc: false,
             show_snapshots: false,

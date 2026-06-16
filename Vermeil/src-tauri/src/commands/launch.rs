@@ -63,6 +63,17 @@ pub async fn launch_instance(instance_id: String, window: tauri::WebviewWindow) 
     GAME_PID.store(pid, Ordering::SeqCst);
     USER_STOPPED.store(false, Ordering::SeqCst);
 
+    // Hide the launcher to the tray if "Minimize to tray on launch" is on.
+    // This is the single chokepoint both launch entry points (Home and the
+    // FloatingDock) funnel through, so the behaviour stays consistent. The
+    // game-exit handler in services::launch restores the window (show +
+    // focus), so it round-trips automatically when the session ends.
+    if let Ok(settings) = crate::services::settings_service::load().await {
+        if settings.close_on_launch {
+            let _ = window.hide();
+        }
+    }
+
     // Set Discord Rich Presence to "Playing"
     let loader_name = format!("{:?}", instance.loader.loader_type).to_lowercase();
     crate::services::discord::set_playing(

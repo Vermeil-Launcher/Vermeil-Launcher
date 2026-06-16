@@ -840,10 +840,21 @@
 .modal {
   background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl);
   width: 440px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  /* Stay within the viewport on short or display-scaled screens. Without
+     this a tall modal (e.g. the onboarding wizard) overflows and — because
+     the overlay centers it — gets clipped at BOTH the top and bottom edges.
+     Flex column + a scrollable body keeps the header and footer pinned and
+     scrolls the middle instead. 38px = overlay top offset (title bar);
+     --space-8 leaves a small margin above and below. */
+  max-height: calc(100vh - 38px - var(--space-8));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .modal-header {
   padding: var(--space-5) var(--space-5) var(--space-4); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
 }
 .modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
 .modal-close {
@@ -852,13 +863,14 @@
   transition: background .15s, color .15s;
 }
 .modal-close:hover { background: var(--bg4); color: var(--text); }
-.modal-body { padding: var(--space-5); }
+.modal-body { padding: var(--space-5); overflow-y: auto; min-height: 0; }
 .modal-body .mod-list::-webkit-scrollbar { width: 4px; }
 .modal-body .mod-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: var(--radius-xs); }
 .modal-body .mod-list::-webkit-scrollbar-track { background: transparent; }
 .modal-footer {
   padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 /* Form fields */

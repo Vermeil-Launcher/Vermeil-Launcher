@@ -50,7 +50,17 @@ Var DeleteUserData
 
 !macro NSIS_HOOK_POSTUNINSTALL
     ${If} $DeleteUserData == "1"
-        DetailPrint "Removing user data folder $APPDATA\Vermeil"
+        DetailPrint "Removing user data folder $APPDATA\Vermeil (this can take a moment)..."
+        ; The data folder holds the Minecraft asset cache — tens of thousands
+        ; of tiny hashed files under assets\objects\. RMDir /r prints every
+        ; deleted file to the detail listview by default, and that per-file
+        ; redraw is what makes the uninstall flicker and crawl. Silence detail
+        ; output for the bulk delete, then restore it. The filesystem work is
+        ; inherently O(files) but without the UI churn it's far faster and
+        ; doesn't flicker.
+        SetDetailsPrint none
         RMDir /r "$APPDATA\Vermeil"
+        SetDetailsPrint both
+        DetailPrint "User data removed."
     ${EndIf}
 !macroend

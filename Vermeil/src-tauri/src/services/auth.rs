@@ -569,8 +569,27 @@ async fn send_signed_request(
     let resp = request.body(body).send().await
         .map_err(|e| format!("Signed request to {} failed: {}", url, e))?;
 
+    let status = resp.status();
     let headers = resp.headers().clone();
     let text = resp.text().await.map_err(|e| e.to_string())?;
+
+    // Surface the real failure. Xbox rejects signed requests (bad signature,
+    // clock skew, throttling) with a non-2xx status and an error body that
+    // carries NO X-SessionId header — so without this check the caller fails
+    // downstream with a misleading "No X-SessionId header" message that hides
+    // the actual cause. A common trigger is a system clock that's off by more
+    // than Xbox's allowed skew, which invalidates the FILETIME-stamped
+    // signature.
+    if !status.is_success() {
+        return Err(format!(
+            "Xbox auth request to {} was rejected (HTTP {}). This often means the \
+             system clock is wrong — check Windows date/time is set to sync \
+             automatically. Server response: {}",
+            url,
+            status.as_u16(),
+            if text.is_empty() { "(empty)" } else { text.trim() }
+        ));
+    }
 
     Ok(SignedResponse { headers, body: text })
 }

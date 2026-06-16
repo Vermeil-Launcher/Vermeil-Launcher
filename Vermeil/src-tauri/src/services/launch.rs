@@ -35,7 +35,8 @@ fn maximize_minecraft_window_async(pid: u32) {
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         BringWindowToTop, EnumWindows, GetForegroundWindow, GetWindowThreadProcessId,
-        IsWindowVisible, SetForegroundWindow, ShowWindow, SW_MAXIMIZE,
+        IsWindowVisible, SetForegroundWindow, SetWindowPos, ShowWindow, HWND_NOTOPMOST,
+        HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_MAXIMIZE,
     };
 
     /// Walker state passed through `EnumWindows` via lParam. Holds the PID
@@ -125,6 +126,16 @@ fn maximize_minecraft_window_async(pid: u32) {
             let attached = fg_thread != 0
                 && fg_thread != our_thread
                 && AttachThreadInput(our_thread, fg_thread, 1) != 0;
+
+            // Kick the window to the top of the z-order. Toggling the topmost
+            // flag forces it above an already-maximized sibling — e.g. the
+            // launcher window itself when the user hasn't enabled minimize-to-
+            // tray, which otherwise covers the freshly-maximized game.
+            // SetForegroundWindow alone won't reorder above a maximized window
+            // from a background thread. SWP_NOACTIVATE keeps this a pure
+            // z-order change; the actual focus comes from SetForegroundWindow.
+            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
             BringWindowToTop(hwnd);
             SetForegroundWindow(hwnd);

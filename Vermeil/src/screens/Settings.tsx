@@ -832,11 +832,16 @@ const Settings: Component = () => {
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Window</div>
             <div class="vs-grid">
-              {/* Resolution preset dropdown */}
+              {/* Resolution preset dropdown. Disabled when Maximized is on,
+                  because the backend ignores the explicit resolution in that
+                  case (it launches at monitor size and maximizes). Greying it
+                  out makes that override visible instead of letting the two
+                  controls look like equal peers. */}
               <div class="vs-cell">
                 <div class="vs-key">Resolution</div>
                 <div style="flex:1" />
                 <Dropdown
+                  disabled={!!vs().start_maximized}
                   value={vs().window_width && vs().window_height ? `${vs().window_width}x${vs().window_height}` : "1280x720"}
                   options={[
                     { value: "1280x720", label: "1280 × 720" },
@@ -860,6 +865,9 @@ const Settings: Component = () => {
                 <div class={`toggle ${vs().start_maximized ? "on" : ""}`} onClick={() => updateVideoSettings({ start_maximized: !vs().start_maximized })} />
               </div>
             </div>
+            <Show when={vs().start_maximized}>
+              <div class="settings-val" style="margin-top:8px;font-size:9px">Resolution is ignored while Maximized is on — the game fills the screen on launch.</div>
+            </Show>
           </div>
 
           {/* Memory section — adaptive RAM allocation. Lives here in Global

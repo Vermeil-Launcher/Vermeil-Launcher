@@ -30,10 +30,12 @@ fn maximize_minecraft_window_async(pid: u32) {
     use std::time::Duration;
     use windows_sys::Win32::Foundation::{CloseHandle, HWND, LPARAM};
     use windows_sys::Win32::System::Threading::{
-        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        AttachThreadInput, GetCurrentThreadId, GetExitCodeProcess, OpenProcess,
+        PROCESS_QUERY_LIMITED_INFORMATION,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowThreadProcessId, IsWindowVisible, ShowWindow, SW_MAXIMIZE,
+        BringWindowToTop, EnumWindows, GetForegroundWindow, GetWindowThreadProcessId,
+        IsWindowVisible, SetForegroundWindow, ShowWindow, SW_MAXIMIZE,
     };
 
     /// Walker state passed through `EnumWindows` via lParam. Holds the PID
@@ -89,6 +91,50 @@ fn maximize_minecraft_window_async(pid: u32) {
         }
     }
 
+    /// Bring `hwnd` to the foreground and give it keyboard focus.
+    ///
+    /// `SetForegroundWindow` alone is rejected when called from a background
+    /// process (Windows' focus-stealing prevention) — which is exactly our
+    /// situation: the launcher has usually lost the foreground (minimized to
+    /// tray on launch, or the user switched apps during the long load) by the
+    /// time Minecraft's window appears, so a bare maximize lands the window
+    /// *behind* whatever is currently active. The documented workaround is to
+    /// briefly attach our input thread to the thread that currently owns the
+    /// foreground so they share input state; while attached, the system honors
+    /// our focus request. We always detach again immediately so we don't keep
+    /// the queues joined.
+    ///
+    /// See SetForegroundWindow remarks:
+    /// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow
+    fn force_foreground(hwnd: HWND) {
+        // SAFETY: all calls are plain FFI into user32/kernel32 with a valid
+        // HWND we just resolved via EnumWindows. Thread IDs come straight from
+        // the OS. Every successful AttachThreadInput(.., TRUE) is paired with a
+        // matching detach below.
+        unsafe {
+            let our_thread = GetCurrentThreadId();
+            let fg_window = GetForegroundWindow();
+            let fg_thread = if fg_window.is_null() {
+                0
+            } else {
+                GetWindowThreadProcessId(fg_window, std::ptr::null_mut())
+            };
+
+            // Only attach when the foreground belongs to a different thread —
+            // attaching a thread to itself is invalid and returns an error.
+            let attached = fg_thread != 0
+                && fg_thread != our_thread
+                && AttachThreadInput(our_thread, fg_thread, 1) != 0;
+
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+
+            if attached {
+                AttachThreadInput(our_thread, fg_thread, 0);
+            }
+        }
+    }
+
     std::thread::spawn(move || {
         // Poll up to 120 s in 500 ms increments. Heavy modpacks legitimately
         // take 45–90 s to reach their first GLFW window on a cold start;
@@ -120,6 +166,11 @@ fn maximize_minecraft_window_async(pid: u32) {
                 EnumWindows(Some(enum_proc), &mut data as *mut _ as LPARAM);
                 if !data.found_hwnd.is_null() {
                     ShowWindow(data.found_hwnd, SW_MAXIMIZE);
+                    // SW_MAXIMIZE resizes the window but, from a background
+                    // process, won't pull it in front of the user's active
+                    // window. Force the foreground so the game is actually
+                    // visible and focused when it appears.
+                    force_foreground(data.found_hwnd);
                     return;
                 }
             }
@@ -1104,17 +1155,23 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     let global_vs = global_settings.as_ref().map(|s| &s.video_settings);
     let win_maximized = global_vs.and_then(|v| v.start_maximized).unwrap_or(false);
     // Initial window dimensions used by Minecraft's GLFW window. When
-    // `start_maximized` is on, the window briefly appears at this size
-    // and is then snapped to the maximized state by `maximize_minecraft_window_async`
-    // (Windows only — see below). On other platforms we fall back to a
-    // monitor-sized window since GLFW maximize requires platform-specific
-    // window-manager interaction we don't currently implement.
+    // `start_maximized` is off, these are the explicit resolution. When it's
+    // on, the block just below overrides them to monitor size (resolution is
+    // ignored) so the first paint is already full-screen — see there for the
+    // per-platform maximize handling.
     let win_width = global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width);
     let win_height = global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height);
-    let (win_width, win_height) = if win_maximized && !cfg!(windows) {
-        // Non-Windows fallback: launch at near-monitor size since we can't
-        // call ShowWindow(SW_MAXIMIZE) without Win32. WM/compositor decides
-        // whether to render this as maximized.
+    let (win_width, win_height) = if win_maximized {
+        // When maximized, the explicit resolution is intentionally ignored —
+        // the Settings UI greys the resolution control out to match. We launch
+        // at monitor size so the window already fills the screen on first
+        // paint, rather than appearing at the resolution value and then
+        // jumping to maximized (a jarring small-window→maximize flash).
+        // On Windows `maximize_minecraft_window_async` then snaps it to the
+        // true maximized state (respecting the taskbar work area) and brings
+        // it to the foreground; on other platforms the WM/compositor renders
+        // this near-monitor size as the effective "maximized" window since we
+        // can't call ShowWindow there.
         let monitor_size = window
             .as_ref()
             .and_then(|w| w.current_monitor().ok().flatten())
@@ -1123,7 +1180,11 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 (s.width, s.height)
             })
             .unwrap_or((1920, 1080));
-        (monitor_size.0, monitor_size.1.saturating_sub(60).max(480))
+        if cfg!(windows) {
+            (monitor_size.0, monitor_size.1)
+        } else {
+            (monitor_size.0, monitor_size.1.saturating_sub(60).max(480))
+        }
     } else {
         (win_width, win_height)
     };

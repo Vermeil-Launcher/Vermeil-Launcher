@@ -979,6 +979,11 @@ select.field-input[size] { appearance: none; }
   transition: border-color 0.15s;
 }
 .custom-dropdown-selected:hover { border-color: var(--accent); }
+/* Disabled state — e.g. Resolution when Maximized is on. Dimmed, non-interactive,
+   and the hover accent is suppressed so it reads as inert. */
+.custom-dropdown.disabled { opacity: 0.45; pointer-events: none; }
+.custom-dropdown.disabled .custom-dropdown-selected { cursor: default; }
+.custom-dropdown.disabled .custom-dropdown-selected:hover { border-color: var(--border); }
 .custom-dropdown-arrow {
   color: var(--muted);
   transition: transform 0.15s;

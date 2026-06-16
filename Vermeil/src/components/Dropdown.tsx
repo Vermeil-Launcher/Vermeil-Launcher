@@ -12,6 +12,8 @@ interface DropdownProps {
   onChange: (value: string) => void;
   /** Optional width constraint */
   width?: string;
+  /** When true, the control is greyed out and can't be opened. */
+  disabled?: boolean;
 }
 
 /**
@@ -29,19 +31,20 @@ const Dropdown: Component<DropdownProps> = (props) => {
   return (
     <div
       class="custom-dropdown"
+      classList={{ disabled: props.disabled }}
       style={props.width ? `width:${props.width}` : "width:auto;min-width:120px"}
-      tabIndex={0}
+      tabIndex={props.disabled ? -1 : 0}
       onBlur={() => setTimeout(() => setOpen(false), 150)}
     >
       <div
         class="custom-dropdown-selected"
         style="padding:4px 10px;font-size:11px;border-radius:0"
-        onClick={() => setOpen(!open())}
+        onClick={() => { if (!props.disabled) setOpen(!open()); }}
       >
         <span>{selectedLabel()}</span>
         <span class="custom-dropdown-arrow" classList={{ open: open() }}><IconChevronDown /></span>
       </div>
-      <Show when={open()}>
+      <Show when={open() && !props.disabled}>
         <div class="custom-dropdown-options" style="max-height:180px">
           <For each={props.options}>
             {(opt) => (

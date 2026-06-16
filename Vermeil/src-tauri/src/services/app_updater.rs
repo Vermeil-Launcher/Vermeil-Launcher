@@ -1,31 +1,27 @@
 //! Auto-updater service.
 //!
-//! Uses a split download/install pattern for one critical reason: **on
-//! Windows, an NSIS installer cannot replace
-//! `vermeil.exe` while the launcher is still running it**. Tauri's stock
-//! `Update::download_and_install` spawns the installer and returns *before*
-//! the file-replace step finishes — if we then call `relaunch()` we re-spawn
-//! the old binary and the install silently fails.
-//!
-//! Flow:
-//! 1. Frontend calls `start_update_download` after the user opts in.
-//! 2. We download the payload into memory (emitting `update-progress` events
-//!    so the UI can render a real progress bar), then stash `(Update, Vec<u8>)`
+//! Two-phase update following the documented Tauri v2 pattern:
+//! 1. Frontend calls `start_update_download` after the user opts in. We
+//!    download the payload into memory (emitting `update-progress` events so
+//!    the UI can render a real progress bar) and stash `(Update, Vec<u8>)`
 //!    in `PendingUpdate`.
-//! 3. Frontend calls `apply_pending_update`, which sets a flag and closes the
-//!    main window.
-//! 4. In `RunEvent::Exit` (registered in `lib.rs`), if the flag is set, we
-//!    call `update.install(&data)` synchronously. The webview is gone by
-//!    then so file locks are released. After install succeeds we call
-//!    `app.restart()` to launch the just-replaced binary.
+//! 2. Frontend calls `apply_pending_update`, which runs `Update::install`
+//!    directly. On Windows the plugin launches the NSIS installer and then
+//!    `std::process::exit(0)`s the app itself (a documented Windows-installer
+//!    limitation) — the installer's `/R` flag relaunches the new binary.
 //!
-//! No JS-side `relaunch()` is involved. That's the entire bug fix.
+//! We deliberately install while the main window is still open and focused.
+//! Windows only lets a process hand the foreground to a window it launches if
+//! it currently holds the foreground, so installing *before* closing the
+//! window is what lets the NSIS progress window appear in front instead of
+//! buried behind whatever else is on screen.
+//!
+//! Splitting download from install (instead of `download_and_install`) is the
+//! documented alternative and is what gives us the in-app download progress
+//! bar.
 
 use serde::Serialize;
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, Ordering},
-};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, ResourceId, Runtime, Webview};
 use tauri_plugin_updater::Update;
 
@@ -34,10 +30,6 @@ use tauri_plugin_updater::Update;
 #[derive(Default)]
 pub struct PendingUpdate {
     pub data: Mutex<Option<(Arc<Update>, Vec<u8>)>>,
-    /// Set to `true` when the user has clicked "Restart and install". Read at
-    /// `RunEvent::Exit` to decide whether to run the install + relaunch or
-    /// quietly drop the buffered bytes.
-    pub apply_on_exit: AtomicBool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -136,23 +128,25 @@ pub async fn start_update_download<R: Runtime>(
     Ok(())
 }
 
-/// Mark the buffered update for installation at exit and close the window.
-/// The actual install runs synchronously in `RunEvent::Exit` so the webview's
-/// file locks are released first.
+/// Install the buffered update. Runs `Update::install` directly while the
+/// main window is still open and focused — on Windows the plugin launches the
+/// NSIS installer (which inherits our foreground so its progress window
+/// appears in front) and then exits the process itself; the installer's `/R`
+/// flag relaunches the new binary. On Linux/macOS `install` returns normally,
+/// so we relaunch explicitly.
 pub async fn apply_pending_update<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
-    let pending = app.state::<PendingUpdate>();
-    {
+    let buffered = {
+        let pending = app.state::<PendingUpdate>();
         let slot = pending.data.lock().map_err(|e| e.to_string())?;
-        if slot.is_none() {
-            return Err("No pending update to install".to_string());
-        }
-    }
-    pending.apply_on_exit.store(true, Ordering::Relaxed);
+        slot.clone()
+    };
+    let Some((update, data)) = buffered else {
+        return Err("No pending update to install".to_string());
+    };
 
-    // Surface the install phase to the UI as an indeterminate state. NSIS
-    // gives no progress callbacks during the actual file-replace step, so
-    // the frontend should render a spinner for the brief moment between
-    // window-close and process-exit.
+    // Surface the install phase to the UI. NSIS gives no progress callbacks,
+    // so the frontend renders an indeterminate state for the brief moment
+    // before the process exits.
     let _ = app.emit(
         "update-progress",
         UpdateProgressPayload {
@@ -164,66 +158,28 @@ pub async fn apply_pending_update<R: Runtime>(app: AppHandle<R>) -> Result<(), S
         },
     );
 
-    // Close the main window. Tauri will fire `RunEvent::Exit` once the last
-    // window is gone (which is where the install actually runs).
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.close();
-    }
+    tracing::info!(
+        "Installing update v{} (was on v{})",
+        update.version,
+        update.current_version
+    );
 
-    Ok(())
+    update
+        .install(&data)
+        .map_err(|e| format!("Update install failed: {}", e))?;
+
+    // Reached only on platforms where `install` doesn't exit the process
+    // (Linux/macOS). On Windows the plugin has already exited by now.
+    app.restart();
 }
 
 /// Drop any buffered update without installing it. Called by the frontend
 /// when the user dismisses the "update available" prompt.
 pub fn clear_pending_update<R: Runtime>(app: &AppHandle<R>) {
     let pending = app.state::<PendingUpdate>();
-    if let Ok(mut slot) = pending.data.lock() {
-        slot.take();
-    }
-    pending.apply_on_exit.store(false, Ordering::Relaxed);
-}
-
-/// Called from `RunEvent::Exit`. Runs the buffered install and relaunches if
-/// the user opted in. Returns silently otherwise.
-pub fn install_on_exit<R: Runtime>(app: &AppHandle<R>) {
-    let pending = app.state::<PendingUpdate>();
-    if !pending.apply_on_exit.load(Ordering::Relaxed) {
-        return;
-    }
-
-    let buffered = match pending.data.lock() {
-        Ok(slot) => slot.clone(),
+    let mut slot = match pending.data.lock() {
+        Ok(s) => s,
         Err(_) => return,
     };
-
-    let Some((update, data)) = buffered else {
-        return;
-    };
-
-    tracing::info!(
-        "Installing pending update v{} (was on v{})",
-        update.version,
-        update.current_version
-    );
-
-    match update.install(&data) {
-        Ok(()) => {
-            tracing::info!("Update installed successfully; restarting");
-            app.restart();
-        }
-        Err(e) => {
-            tracing::error!("Update install failed: {}", e);
-            // Best-effort error event; window may already be gone.
-            let _ = app.emit(
-                "update-progress",
-                UpdateProgressPayload {
-                    phase: "error",
-                    bytes_done: 0,
-                    bytes_total: 0,
-                    fraction: 0.0,
-                    message: format!("Install failed: {}", e),
-                },
-            );
-        }
-    }
+    slot.take();
 }

@@ -312,15 +312,6 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            // The auto-updater installs the buffered payload at exit so the
-            // webview's file locks on vermeil.exe are released first. Without
-            // this, NSIS silently fails to overwrite the running binary on
-            // Windows and the user perceives "update applied but UI is the
-            // same old version". See `services/app_updater.rs` for details.
-            if let tauri::RunEvent::Exit = event {
-                services::app_updater::install_on_exit(app_handle);
-            }
-        });
+        .run(|_app_handle, _event| {});
 }
  

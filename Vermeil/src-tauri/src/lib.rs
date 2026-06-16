@@ -19,6 +19,31 @@ fn show_window(app: tauri::AppHandle) {
     }
 }
 
+/// Whether a saved window position lands on a currently-connected monitor.
+///
+/// We probe a point in the window's titlebar grab area (just inside the
+/// top-left corner) rather than the exact origin, so a window restored with a
+/// slightly-negative origin is still considered reachable. Returns `false`
+/// when the point falls in dead space — e.g. the Windows (-32000, -32000)
+/// minimized sentinel, or coordinates left over from a monitor that has since
+/// been unplugged — so the caller can skip the restore and let Tauri place the
+/// window at its configured default instead of dropping it off-screen.
+fn position_visible(window: &tauri::WebviewWindow, x: i32, y: i32) -> bool {
+    let Ok(monitors) = window.available_monitors() else {
+        return false;
+    };
+    let px = x + 40;
+    let py = y + 20;
+    monitors.iter().any(|m| {
+        let pos = m.position();
+        let size = m.size();
+        px >= pos.x
+            && px < pos.x + size.width as i32
+            && py >= pos.y
+            && py < pos.y + size.height as i32
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt::init();
@@ -93,9 +118,19 @@ pub fn run() {
                 // floor gets clamped up by the migration block below.
                 if let Some(saved) = services::window_state::load() {
                     if let (Some(x), Some(y)) = (saved.x, saved.y) {
-                        let _ = window.set_position(tauri::Position::Physical(
-                            tauri::PhysicalPosition { x, y },
-                        ));
+                        // Only restore the position if it lands on a currently
+                        // connected monitor. A minimized/hidden window reports
+                        // the Windows (-32000, -32000) sentinel, and a monitor
+                        // unplugged since last session leaves coordinates in
+                        // dead space — restoring either drops the window
+                        // off-screen (visible in the taskbar but unreachable).
+                        // When the saved spot isn't visible we skip it and let
+                        // Tauri's configured placement win.
+                        if position_visible(&window, x, y) {
+                            let _ = window.set_position(tauri::Position::Physical(
+                                tauri::PhysicalPosition { x, y },
+                            ));
+                        }
                     }
                     if saved.width > 0 && saved.height > 0 {
                         let _ = window.set_size(tauri::Size::Physical(
@@ -153,6 +188,18 @@ pub fn run() {
                             | WindowEvent::Resized(_)
                             | WindowEvent::CloseRequested { .. }
                     ) {
+                        return;
+                    }
+                    // Don't persist geometry while the window is minimized or
+                    // hidden. Minimized windows report the (-32000, -32000)
+                    // position sentinel on Windows and hidden windows can fire
+                    // zero-ish events — saving either would clobber the last
+                    // good geometry and relaunch the window off-screen. This is
+                    // the save-side guard that pairs with the on-screen check
+                    // done on restore.
+                    if win_for_events.is_minimized().unwrap_or(false)
+                        || !win_for_events.is_visible().unwrap_or(true)
+                    {
                         return;
                     }
                     let mut state = services::window_state::load().unwrap_or_default();

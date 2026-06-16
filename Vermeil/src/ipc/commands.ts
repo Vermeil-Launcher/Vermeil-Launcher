@@ -163,9 +163,6 @@ export interface LauncherSettings {
   adaptive_ram_min_mb: number;
   /** Upper bound for adaptive allocation in MB. `0` sentinel = derive at runtime. */
   adaptive_ram_max_mb: number;
-  /** Whether the user has seen the one-time intro toast that explains how
-   *  adaptive RAM works. The Settings UI flips this to `true` after firing. */
-  adaptive_ram_seen_intro: boolean;
 }
 
 // Instance commands

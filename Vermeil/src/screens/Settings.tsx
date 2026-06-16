@@ -266,23 +266,12 @@ const Settings: Component = () => {
     return `${gb.toFixed(gb < 10 ? 1 : 0).replace(/\.0$/, "")} GB`;
   };
 
-  /** Toggle the master adaptive switch. Fires the intro toast on first
-   *  enable so users understand what they just turned on. */
+  /** Toggle the master adaptive switch. The explanation now lives as
+   *  always-visible copy in the Memory section, so no intro toast fires. */
   const handleAdaptiveToggle = async () => {
     const s = settings();
     if (!s) return;
-    const next = !s.adaptive_ram;
-    await updateSetting("adaptive_ram", next);
-    if (next && !s.adaptive_ram_seen_intro) {
-      const max = adaptiveMax();
-      showToast({
-        title: "Adaptive RAM is on",
-        message: `Vermeil now picks an allocation per instance, capped at ${formatMemoryGb(max)} on this system. Heavy packs may show a "capped" warning — that's normal on systems with limited RAM.`,
-        type: "info",
-        autoCloseMs: 8000,
-      });
-      await updateSetting("adaptive_ram_seen_intro", true);
-    }
+    await updateSetting("adaptive_ram", !s.adaptive_ram);
   };
   const updateSetting = async <K extends keyof LauncherSettings>(key: K, value: LauncherSettings[K]) => {
     const current = settings();
@@ -881,6 +870,13 @@ const Settings: Component = () => {
               the switch (and so they understand the effect before opting in). */}
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Memory</div>
+            {/* Always-visible explanation of what adaptive RAM does. This
+                replaces the old one-time intro toast so the behaviour stays
+                discoverable every time the user visits Settings. References
+                the live cap so the copy reflects the current bounds. */}
+            <div class="settings-val" style="margin-bottom:10px;line-height:1.5">
+              Each instance gets <span style="color:var(--accent)">just the right amount of memory</span> on its own, up to <span style="color:var(--accent)">{formatMemoryGb(adaptiveMax())}</span>. Switch off to set it <span style="color:var(--accent)">manually</span>.
+            </div>
             <div class="vs-grid">
               {/* Adaptive toggle */}
               <div class="vs-cell">

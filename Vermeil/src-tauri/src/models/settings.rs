@@ -69,12 +69,6 @@ pub struct LauncherSettings {
     /// a sensible value scaled to total system RAM.
     #[serde(default)]
     pub adaptive_ram_max_mb: u32,
-    /// Whether the user has seen the one-time "how adaptive RAM works"
-    /// toast. Flipped to `true` the first time we surface it; never shown
-    /// again. Stored here rather than in localStorage so it persists across
-    /// reinstalls within the same data directory.
-    #[serde(default)]
-    pub adaptive_ram_seen_intro: bool,
 }
 
 /// Video settings that get written into each instance's options.txt before launch.
@@ -142,7 +136,6 @@ impl Default for LauncherSettings {
             adaptive_ram: false,
             adaptive_ram_min_mb: 0,
             adaptive_ram_max_mb: 0,
-            adaptive_ram_seen_intro: false,
         }
     }
 }

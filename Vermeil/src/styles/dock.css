@@ -305,7 +305,11 @@
 .dock-pin-carousel {
   display: flex;
   align-items: center;
-  width: min(480px, calc(100vw - 80px));
+  /* Hug the tiles. With the 6-pin cap (+ Manage = 7 tiles max) everything
+     fits without scrolling, so the pill sizes to content instead of a fixed
+     scroll viewport. */
+  width: auto;
+  max-width: calc(100vw - 80px);
   animation: pinCarouselIn 0.25s ease-out;
 }
 @keyframes pinCarouselIn {
@@ -313,28 +317,15 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Scrollable track containing the pin tiles. Uses gap padding around
-   the center to give the FAB visual breathing room. */
+/* Static, centered row of pin tiles. No horizontal scroll or edge-fade — the
+   pin count is capped low enough to always fit, and the FAB sits above the
+   pill (see .dock-wrap.pin-mode .dock-center) so the row needs no center gap. */
 .dock-pin-track {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  width: 100%;
-  padding: 0 calc(50% - var(--dock-pin-center-offset)) 0 0;
-  scroll-snap-type: x mandatory;
-  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
-.dock-pin-track::after {
-  content: "";
-  flex-shrink: 0;
-  width: calc(50% - 40px);
-}
-.dock-pin-track::-webkit-scrollbar { display: none; }
 
 /* Tiles in the carousel — compact with name visible. */
 .dock-pin-tile {
@@ -349,7 +340,6 @@
   border: 1px solid transparent;
   border-radius: var(--radius-lg);
   cursor: pointer;
-  scroll-snap-align: center;
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   animation: pinTileIn 0.3s ease-out both;
   font-family: var(--font);

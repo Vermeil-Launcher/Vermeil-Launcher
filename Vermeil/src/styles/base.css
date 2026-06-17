@@ -192,9 +192,6 @@
   --win-maximize: #61c554;
   --win-maximize-hover: #4aad3d;
 
-  /* --- Dock pin carousel centering offset (half the raised FAB footprint) --- */
-  --dock-pin-center-offset: 40px;
-
   /* =====================================================================
      Dungeons visual language — bevels, rarity palette, display font, vignette
      (clean CSS bevels; no pixel-art assets)

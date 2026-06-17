@@ -179,7 +179,6 @@ The standard heading patterns are defined in `layout.css`:
 | `--vignette` | `var(--surface-base)` | Page canvas (flat in the redesign) |
 | `--bevel-light` / `--bevel-dark` | `transparent` | Disabled |
 | `--panel-bevel` / `--well-bevel` | `none` | Disabled |
-| `--dock-pin-center-offset` | `40px` | Half the dock FAB footprint; centers the pin carousel track |
 
 ### Decorative gradient tokens
 

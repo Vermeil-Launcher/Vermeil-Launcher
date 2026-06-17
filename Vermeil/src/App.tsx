@@ -53,6 +53,11 @@ const [activeInstanceId, setActiveInstanceId] = createSignal<string | null>(null
 const [initialInstanceTab, setInitialInstanceTab] = createSignal<string>("content");
 const [gameLaunched, setGameLaunched] = createSignal(false);
 const [gameRunning, setGameRunning] = createSignal(false);
+// True while the game logs are detached into the separate popout window. The
+// Logs tab swaps its live viewer for a "bring back" placeholder while this is
+// set. Driven by the backend's logs-popped-out / logs-reattached events so it
+// stays correct whether the window is closed via the button or natively.
+const [logsPoppedOut, setLogsPoppedOut] = createSignal(false);
 const [showNoAccountModal, setShowNoAccountModal] = createSignal(false);
 
 // Live game log buffer, keyed by instance ID. Lives at module scope (not
@@ -321,7 +326,7 @@ createEffect(() => {
   refreshActiveSkin().catch(() => {});
 });
 
-export { activeScreen, setActiveScreen, activeInstanceId, setActiveInstanceId, initialInstanceTab, setInitialInstanceTab, gameLaunched, setGameLaunched, gameRunning, setGameRunning, downloads, activeDownloadCount, isBulkInstall, bulkDone, bulkProgress, instances, refetchInstances, account, refetchAccount, activeSkinUrl, offline, showToast };
+export { activeScreen, setActiveScreen, activeInstanceId, setActiveInstanceId, initialInstanceTab, setInitialInstanceTab, gameLaunched, setGameLaunched, gameRunning, setGameRunning, logsPoppedOut, setLogsPoppedOut, downloads, activeDownloadCount, isBulkInstall, bulkDone, bulkProgress, instances, refetchInstances, account, refetchAccount, activeSkinUrl, offline, showToast };
 
 const screenTitles: Record<Screen, string> = {
   home: "Home",
@@ -353,6 +358,17 @@ const App: Component = () => {
 
     listen("game-exited", () => {
       setGameRunning(false);
+    });
+
+    // Logs detach/reattach: the backend opens the popout window on launch
+    // (when enabled) and emits these so the Logs tab can swap between its
+    // live viewer and the "bring back" placeholder. logs-reattached fires
+    // when the popout closes — via the button or the native close.
+    listen("logs-popped-out", () => {
+      setLogsPoppedOut(true);
+    });
+    listen("logs-reattached", () => {
+      setLogsPoppedOut(false);
     });
 
     // Re-fetch instances when modpack metadata enrichment completes in the

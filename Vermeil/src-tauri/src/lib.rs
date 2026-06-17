@@ -304,6 +304,7 @@ pub fn run() {
             launch::minimize_to_tray,
             launch::current_log_target,
             launch::read_instance_log,
+            launch::close_logs_window,
             launch::get_resolved_jvm_args,
             launch::get_preset_jvm_args,
             launch::get_known_preset_args,

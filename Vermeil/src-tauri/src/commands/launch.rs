@@ -421,6 +421,18 @@ fn validate_instance_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Close the logs popout window. Backs the "Bring logs back" button in the
+/// Logs tab; the window's Destroyed handler then emits `logs-reattached`, so
+/// the button and the native close button converge on the same reattach path.
+#[tauri::command]
+pub async fn close_logs_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window("logs") {
+        win.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Open the standalone logs window for `target`, or refocus the existing one
 /// and point it at the new instance. Driven by the `popout_logs` setting so
 /// users who minimize the launcher to the tray on launch can still watch the
@@ -440,10 +452,12 @@ fn open_logs_popout(window: &tauri::WebviewWindow, target: &LogTarget) {
         let _ = existing.unminimize();
         let _ = existing.show();
         let _ = existing.set_focus();
+        // Already detached — make sure the main window reflects that.
+        let _ = app.emit("logs-popped-out", ());
         return;
     }
 
-    if let Err(e) = WebviewWindowBuilder::new(
+    match WebviewWindowBuilder::new(
         app,
         "logs",
         WebviewUrl::App("index.html".into()),
@@ -453,7 +467,23 @@ fn open_logs_popout(window: &tauri::WebviewWindow, target: &LogTarget) {
     .min_inner_size(480.0, 320.0)
     .build()
     {
-        tracing::error!("Failed to open logs popout window: {}", e);
+        Ok(logs_win) => {
+            // Reattach on close: when the user closes the logs window (native
+            // close button, or via the Logs-tab "Bring logs back" button which
+            // routes through close_logs_window), tell the main window so its
+            // Logs tab restores the live viewer. Both close paths funnel
+            // through Destroyed, so one handler covers both.
+            let app_handle = app.clone();
+            logs_win.on_window_event(move |event| {
+                if matches!(event, tauri::WindowEvent::Destroyed) {
+                    let _ = app_handle.emit("logs-reattached", ());
+                }
+            });
+            // Now that the window exists, tell the main window to show the
+            // detached placeholder in its Logs tab.
+            let _ = app.emit("logs-popped-out", ());
+        }
+        Err(e) => tracing::error!("Failed to open logs popout window: {}", e),
     }
 }
 

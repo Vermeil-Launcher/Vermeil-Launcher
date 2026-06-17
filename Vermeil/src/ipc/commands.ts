@@ -279,6 +279,9 @@ export const currentLogTarget = () => invoke<LogTarget | null>("current_log_targ
  *  the file doesn't exist yet. Used to seed the logs popout on open. */
 export const readInstanceLog = (instanceId: string) =>
   invoke<string>("read_instance_log", { instanceId });
+/** Close the logs popout window (the "Bring logs back" action). The backend's
+ *  window-close handler then fires `logs-reattached`. */
+export const closeLogsWindow = () => invoke<void>("close_logs_window");
 export const getResolvedJvmArgs = (instanceId: string) => invoke<string>("get_resolved_jvm_args", { instanceId });
 export const getPresetJvmArgs = (instanceId: string) => invoke<string[]>("get_preset_jvm_args", { instanceId });
 /**

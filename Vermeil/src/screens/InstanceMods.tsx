@@ -1,8 +1,8 @@
 import { Component, createSignal, createEffect, createResource, For, Show, onMount, onCleanup } from "solid-js";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination } from "../App";
+import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -1895,6 +1895,17 @@ const InstanceMods: Component = () => {
             setAutoScrollLogs(true);
             if (viewerEl) viewerEl.scrollTo({ top: viewerEl.scrollHeight, behavior: "smooth" });
           };
+          // While the logs are detached into the popout window, the tab shows
+          // a placeholder instead of a duplicate viewer. Closing that window
+          // (button or native close) reattaches and restores the viewer.
+          if (logsPoppedOut()) {
+            return (
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;height:calc(100vh - 140px);color:var(--muted);text-align:center">
+                <div style="font-size:13px">Logs are open in a separate window.</div>
+                <button class="btn" onClick={() => closeLogsWindow()}>Bring logs back here</button>
+              </div>
+            );
+          }
           return (
             <div style="display:flex;flex-direction:column;height:calc(100vh - 140px)">
               <div class="log-toolbar">

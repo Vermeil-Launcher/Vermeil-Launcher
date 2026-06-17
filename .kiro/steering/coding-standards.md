@@ -158,6 +158,23 @@ Recognize these parallel groups before making changes:
 
 If a parallel surface genuinely can't support the feature (e.g. CurseForge has no follower count, so a "follows" sort has no direct equivalent), document the gap with a code comment naming the missing capability — and pick a sensible nearest-equivalent rather than letting the feature silently fail on that surface.
 
+## Security & Performance
+
+These apply to the whole app — backend and frontend, every feature and code path — not just new windows or one screen. Weigh them against the work at hand; don't gold-plate, but don't skip them either. The examples are illustrative, not the limit of where the rule applies.
+
+### Security
+- **Treat everything from outside the app as untrusted** — network responses (Modrinth/CurseForge/Mojang/Adoptium), files on disk, game and mod output, and user-entered values. Validate type and range, escape, and bound it before it flows into logic, the UI, or storage.
+- **Render untrusted content as escaped text, never `innerHTML`.** Solid's `{value}` interpolation escapes — rely on that for anything originating outside the app.
+- **Validate at the boundary before building a path, command, or URL.** Anything that becomes a filesystem path, process argument, or request URL must be sanitized first — reject traversal (`..`), separators, and malformed input rather than trusting the caller.
+- **Least privilege, everywhere.** Tauri window capabilities, asset-protocol scope, and permission grants expose only what's actually used. Default to the narrowest scope and widen only when a real need appears.
+- **Guard secrets.** Tokens and credentials stay encrypted at rest and never get logged, serialized to plaintext, or sent to the frontend. On auth/permission/validation failure, deny rather than proceed.
+
+### Performance
+- **Bound anything that grows with use or time.** Buffers, caches, lists, histories (logs, event streams, in-memory metadata) get a cap or eviction policy so a long session can't balloon memory or the DOM. Apply the same bound across parallel surfaces.
+- **Keep the UI and the IPC path responsive.** Heavy work runs async/in the background, never blocking the webview; avoid redundant IPC round-trips and re-fetches; memoize derived state instead of recomputing it each render.
+- **Do work proportional to need.** Batch rate-limited API calls (see the API-vs-CDN model above), lazy-load heavy resources, and don't parallelize what the rate-limit budget — not wall-clock — actually constrains.
+- **Scale across devices.** Layouts and windows stay usable on small laptops and high-DPI panels, following the app's existing fixed-px + webview-scale convention; set sane minimum sizes.
+
 ## Things That Are Never Acceptable
 
 - Creating a new `reqwest::Client` instead of using the shared one
@@ -169,6 +186,9 @@ If a parallel surface genuinely can't support the feature (e.g. CurseForge has n
 - Adding dependencies without checking if an existing one already covers the need
 - Using emoji or unicode glyphs as button or other UI icons (use SVGs from `Icons.tsx` instead)
 - Returning a Windows `\\?\`-prefixed path to the frontend on Windows builds (strip it before serializing)
+- Rendering untrusted content (logs, mod data, network responses) via `innerHTML` instead of escaped text
+- Joining a frontend-supplied ID into a filesystem path without validating it first
+- Adding a new window to the `default` capability instead of giving it a scoped, least-privilege one
 - **Suppressing compiler warnings instead of fixing them.** Never use `#[allow(dead_code)]`, `#[allow(unused_imports)]`, or `#[allow(unused_variables)]` to silence warnings. If a field, function, or import triggers a warning, the correct response is to either use it or remove it — not hide it. The build must be zero-warning at all times. If a struct field exists only for future use, don't add it until the code that reads it is written in the same commit.
 
 ## Releases

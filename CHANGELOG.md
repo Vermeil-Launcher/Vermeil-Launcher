@@ -1,11 +1,9 @@
-## 0.5.5
+## 0.5.6
+
+### Added
+
+- Game logs can now pop out into their own window on launch, via the new "Pop out logs on launch" setting. While the logs are popped out, the Logs tab shows a button to bring them back, and closing the window does the same — handy when the launcher minimizes to the tray while you play.
 
 ### Changed
 
-- Adaptive RAM's minimum and maximum bounds are now greyed out while it's switched off, since they only apply to the automatic allocator, and the explanation text was reworded for clarity.
-
-### Fixed
-
-- The launcher no longer relaunches off-screen. Window position is now checked against your connected monitors and ignored if it would land out of view, and a minimized or hidden window no longer overwrites the saved position.
-- "Minimize to tray on launch" now actually hides the launcher when a game starts, and the setting is off by default on new installs.
-- A maximized game window now comes to the front on launch instead of opening behind the launcher window.
+- Game logs are now capped to the most recent lines, keeping memory use and the log view responsive during long sessions.

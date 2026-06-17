@@ -68,10 +68,20 @@ const [showNoAccountModal, setShowNoAccountModal] = createSignal(false);
 // The whole map lives until the launcher itself restarts.
 const [gameLogs, setGameLogs] = createSignal<Record<string, string[]>>({});
 
+/** Per-instance log buffer cap. A chatty modpack can emit tens of thousands
+ *  of lines per session; keeping them all would grow memory and the Logs-tab
+ *  DOM unbounded. We retain the most recent lines (tail), matching the logs
+ *  popout window's identical cap. */
+const MAX_LOG_LINES = 5000;
+
 export function appendGameLog(instanceId: string, line: string) {
   setGameLogs(prev => {
     const existing = prev[instanceId] ?? [];
-    return { ...prev, [instanceId]: [...existing, line] };
+    const next = [...existing, line];
+    return {
+      ...prev,
+      [instanceId]: next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next,
+    };
   });
 }
 

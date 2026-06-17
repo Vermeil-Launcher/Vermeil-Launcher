@@ -390,6 +390,10 @@ pub async fn current_log_target() -> Option<LogTarget> {
 /// it just means there's nothing to show yet.
 #[tauri::command]
 pub async fn read_instance_log(instance_id: String) -> Result<String, String> {
+    // Validate the id before letting it into a path join. Instance IDs are
+    // simple slugs; rejecting separators and parent refs stops a crafted id
+    // (e.g. "../../something") from reading files outside the instances dir.
+    validate_instance_id(&instance_id)?;
     let log_path = paths::instances_dir()
         .join(&instance_id)
         .join(".minecraft")
@@ -400,6 +404,21 @@ pub async fn read_instance_log(instance_id: String) -> Result<String, String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
         Err(e) => Err(format!("Failed to read log for {}: {}", instance_id, e)),
     }
+}
+
+/// Reject instance IDs that aren't a single safe path component. Guards every
+/// command that turns a frontend-supplied id into a filesystem path against
+/// traversal (`..`), absolute paths, and drive/separator tricks.
+fn validate_instance_id(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.contains('/')
+        || id.contains('\\')
+        || id.contains("..")
+        || id.contains(':')
+    {
+        return Err(format!("Invalid instance id: {}", id));
+    }
+    Ok(())
 }
 
 /// Open the standalone logs window for `target`, or refocus the existing one

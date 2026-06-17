@@ -1,7 +1,7 @@
 {
   "identifier": "default",
-  "description": "Capability for the main window and the logs popout window",
-  "windows": ["main", "logs"],
+  "description": "Capability for the main window",
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

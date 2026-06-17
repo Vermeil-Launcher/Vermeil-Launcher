@@ -17,6 +17,10 @@ import { IconSearch, IconArrowUp, IconArrowDown, IconX } from "../components/Ico
  * while the window is already open.
  */
 const LogsPopout: Component = () => {
+  // Cap the buffer so a chatty modpack logging tens of thousands of lines
+  // can't grow the array and DOM unbounded. We keep the most recent lines,
+  // which is what a tail-style viewer wants anyway.
+  const MAX_LINES = 5000;
   const [instanceId, setInstanceId] = createSignal<string | null>(null);
   const [instanceName, setInstanceName] = createSignal("");
   const [lines, setLines] = createSignal<string[]>([]);
@@ -37,7 +41,7 @@ const LogsPopout: Component = () => {
       // file's final newline so we don't render a phantom blank row.
       const split = content.length ? content.split(/\r?\n/) : [];
       if (split.length && split[split.length - 1] === "") split.pop();
-      setLines(split);
+      setLines(split.length > MAX_LINES ? split.slice(split.length - MAX_LINES) : split);
     } catch {
       setLines([]);
     }
@@ -53,7 +57,10 @@ const LogsPopout: Component = () => {
     // windows, so we filter by the instance this popout is showing.
     const unlistenLog = await listen<{ instanceId: string; line: string }>("game-log", (e) => {
       if (e.payload.instanceId && e.payload.instanceId === instanceId()) {
-        setLines((prev) => [...prev, e.payload.line]);
+        setLines((prev) => {
+          const next = [...prev, e.payload.line];
+          return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+        });
       }
     });
 

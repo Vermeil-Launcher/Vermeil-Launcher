@@ -1,0 +1,8 @@
+{
+  "identifier": "logs",
+  "description": "Minimal capability for the standalone logs popout window. It only needs to listen for game-log / logs-load-instance events. The current_log_target and read_instance_log commands are app commands (registered via generate_handler) and are not gated by the ACL, so no permission is granted for them here. Deliberately excludes opener/updater/dialog/process/window/tray — a log viewer has no business with any of those.",
+  "windows": ["logs"],
+  "permissions": [
+    "core:event:default"
+  ]
+}

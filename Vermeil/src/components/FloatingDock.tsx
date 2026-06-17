@@ -29,7 +29,7 @@ import {
   IconDownload,
 } from "./Icons";
 import { launchInstance, stopInstance } from "../ipc/commands";
-import { openPinInstancesModal } from "../modals/PinInstancesModal";
+import { openPinInstancesModal, MAX_PINS } from "../modals/PinInstancesModal";
 
 /**
  * Bottom-centered floating dock — single unified pill with a FAB-style
@@ -289,54 +289,72 @@ const FloatingDock: Component = () => {
         {/* PIN SELECTOR MODE */}
         <Show when={pinSelectorOpen()}>
           <div class="dock-pin-carousel">
-            {/* Always render the track. With no pins it's just the Manage
-                tile, so the empty state keeps the exact same layout and tile
-                size as the populated one instead of a differently-sized panel. */}
+            {/* Manage is anchored on the left; the remaining space holds the
+                pinned tiles, or — when nothing is pinned yet — a centered hint
+                explaining the feature and the pin cap. A right-side spacer
+                mirrors the Manage tile so the middle stays truly centered.
+                The carousel keeps a fixed width, so the pill never changes
+                size between the empty and populated states. */}
             <div class="dock-pin-track">
-                <For each={pinnedInstances()}>
-                  {(inst, i) => {
-                    const iconSrc = () =>
-                      inst.icon && inst.icon !== "cube" ? inst.icon : undefined;
-                    return (
-                      <button
-                        type="button"
-                        class={`dock-pin-tile loader-${inst.loader.type === "neoforge" ? "neoforge" : inst.loader.type}`}
-                        style={`animation-delay:${i() * 35}ms`}
-                        onClick={() => openPinned(inst.id)}
-                        title={inst.name}
-                      >
-                        <div class="dock-pin-tile-img">
-                          <Show
-                            when={iconSrc()}
-                            fallback={
-                              <span class="dock-pin-tile-letter">
-                                {inst.name.trim().charAt(0).toUpperCase() || "?"}
-                              </span>
-                            }
-                          >
-                            <img src={iconSrc()!} alt="" draggable={false} />
-                          </Show>
-                        </div>
-                        <span class="dock-pin-tile-name">{inst.name}</span>
-                      </button>
-                    );
-                  }}
-                </For>
-                <button
-                  type="button"
-                  class="dock-pin-tile dock-pin-tile-manage"
-                  onClick={() => {
-                    setPinSelectorOpen(false);
-                    openPinInstancesModal();
-                  }}
-                  title="Manage pinned instances"
+              <button
+                type="button"
+                class="dock-pin-tile dock-pin-tile-manage"
+                onClick={() => {
+                  setPinSelectorOpen(false);
+                  openPinInstancesModal();
+                }}
+                title="Manage pinned instances"
+              >
+                <div class="dock-pin-tile-img">
+                  <IconPlus />
+                </div>
+                <span class="dock-pin-tile-name">Manage</span>
+              </button>
+
+              <div class="dock-pin-items">
+                <Show
+                  when={pinnedInstances().length > 0}
+                  fallback={
+                    <div class="dock-pin-hint">
+                      <span class="dock-pin-hint-title">Pin up to {MAX_PINS} instances</span>
+                      <span class="dock-pin-hint-sub">Quick-launch your favourites straight from the dock</span>
+                    </div>
+                  }
                 >
-                  <div class="dock-pin-tile-img">
-                    <IconPlus />
-                  </div>
-                  <span class="dock-pin-tile-name">Manage</span>
-                </button>
+                  <For each={pinnedInstances()}>
+                    {(inst, i) => {
+                      const iconSrc = () =>
+                        inst.icon && inst.icon !== "cube" ? inst.icon : undefined;
+                      return (
+                        <button
+                          type="button"
+                          class={`dock-pin-tile loader-${inst.loader.type === "neoforge" ? "neoforge" : inst.loader.type}`}
+                          style={`animation-delay:${i() * 35}ms`}
+                          onClick={() => openPinned(inst.id)}
+                          title={inst.name}
+                        >
+                          <div class="dock-pin-tile-img">
+                            <Show
+                              when={iconSrc()}
+                              fallback={
+                                <span class="dock-pin-tile-letter">
+                                  {inst.name.trim().charAt(0).toUpperCase() || "?"}
+                                </span>
+                              }
+                            >
+                              <img src={iconSrc()!} alt="" draggable={false} />
+                            </Show>
+                          </div>
+                          <span class="dock-pin-tile-name">{inst.name}</span>
+                        </button>
+                      );
+                    }}
+                  </For>
+                </Show>
               </div>
+
+              <div class="dock-pin-spacer" aria-hidden="true" />
+            </div>
           </div>
         </Show>
 

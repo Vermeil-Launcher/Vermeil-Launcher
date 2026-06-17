@@ -316,15 +316,57 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Static, centered row of pin tiles. No horizontal scroll or edge-fade — the
-   pin count is capped low enough to always fit, and the FAB sits above the
-   pill (see .dock-wrap.pin-mode .dock-center) so the row needs no center gap. */
+/* Pin selector row: the Manage tile is anchored on the left, the pin tiles
+   (or the empty-state hint) fill the centre, and a right-side spacer mirrors
+   the Manage tile so that centre stays truly centred. No horizontal scroll or
+   edge-fade — the pin count is capped low enough to always fit, and the FAB
+   sits above the pill (see .dock-wrap.pin-mode .dock-center) so the row needs
+   no center gap. */
 .dock-pin-track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+/* Centre region: holds the pinned tiles or, when empty, the guidance hint.
+   flex:1 so it expands between the Manage tile and the mirroring spacer. */
+.dock-pin-items {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  width: 100%;
+  min-width: 0;
+}
+
+/* Invisible right-side counterweight equal to the Manage tile's width so the
+   centre region is balanced around the pill's true centre. */
+.dock-pin-spacer {
+  width: 64px;
+  flex-shrink: 0;
+}
+
+/* Empty-state guidance shown when nothing is pinned yet — states what pinning
+   does and the maximum number of pins. */
+.dock-pin-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+  padding: 0 var(--space-2);
+  user-select: none;
+}
+.dock-pin-hint-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.dock-pin-hint-sub {
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* Tiles in the carousel — compact with name visible. */

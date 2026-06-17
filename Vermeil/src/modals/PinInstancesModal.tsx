@@ -12,7 +12,7 @@ import { getSettings, saveSettings } from "../ipc/commands";
  * The picker shows every existing instance. Selected rows are highlighted
  * with the accent tint; clicking past the limit is rejected with a toast.
  */
-const MAX_PINS = 6;
+export const MAX_PINS = 6;
 
 const [open, setOpen] = createSignal(false);
 const [pinned, setPinned] = createSignal<string[]>([]);

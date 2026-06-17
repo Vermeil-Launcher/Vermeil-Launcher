@@ -20,6 +20,101 @@ ICONS_DIR="$HOME/.local/share/icons/hicolor/128x128/apps"
 DATA_DIR="$HOME/.local/share/Vermeil"
 DESKTOP_DIR="$HOME/Desktop"
 
+# ── Helpers ─────────────────────────────────────────────────────────
+
+# Brief 1-second spinner. The work it overlays (env-var reads) is instant;
+# the animation exists so the "Detecting..." step is actually visible
+# instead of flashing past in a single render.
+spin_briefly() {
+  local label="$1"
+  local frames='|/-\'
+  local i=0
+  while [ "$i" -lt 12 ]; do
+    printf '\r  %s %s' "${frames:$((i % 4)):1}" "$label"
+    sleep 0.08
+    i=$((i + 1))
+  done
+  printf '\r\033[K'
+}
+
+# Detect the user's desktop environment from environment variables. Returns
+# a normalized lowercase identifier; "unknown" for anything we don't model.
+#
+# Tiling compositors are checked first because some distros leave
+# XDG_CURRENT_DESKTOP unset under them, but every major one exports its own
+# socket/signature variable (HYPRLAND_INSTANCE_SIGNATURE, SWAYSOCK,
+# NIRI_SOCKET).
+detect_desktop() {
+  if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then echo "hyprland"; return; fi
+  if [ -n "${SWAYSOCK:-}" ]; then echo "sway"; return; fi
+  if [ -n "${NIRI_SOCKET:-}" ]; then echo "niri"; return; fi
+
+  local raw="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-}}"
+  case "${raw,,}" in
+    *gnome*|*unity*) echo "gnome" ;;
+    *kde*|*plasma*) echo "kde" ;;
+    *xfce*) echo "xfce" ;;
+    *cinnamon*) echo "cinnamon" ;;
+    *mate*) echo "mate" ;;
+    *lxqt*) echo "lxqt" ;;
+    *lxde*) echo "lxde" ;;
+    *budgie*) echo "budgie" ;;
+    *pantheon*) echo "pantheon" ;;
+    *deepin*) echo "deepin" ;;
+    *enlightenment*) echo "enlightenment" ;;
+    *i3*) echo "i3" ;;
+    *dwm*) echo "dwm" ;;
+    *bspwm*) echo "bspwm" ;;
+    *awesome*) echo "awesome" ;;
+    *river*) echo "river" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+# Pretty display name for the detected DE.
+desktop_label() {
+  case "$1" in
+    kde) echo "KDE Plasma" ;;
+    xfce) echo "Xfce" ;;
+    cinnamon) echo "Cinnamon" ;;
+    mate) echo "MATE" ;;
+    lxqt) echo "LXQt" ;;
+    lxde) echo "LXDE" ;;
+    pantheon) echo "Pantheon" ;;
+    deepin) echo "Deepin" ;;
+    gnome) echo "GNOME" ;;
+    budgie) echo "Budgie" ;;
+    unity) echo "Unity" ;;
+    hyprland) echo "Hyprland" ;;
+    sway) echo "sway" ;;
+    i3) echo "i3" ;;
+    dwm) echo "dwm" ;;
+    bspwm) echo "bspwm" ;;
+    awesome) echo "awesome" ;;
+    river) echo "river" ;;
+    niri) echo "Niri" ;;
+    enlightenment) echo "Enlightenment" ;;
+    *) echo "an unrecognized desktop" ;;
+  esac
+}
+
+# Classify how well the DE handles a `.desktop` file dropped on ~/Desktop.
+#
+#   native    — paints it as an icon out of the box. KDE, Xfce, Cinnamon, MATE.
+#   extension — has a desktop surface but needs an opt-in addon to draw icons
+#               on it. GNOME (Desktop Icons NG / DING), Budgie, Unity.
+#   none      — no desktop surface at all; tiling/dynamic compositors that
+#               cover the screen with windows. Hyprland, sway, i3, niri, etc.
+#   unknown   — couldn't identify; fall back to a conservative "ask anyway".
+desktop_icon_tier() {
+  case "$1" in
+    kde|xfce|cinnamon|mate|lxqt|lxde|pantheon|deepin|enlightenment) echo "native" ;;
+    gnome|budgie|unity) echo "extension" ;;
+    hyprland|sway|i3|dwm|bspwm|awesome|river|niri) echo "none" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
 # ── Banner ──────────────────────────────────────────────────────────
 
 echo ""
@@ -121,18 +216,73 @@ if command -v gtk-update-icon-cache &>/dev/null; then
   gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 fi
 
-# ── Desktop shortcut (optional) ─────────────────────────────────────
+# ── Desktop shortcut (DE-aware) ─────────────────────────────────────
+#
+# A `.desktop` file dropped on ~/Desktop only renders as an icon if the
+# user's environment actually paints a desktop surface. KDE, Xfce, Cinnamon,
+# MATE and friends do that out of the box; GNOME needs the DING extension;
+# tiling compositors (Hyprland, sway, i3, niri...) have no desktop concept
+# at all. Detect first, adapt the prompt second.
 
 echo ""
-if [ -d "$DESKTOP_DIR" ]; then
-  printf "  Create a desktop shortcut? [Y/n] "
-  read -r SHORTCUT < /dev/tty
-  if [[ "${SHORTCUT,,}" != "n" ]]; then
-    cp "$APPS_DIR/$APP_ID.desktop" "$DESKTOP_DIR/$APP_ID.desktop"
-    chmod +x "$DESKTOP_DIR/$APP_ID.desktop"
-    echo "  Desktop shortcut created."
-  fi
-fi
+spin_briefly "Detecting desktop environment..."
+DE=$(detect_desktop)
+DE_LABEL=$(desktop_label "$DE")
+TIER=$(desktop_icon_tier "$DE")
+echo "  Detected: $DE_LABEL"
+echo ""
+
+case "$TIER" in
+  native)
+    if [ -d "$DESKTOP_DIR" ]; then
+      printf "  Create a desktop shortcut? [Y/n] "
+      read -r SHORTCUT < /dev/tty
+      if [[ "${SHORTCUT,,}" != "n" ]]; then
+        cp "$APPS_DIR/$APP_ID.desktop" "$DESKTOP_DIR/$APP_ID.desktop"
+        chmod +x "$DESKTOP_DIR/$APP_ID.desktop"
+        echo "  Desktop shortcut created."
+      fi
+    fi
+    ;;
+  extension)
+    if [ "$DE" = "gnome" ]; then
+      echo "  GNOME doesn't show desktop icons out of the box. To enable them,"
+      echo "  install the Desktop Icons NG (DING) extension once, then any"
+      echo "  shortcut on ~/Desktop will start showing up:"
+      echo "    https://extensions.gnome.org/extension/5263/desktop-icons-ng/"
+    else
+      echo "  $DE_LABEL needs a desktop-icons component enabled before"
+      echo "  shortcuts on the desktop will appear."
+    fi
+    if [ -d "$DESKTOP_DIR" ]; then
+      echo ""
+      printf "  Place the shortcut on your Desktop anyway (it shows up once enabled)? [y/N] "
+      read -r SHORTCUT < /dev/tty
+      if [[ "${SHORTCUT,,}" == "y" ]]; then
+        cp "$APPS_DIR/$APP_ID.desktop" "$DESKTOP_DIR/$APP_ID.desktop"
+        chmod +x "$DESKTOP_DIR/$APP_ID.desktop"
+        echo "  Desktop file written."
+      fi
+    fi
+    ;;
+  none)
+    echo "  $DE_LABEL doesn't have a desktop surface, so a desktop icon"
+    echo "  doesn't apply here. Vermeil is in your application launcher"
+    echo "  (rofi, wofi, fuzzel, anyrun, dmenu, etc.)."
+    ;;
+  unknown)
+    echo "  Couldn't recognise this desktop (XDG_CURRENT_DESKTOP='${XDG_CURRENT_DESKTOP:-unset}')."
+    if [ -d "$DESKTOP_DIR" ]; then
+      printf "  Create a desktop shortcut anyway? [y/N] "
+      read -r SHORTCUT < /dev/tty
+      if [[ "${SHORTCUT,,}" == "y" ]]; then
+        cp "$APPS_DIR/$APP_ID.desktop" "$DESKTOP_DIR/$APP_ID.desktop"
+        chmod +x "$DESKTOP_DIR/$APP_ID.desktop"
+        echo "  Desktop shortcut created."
+      fi
+    fi
+    ;;
+esac
 
 # ── Create uninstall script ─────────────────────────────────────────
 

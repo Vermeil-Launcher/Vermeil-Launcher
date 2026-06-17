@@ -1,5 +1,5 @@
 import { Component, createSignal, For, Show } from "solid-js";
-import { setActiveScreen, refetchInstances, instances, trackDownload, completeDownload, failDownload } from "../App";
+import { setActiveScreen, refetchInstances, refreshPinnedInstanceIds, instances, trackDownload, completeDownload, failDownload } from "../App";
 import { searchModpacks, searchCurseforge, installModpack, installCfModpack, ModHit } from "../ipc/commands";
 import Dropdown from "../components/Dropdown";
 import { IconModrinth, IconCurseForge, IconLayers } from "../components/Icons";
@@ -125,6 +125,7 @@ const BrowseModpacks: Component = () => {
     installPromise
       .then(() => {
         refetchInstances();
+        refreshPinnedInstanceIds().catch(() => {});
         completeDownload(dlId);
       })
       .catch((e) => {

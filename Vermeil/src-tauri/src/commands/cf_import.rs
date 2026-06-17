@@ -9,7 +9,9 @@ pub async fn import_cf_zip(
     window: tauri::WebviewWindow,
 ) -> Result<Instance, String> {
     let settings = settings_service::load().await.map_err(|e| e.to_string())?;
-    cf_import::import_zip(&zip_path, &settings.curseforge_api_key, None, Some(window)).await
+    let instance = cf_import::import_zip(&zip_path, &settings.curseforge_api_key, None, Some(window)).await?;
+    settings_service::auto_pin_instance(&instance.id).await;
+    Ok(instance)
 }
 
 /// Import a CurseForge profile using a share code.
@@ -24,5 +26,7 @@ pub async fn import_cf_code(
             "CurseForge API key is required for profile codes. Set it in Settings.".to_string(),
         );
     }
-    cf_import::import_profile_code(&code, &settings.curseforge_api_key, Some(window)).await
+    let instance = cf_import::import_profile_code(&code, &settings.curseforge_api_key, Some(window)).await?;
+    settings_service::auto_pin_instance(&instance.id).await;
+    Ok(instance)
 }

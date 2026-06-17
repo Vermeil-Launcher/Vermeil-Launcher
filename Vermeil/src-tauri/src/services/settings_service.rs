@@ -44,3 +44,25 @@ pub async fn save(settings: &LauncherSettings) -> Result<(), Box<dyn std::error:
     fs::write(config_path, json)?;
     Ok(())
 }
+
+/// Maximum instances auto-pinned to the sidebar. Mirrors `MAX_PINS` in
+/// `src/modals/PinInstancesModal.tsx` — keep the two in sync.
+const MAX_SIDEBAR_PINS: usize = 6;
+
+/// Auto-pin a freshly-created instance to the sidebar if there's still room
+/// under the cap and it isn't already pinned. This is what makes the first
+/// few instances a user creates show up in the dock without them having to
+/// open the pin manager. Best-effort: a failure here must never block
+/// instance creation, so callers ignore the result.
+pub async fn auto_pin_instance(instance_id: &str) {
+    if let Ok(mut settings) = load().await {
+        let already = settings
+            .sidebar_pinned_instances
+            .iter()
+            .any(|id| id == instance_id);
+        if !already && settings.sidebar_pinned_instances.len() < MAX_SIDEBAR_PINS {
+            settings.sidebar_pinned_instances.push(instance_id.to_string());
+            let _ = save(&settings).await;
+        }
+    }
+}

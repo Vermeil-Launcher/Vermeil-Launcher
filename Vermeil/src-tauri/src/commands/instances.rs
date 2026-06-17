@@ -10,9 +10,13 @@ pub async fn list_instances() -> Result<Vec<Instance>, String> {
 
 #[tauri::command]
 pub async fn create_instance(config: CreateInstanceConfig) -> Result<Instance, String> {
-    instance_service::create(config)
+    let instance = instance_service::create(config)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // Auto-pin the first few instances a user creates so the dock is useful
+    // out of the box (no-op once the pin cap is reached).
+    crate::services::settings_service::auto_pin_instance(&instance.id).await;
+    Ok(instance)
 }
 
 #[tauri::command]
@@ -61,12 +65,14 @@ pub async fn install_modpack(
     version_id: Option<String>,
     window: tauri::WebviewWindow,
 ) -> Result<crate::models::instance::Instance, String> {
-    crate::services::modpack::install_from_modrinth(
+    let instance = crate::services::modpack::install_from_modrinth(
         &project_id,
         version_id.as_deref(),
         Some(window),
     )
-    .await
+    .await?;
+    crate::services::settings_service::auto_pin_instance(&instance.id).await;
+    Ok(instance)
 }
 
 #[tauri::command]
@@ -75,12 +81,14 @@ pub async fn install_cf_modpack(
     file_id: Option<String>,
     window: tauri::WebviewWindow,
 ) -> Result<crate::models::instance::Instance, String> {
-    crate::services::modpack::install_from_curseforge(
+    let instance = crate::services::modpack::install_from_curseforge(
         &project_id,
         file_id.as_deref(),
         Some(window),
     )
-    .await
+    .await?;
+    crate::services::settings_service::auto_pin_instance(&instance.id).await;
+    Ok(instance)
 }
 
 #[tauri::command]

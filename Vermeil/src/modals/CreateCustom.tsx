@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, For, Show } from "solid-js";
-import { setActiveScreen, refetchInstances, showToast } from "../App";
+import { setActiveScreen, refetchInstances, refreshPinnedInstanceIds, showToast } from "../App";
 import { getGameVersions, getFabricLoaderVersions, getFabricGameVersions, getQuiltLoaderVersions, getQuiltGameVersions, getNeoforgeVersions, getNeoforgeGameVersions, getForgeVersions, getForgeGameVersions, createInstance, prepareInstance, getSettings } from "../ipc/commands";
 
 const LOADERS = ["vanilla", "fabric", "neoforge", "forge", "quilt"] as const;
@@ -117,6 +117,7 @@ const CreateCustom: Component = () => {
         memory_max_mb: 4096,
       });
       await refetchInstances();
+      refreshPinnedInstanceIds().catch(() => {});
       setActiveScreen("library");
 
       // Start downloading instance files in the background (progress shown in InstallProgress popup)

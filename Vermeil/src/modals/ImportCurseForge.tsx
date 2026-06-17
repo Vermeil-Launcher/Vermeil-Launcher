@@ -1,5 +1,5 @@
 import { Component, createSignal, Show } from "solid-js";
-import { setActiveScreen, refetchInstances, showToast, trackDownload, completeDownload, failDownload } from "../App";
+import { setActiveScreen, refetchInstances, refreshPinnedInstanceIds, showToast, trackDownload, completeDownload, failDownload } from "../App";
 import { importCfZip } from "../ipc/commands";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -27,6 +27,7 @@ const ImportCurseForge: Component = () => {
       importCfZip(selected as string)
         .then((instance) => {
           refetchInstances();
+          refreshPinnedInstanceIds().catch(() => {});
           completeDownload(dlId, instance.name);
           showToast({ title: "Import complete", message: `${instance.name} imported successfully`, type: "success" });
         })

@@ -121,11 +121,12 @@ fn maximize_minecraft_window_async(pid: u32) {
                 GetWindowThreadProcessId(fg_window, std::ptr::null_mut())
             };
 
-            // Only attach when the foreground belongs to a different thread —
-            // attaching a thread to itself is invalid and returns an error.
+            // Attach the *foreground* thread to ours (idAttach=fg, idAttachTo=our)
+            // — the direction every authoritative example uses. While joined
+            // they share an input queue, so the system honors our focus request.
             let attached = fg_thread != 0
                 && fg_thread != our_thread
-                && AttachThreadInput(our_thread, fg_thread, 1) != 0;
+                && AttachThreadInput(fg_thread, our_thread, 1) != 0;
 
             // Kick the window to the top of the z-order. Toggling the topmost
             // flag forces it above an already-maximized sibling — e.g. the
@@ -141,7 +142,7 @@ fn maximize_minecraft_window_async(pid: u32) {
             SetForegroundWindow(hwnd);
 
             if attached {
-                AttachThreadInput(our_thread, fg_thread, 0);
+                AttachThreadInput(fg_thread, our_thread, 0);
             }
         }
     }

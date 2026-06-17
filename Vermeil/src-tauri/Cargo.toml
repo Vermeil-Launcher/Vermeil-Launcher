@@ -1,6 +1,6 @@
 [package]
 name = "vermeil"
-version = "0.5.6"
+version = "0.5.7"
 description = "A lightweight Minecraft launcher"
 authors = ["davekb1976-beep"]
 edition = "2021"

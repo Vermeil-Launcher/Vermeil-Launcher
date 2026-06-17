@@ -883,7 +883,7 @@ const Settings: Component = () => {
                 discoverable every time the user visits Settings. References
                 the live cap so the copy reflects the current bounds. */}
             <div class="settings-val" style="margin-bottom:10px;line-height:1.5">
-              Each instance gets <span style="color:var(--accent)">just the right amount of memory</span> on its own, up to <span style="color:var(--accent)">{formatMemoryGb(adaptiveMax())}</span>. Switch off to set it <span style="color:var(--accent)">manually</span>.
+              Memory is allocated <span style="color:var(--accent)">automatically</span> as each instance needs it, up to <span style="color:var(--accent)">{formatMemoryGb(adaptiveMax())}</span>. Disable to set it <span style="color:var(--accent)">manually per instance</span>.
             </div>
             <div class="vs-grid">
               {/* Adaptive toggle */}
@@ -896,14 +896,15 @@ const Settings: Component = () => {
                 />
               </div>
 
-              {/* Minimum RAM dropdown. Always visible so users can configure
-                  their preferred floor regardless of toggle state. The Auto
-                  label shows the system-derived default so users know what
-                  the sentinel value resolves to. */}
+              {/* Minimum RAM dropdown. Greyed out when adaptive RAM is off,
+                  since the bounds only apply to the automatic allocator. The
+                  Auto label shows the system-derived default so users know
+                  what the sentinel value resolves to. */}
               <div class="vs-cell">
                 <div class="vs-key">Minimum RAM</div>
                 <div style="flex:1" />
                 <Dropdown
+                  disabled={!settings()!.adaptive_ram}
                   value={String(settings()!.adaptive_ram_min_mb || 0)}
                   options={(() => {
                     const sysMb = systemMemoryMb() || 0;
@@ -924,13 +925,15 @@ const Settings: Component = () => {
                 />
               </div>
 
-              {/* Maximum RAM dropdown. Capped at 16 GB to keep G1GC pause
-                  times healthy; users on big-memory systems with ZGC can
-                  override per-instance via the in-instance Override link. */}
+              {/* Maximum RAM dropdown. Greyed out when adaptive RAM is off.
+                  Capped at 16 GB to keep G1GC pause times healthy; users on
+                  big-memory systems with ZGC can override per-instance via
+                  the in-instance Override link. */}
               <div class="vs-cell">
                 <div class="vs-key">Maximum RAM</div>
                 <div style="flex:1" />
                 <Dropdown
+                  disabled={!settings()!.adaptive_ram}
                   value={String(settings()!.adaptive_ram_max_mb || 0)}
                   options={(() => {
                     const sysMb = systemMemoryMb() || 0;

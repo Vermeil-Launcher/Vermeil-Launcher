@@ -126,6 +126,24 @@ Before concluding, verify:
 
 Validate through inspection, testing, or logical verification — not assumption.
 
+## 12. Commit and Push
+
+Every completed change gets committed and pushed before the task is reported done. This rule is per-change, not per-release: features, fixes, refactors, chores, doc tweaks — all of them.
+
+- Commit only the files actually modified for this change. Don't sweep in unrelated edits.
+- Use Conventional Commits style matching the existing history: `type(scope): summary` (e.g. `fix(skins): keep elytra wings inside the viewport`). Keep the subject under ~70 characters and lowercase after the colon.
+- Push to `main` directly. This repo's history is linear on `main` — no feature branches, no PRs.
+- Don't combine multiple unrelated changes into one commit. If a single task produced two distinct logical changes, make two commits.
+
+What this step does NOT cover — these belong to the `release-process` skill and only happen when the user explicitly says "release":
+
+- Bumping `package.json` / `Cargo.toml` versions.
+- Editing `CHANGELOG.md`.
+- Creating a git tag.
+- Pushing tags or creating GitHub releases.
+
+If a user asks for a release, activate the `release-process` skill and follow it. Otherwise, stop after the per-change push.
+
 ## Shell Commands
 
 - The workspace shell is **PowerShell** (Windows). Use `;` to chain commands if needed, or run each as a separate call. Do not use `&&` (PowerShell does not support it the same way).

@@ -78,6 +78,8 @@ pub async fn install_mod(
         game_version,
         category,
         None,
+        // The user-clicked mod is resolved by compatibility, not pinned.
+        None,
         &mut visited_projects,
         &mut visited_versions,
         &mut deps_installed,
@@ -104,6 +106,11 @@ async fn install_one(
     game_version: &str,
     category: &str,
     parent_title: Option<&str>,
+    // When a parent declares a required dependency with an exact `version_id`
+    // (e.g. Iris pins the precise Sodium build it's ABI-compatible with), we
+    // must install *that* version, not the newest compatible one. `None` for
+    // the user-clicked mod and for project-level deps with no pin.
+    pinned_version_id: Option<String>,
     visited_projects: &mut HashSet<String>,
     visited_versions: &mut HashSet<String>,
     deps_installed: &mut Vec<String>,
@@ -124,7 +131,25 @@ async fn install_one(
 
     // === Resolve which version to install ===
     let project_type = ProjectType::from_category(category);
-    let chosen = find_preferred_version(&versions, project_type, loader, game_version);
+    // Honor an exact dependency pin when present; otherwise resolve the newest
+    // compatible version. Picking newest for a *pinned* dep is exactly what
+    // caused "Iris requires Sodium 0.8.x but 0.9.x present" — the parent pins
+    // the version it works with, and ignoring that pin breaks at load time.
+    let chosen = if let Some(ref pin) = pinned_version_id {
+        match versions.iter().find(|v| &v.id == pin) {
+            Some(v) => Some(v),
+            None => {
+                tracing::warn!(
+                    "Pinned dependency version {} not found for project {}; falling back to newest compatible",
+                    pin,
+                    project_id
+                );
+                find_preferred_version(&versions, project_type, loader, game_version)
+            }
+        }
+    } else {
+        find_preferred_version(&versions, project_type, loader, game_version)
+    };
 
     let version = match chosen {
         Some(v) => v.clone(),
@@ -301,6 +326,12 @@ async fn install_one(
             continue;
         };
 
+        // Carry the dep's exact-version pin (if any) into the recursive install.
+        // CurseForge has no equivalent: its required-dependency relations carry
+        // only a project id, never a file pin, so the CF path can only ever
+        // resolve "newest compatible" (see services/cf_mod_install.rs).
+        let dep_pin = dep.version_id.clone();
+
         // Quilt provides Fabric API natively — installing it again would clash.
         if dep_project_id == FABRIC_API_PROJECT_ID && loader == "quilt" {
             continue;
@@ -343,6 +374,7 @@ async fn install_one(
             game_version,
             &dep_category,
             Some(&parent),
+            dep_pin,
             visited_projects,
             visited_versions,
             deps_installed,

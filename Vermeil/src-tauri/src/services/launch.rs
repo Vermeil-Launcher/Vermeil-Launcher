@@ -1510,6 +1510,15 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
 
         // Game exited — restore window and notify frontend
         if let Some(win) = window {
+            // Close the logs popout if it's open — the session is over, so the
+            // logs reattach to the main window's Logs tab (the popout's
+            // Destroyed handler emits logs-reattached).
+            {
+                use tauri::Manager;
+                if let Some(logs_win) = win.app_handle().get_webview_window("logs") {
+                    let _ = logs_win.close();
+                }
+            }
             let _ = win.show();
             let _ = win.set_focus();
             if crashed && !user_stopped {

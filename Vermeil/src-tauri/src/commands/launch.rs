@@ -465,6 +465,7 @@ fn open_logs_popout(window: &tauri::WebviewWindow, target: &LogTarget) {
     .title("Vermeil — Logs")
     .inner_size(880.0, 520.0)
     .min_inner_size(480.0, 320.0)
+    .decorations(false)
     .build()
     {
         Ok(logs_win) => {

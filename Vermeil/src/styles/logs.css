@@ -1,34 +1,39 @@
 /* logs.css — Log viewer, log toolbar, continue/news/article views (Home + Logs tabs) */
 
-/* Standalone logs popout window (separate Tauri "logs" window). Fills the
-   native window with a small header, the shared log toolbar, and the viewer.
-   Uses native window decorations, so there's no custom titlebar here. */
+/* Standalone logs popout window (separate Tauri "logs" window). The window is
+   undecorated and uses the launcher's own .titlebar, so this fills the native
+   window with: titlebar (flush, full width) + a padded body holding the
+   shared log toolbar and viewer. */
 .logs-popout {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background: var(--bg);
-  padding: var(--space-3);
-  gap: var(--space-3);
   box-sizing: border-box;
 }
-.logs-popout-header {
+.logs-popout-body {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-3);
   gap: var(--space-3);
-  flex-shrink: 0;
 }
-.logs-popout-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+.logs-popout-body .log-viewer-frame { flex: 1; min-height: 0; }
+
+/* Logs-tab placeholder shown in the main window while the logs are detached
+   into the popout. Centered prompt + a button to reattach. */
+.logs-detached {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  height: calc(100vh - 140px);
+  color: var(--muted);
 }
-.logs-popout-instance {
-  font-size: 11px;
-  color: var(--accent);
-  font-family: var(--font-mono);
-}
-.logs-popout .log-viewer-frame { flex: 1; min-height: 0; }
+.logs-detached .btn { align-self: center; }
 
 /* Log viewer.
    The viewer is wrapped in a non-scrolling `.log-viewer-frame` so the

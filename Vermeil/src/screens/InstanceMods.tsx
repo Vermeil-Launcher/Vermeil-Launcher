@@ -1900,9 +1900,9 @@ const InstanceMods: Component = () => {
           // (button or native close) reattaches and restores the viewer.
           if (logsPoppedOut()) {
             return (
-              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;height:calc(100vh - 140px);color:var(--muted);text-align:center">
+              <div class="logs-detached">
                 <div style="font-size:13px">Logs are open in a separate window.</div>
-                <button class="btn" onClick={() => closeLogsWindow()}>Bring logs back here</button>
+                <button class="btn" onClick={() => closeLogsWindow()}>Bring logs back</button>
               </div>
             );
           }

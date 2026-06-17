@@ -1,5 +1,6 @@
 import { Component, createSignal, onMount, onCleanup, For, Show } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { currentLogTarget, readInstanceLog, LogTarget } from "../ipc/commands";
 import { IconSearch, IconArrowUp, IconArrowDown, IconX } from "../components/Icons";
 
@@ -17,6 +18,7 @@ import { IconSearch, IconArrowUp, IconArrowDown, IconX } from "../components/Ico
  * while the window is already open.
  */
 const LogsPopout: Component = () => {
+  const appWindow = getCurrentWindow();
   // Cap the buffer so a chatty modpack logging tens of thousands of lines
   // can't grow the array and DOM unbounded. We keep the most recent lines,
   // which is what a tail-style viewer wants anyway.
@@ -117,14 +119,31 @@ const LogsPopout: Component = () => {
 
   return (
     <div class="logs-popout">
-      <div class="logs-popout-header">
-        <span class="logs-popout-title">Logs</span>
-        <Show when={instanceName()}>
-          <span class="logs-popout-instance">{instanceName()}</span>
-        </Show>
+      {/* Custom titlebar to match the launcher chrome (window is undecorated).
+          Mirrors components/Titlebar.tsx controls; drag region fills the bar. */}
+      <div class="titlebar" onMouseDown={() => appWindow.startDragging()}>
+        <div class="win-btns">
+          <button class="win-btn win-close" onClick={(e) => { e.stopPropagation(); appWindow.close(); }} onMouseDown={(e) => e.stopPropagation()}>
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <line x1="2.5" y1="2.5" x2="9.5" y2="9.5" /><line x1="9.5" y1="2.5" x2="2.5" y2="9.5" />
+            </svg>
+          </button>
+          <button class="win-btn win-minimize" onClick={(e) => { e.stopPropagation(); appWindow.minimize(); }} onMouseDown={(e) => e.stopPropagation()}>
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <line x1="2.5" y1="6" x2="9.5" y2="6" />
+            </svg>
+          </button>
+          <button class="win-btn win-maximize" onClick={(e) => { e.stopPropagation(); appWindow.toggleMaximize(); }} onMouseDown={(e) => e.stopPropagation()}>
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="2.5" width="7" height="7" rx="1" />
+            </svg>
+          </button>
+        </div>
+        <div class="titlebar-title">Logs{instanceName() ? ` — ${instanceName()}` : ""}</div>
       </div>
 
-      <div class="log-toolbar">
+      <div class="logs-popout-body">
+        <div class="log-toolbar">
         <div class="log-toolbar-filters">
           <div class={`log-filter-btn ${filters().has("all") ? "active" : ""}`} onClick={() => toggleFilter("all")}>All</div>
           <div class={`log-filter-btn error ${filters().has("error") ? "active" : ""}`} onClick={() => toggleFilter("error")}>Errors</div>
@@ -194,6 +213,7 @@ const LogsPopout: Component = () => {
             )}
           </For>
         </div>
+      </div>
       </div>
     </div>
   );

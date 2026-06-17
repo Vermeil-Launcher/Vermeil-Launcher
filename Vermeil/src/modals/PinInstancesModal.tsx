@@ -10,9 +10,9 @@ import { getSettings, saveSettings } from "../ipc/commands";
  * helper — usually triggered from the sidebar's plus / minus button.
  *
  * The picker shows every existing instance. Selected rows are highlighted
- * with the accent tint; clicking a 6th instance is rejected with a toast.
+ * with the accent tint; clicking past the limit is rejected with a toast.
  */
-const MAX_PINS = 5;
+const MAX_PINS = 7;
 
 const [open, setOpen] = createSignal(false);
 const [pinned, setPinned] = createSignal<string[]>([]);
@@ -65,7 +65,7 @@ const PinInstancesModal: Component = () => {
     }
     if (current.length >= MAX_PINS) {
       showToast({
-        title: "5-pin limit",
+        title: `${MAX_PINS}-pin limit`,
         message: "Unpin one of the existing pins to add a different instance.",
         type: "info",
         autoCloseMs: 3000,

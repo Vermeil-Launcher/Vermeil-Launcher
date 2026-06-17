@@ -289,25 +289,10 @@ const FloatingDock: Component = () => {
         {/* PIN SELECTOR MODE */}
         <Show when={pinSelectorOpen()}>
           <div class="dock-pin-carousel">
-            <Show
-              when={pinnedInstances().length > 0}
-              fallback={
-                <div class="dock-pin-empty">
-                  <span>No pinned instances</span>
-                  <button
-                    type="button"
-                    class="dock-pin-empty-btn"
-                    onClick={() => {
-                      setPinSelectorOpen(false);
-                      openPinInstancesModal();
-                    }}
-                  >
-                    Pin some
-                  </button>
-                </div>
-              }
-            >
-              <div class="dock-pin-track">
+            {/* Always render the track. With no pins it's just the Manage
+                tile, so the empty state keeps the exact same layout and tile
+                size as the populated one instead of a differently-sized panel. */}
+            <div class="dock-pin-track">
                 <For each={pinnedInstances()}>
                   {(inst, i) => {
                     const iconSrc = () =>
@@ -352,7 +337,6 @@ const FloatingDock: Component = () => {
                   <span class="dock-pin-tile-name">Manage</span>
                 </button>
               </div>
-            </Show>
           </div>
         </Show>
 

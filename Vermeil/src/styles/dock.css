@@ -428,31 +428,6 @@
   color: var(--accent);
 }
 
-/* Empty state — shown when no pins exist yet. */
-.dock-pin-empty {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  color: var(--muted);
-  font-size: 12px;
-}
-.dock-pin-empty-btn {
-  background: var(--accent);
-  border: none;
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 600;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-family: var(--font);
-  transition: background 0.12s;
-}
-.dock-pin-empty-btn:hover { background: var(--accent2); }
-
 /* ============================================================
    Pagination island — iOS-style dot indicator pill above the dock.
    ============================================================ */

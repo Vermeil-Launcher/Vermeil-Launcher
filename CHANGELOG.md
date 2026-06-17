@@ -1,17 +1,11 @@
-## 0.5.4
-
-### Added
-
-- A link to the Vermeil website in Settings → About.
+## 0.5.5
 
 ### Changed
 
-- Adaptive RAM now explains itself with a short note in Settings instead of a one-time popup, so the explanation is always there when you need it.
+- Adaptive RAM's minimum and maximum bounds are now greyed out while it's switched off, since they only apply to the automatic allocator, and the explanation text was reworded for clarity.
 
 ### Fixed
 
-- Maximized games now come to the front when they launch instead of opening behind whatever window you're using, and the screen no longer flashes from a small window to maximized. Resolution is ignored while Maximized is on.
-- The updater now installs while its window stays in focus, so it comes to the front instead of getting buried.
-- Sign-in failures now show the underlying Microsoft/Xbox error message instead of a generic one.
-- Tall dialogs like the onboarding wizard no longer get cut off on small or scaled displays.
-- Removed a visual flicker when uninstalling an instance.
+- The launcher no longer relaunches off-screen. Window position is now checked against your connected monitors and ignored if it would land out of view, and a minimized or hidden window no longer overwrites the saved position.
+- "Minimize to tray on launch" now actually hides the launcher when a game starts, and the setting is off by default on new installs.
+- A maximized game window now comes to the front on launch instead of opening behind the launcher window.

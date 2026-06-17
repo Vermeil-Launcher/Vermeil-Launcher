@@ -88,3 +88,14 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
+
+      # tauri-action only uploads bundles it builds itself (AppImage, .deb,
+      # .rpm, NSIS, msi, latest.json). Our repo-level install.sh isn't part
+      # of that set, so attach it here on the Linux job — the README points
+      # users at `releases/latest/download/install.sh` and that URL has to
+      # resolve. --clobber lets re-runs of a tag succeed without manual cleanup.
+      - name: Upload Linux install script to release
+        if: matrix.target == 'linux'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" install.sh --clobber --repo "${{ github.repository }}"

@@ -811,6 +811,13 @@ const InstanceMods: Component = () => {
         completeDownload(dlId);
         showToast({ title: "Installed", message: mod.title, type: "success", autoCloseMs: 3000 });
       }
+      // Refresh from the instance so dependencies pulled in alongside the
+      // primary mod show as installed immediately. The optimistic add above
+      // only covers the clicked mod; the sync effect rebuilds localInstalled
+      // from the full mods list once the refetch lands. (Bulk install already
+      // does this; single install was missing it, which is why deps only
+      // appeared installed after a tab switch.)
+      await refetchInstances();
     } catch (e: any) {
       failDownload(dlId);
       showToast({ title: "Install failed", message: typeof e === "string" ? e : (e?.message || "Unknown error"), type: "error", autoCloseMs: 5000 });

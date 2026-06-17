@@ -331,6 +331,13 @@ const Settings: Component = () => {
               </div>
               <div class="settings-row">
                 <div>
+                  <div class="settings-key">Pop out logs on launch</div>
+                  <div class="settings-val">Opens the game log in a separate window</div>
+                </div>
+                <div class={`toggle ${settings()!.popout_logs ? "on" : ""}`} onClick={() => updateSetting("popout_logs", !settings()!.popout_logs)} />
+              </div>
+              <div class="settings-row">
+                <div>
                   <div class="settings-key">Auto-update launcher</div>
                 </div>
                 <div class={`toggle ${settings()!.auto_update ? "on" : ""}`} onClick={() => updateSetting("auto_update", !settings()!.auto_update)} />

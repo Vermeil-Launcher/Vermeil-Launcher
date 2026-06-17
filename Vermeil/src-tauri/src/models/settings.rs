@@ -7,6 +7,11 @@ pub struct LauncherSettings {
     pub default_memory_mb: u32,
     pub gc_preset: String,
     pub close_on_launch: bool,
+    /// Pop the game's logs out into a separate window on launch. Pairs with
+    /// `close_on_launch`: when the launcher hides to the tray, this gives the
+    /// user a standalone window to watch output. Defaults to `false`.
+    #[serde(default)]
+    pub popout_logs: bool,
     pub auto_update: bool,
     pub discord_rpc: bool,
     pub show_snapshots: bool,
@@ -120,6 +125,7 @@ impl Default for LauncherSettings {
             default_memory_mb: 4096,
             gc_preset: "g1gc".to_string(),
             close_on_launch: false,
+            popout_logs: false,
             auto_update: true,
             discord_rpc: false,
             show_snapshots: false,

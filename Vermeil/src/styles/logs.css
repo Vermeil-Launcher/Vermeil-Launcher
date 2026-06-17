@@ -1,5 +1,35 @@
 /* logs.css — Log viewer, log toolbar, continue/news/article views (Home + Logs tabs) */
 
+/* Standalone logs popout window (separate Tauri "logs" window). Fills the
+   native window with a small header, the shared log toolbar, and the viewer.
+   Uses native window decorations, so there's no custom titlebar here. */
+.logs-popout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  padding: var(--space-3);
+  gap: var(--space-3);
+  box-sizing: border-box;
+}
+.logs-popout-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+.logs-popout-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.logs-popout-instance {
+  font-size: 11px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+.logs-popout .log-viewer-frame { flex: 1; min-height: 0; }
+
 /* Log viewer.
    The viewer is wrapped in a non-scrolling `.log-viewer-frame` so the
    ASCII backdrop can be pinned to the visible area. Without this wrap, the

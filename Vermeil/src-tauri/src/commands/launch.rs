@@ -7,6 +7,20 @@ use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
 
 /// PID of the currently running game process. 0 means no game is running.
 pub static GAME_PID: AtomicU32 = AtomicU32::new(0);
+
+/// The instance whose logs the popout window should show. Set at launch time
+/// so the standalone logs window (which loads a fresh webview with no app
+/// state) can ask the backend what to display on mount, instead of relying on
+/// fragile URL parsing or racing the webview load with an event.
+static CURRENT_LOG_TARGET: std::sync::Mutex<Option<LogTarget>> = std::sync::Mutex::new(None);
+
+/// Identifies the instance a logs popout should render: the ID drives the log
+/// file read and the `game-log` event filter; the name is shown in the header.
+#[derive(Clone, serde::Serialize)]
+pub struct LogTarget {
+    pub instance_id: String,
+    pub name: String,
+}
 /// Set to `true` when the user clicks "Stop" so the exit handler knows
 /// not to emit `game-crashed` for the non-zero exit code that results
 /// from a graceful termination signal.
@@ -69,6 +83,16 @@ pub async fn launch_instance(instance_id: String, window: tauri::WebviewWindow) 
     // game-exit handler in services::launch restores the window (show +
     // focus), so it round-trips automatically when the session ends.
     if let Ok(settings) = crate::services::settings_service::load().await {
+        // Record which instance the logs popout should track, then open or
+        // refocus it if the user enabled the feature. Done before the hide so
+        // the popout is up regardless of whether the main window goes to tray.
+        let target = LogTarget { instance_id: instance_id.clone(), name: instance.name.clone() };
+        if let Ok(mut guard) = CURRENT_LOG_TARGET.lock() {
+            *guard = Some(target.clone());
+        }
+        if settings.popout_logs {
+            open_logs_popout(&window, &target);
+        }
         if settings.close_on_launch {
             let _ = window.hide();
         }
@@ -350,6 +374,68 @@ pub async fn stop_instance() -> Result<(), String> {
 #[tauri::command]
 pub async fn minimize_to_tray(window: tauri::WebviewWindow) -> Result<(), String> {
     window.hide().map_err(|e| e.to_string())
+}
+
+/// Which instance the logs popout should display. The popout window loads a
+/// fresh webview with no app state, so it queries this on mount to learn what
+/// to render. Returns `None` if no game has been launched this session.
+#[tauri::command]
+pub async fn current_log_target() -> Option<LogTarget> {
+    CURRENT_LOG_TARGET.lock().ok().and_then(|g| g.clone())
+}
+
+/// Read an instance's persisted session log (`latest.log`). The popout seeds
+/// its viewer with this on open, then tails live `game-log` events. A missing
+/// file (game never launched, or logs dir not yet created) is not an error —
+/// it just means there's nothing to show yet.
+#[tauri::command]
+pub async fn read_instance_log(instance_id: String) -> Result<String, String> {
+    let log_path = paths::instances_dir()
+        .join(&instance_id)
+        .join(".minecraft")
+        .join("logs")
+        .join("latest.log");
+    match fs::read_to_string(&log_path) {
+        Ok(contents) => Ok(contents),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(e) => Err(format!("Failed to read log for {}: {}", instance_id, e)),
+    }
+}
+
+/// Open the standalone logs window for `target`, or refocus the existing one
+/// and point it at the new instance. Driven by the `popout_logs` setting so
+/// users who minimize the launcher to the tray on launch can still watch the
+/// game's output. The window uses the label "logs"; the frontend branches on
+/// that label to render only the log viewer instead of the full launcher.
+fn open_logs_popout(window: &tauri::WebviewWindow, target: &LogTarget) {
+    use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+
+    let app = window.app_handle();
+
+    // Reuse a single logs window across launches: re-point the existing one
+    // at the newly-launched instance and surface it, rather than spawning a
+    // second window. The listener is already attached by now, so the event
+    // is delivered reliably.
+    if let Some(existing) = app.get_webview_window("logs") {
+        let _ = existing.emit("logs-load-instance", target.clone());
+        let _ = existing.unminimize();
+        let _ = existing.show();
+        let _ = existing.set_focus();
+        return;
+    }
+
+    if let Err(e) = WebviewWindowBuilder::new(
+        app,
+        "logs",
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("Vermeil — Logs")
+    .inner_size(880.0, 520.0)
+    .min_inner_size(480.0, 320.0)
+    .build()
+    {
+        tracing::error!("Failed to open logs popout window: {}", e);
+    }
 }
 
 /// Resolve the full JVM argument string for a given instance's GC preset and

@@ -96,6 +96,10 @@ export interface LauncherSettings {
   default_memory_mb: number;
   gc_preset: string;
   close_on_launch: boolean;
+  /** Pop the game's logs out into a separate window on launch. Pairs with
+   *  `close_on_launch` so the user can still watch output when the launcher
+   *  hides to the tray. */
+  popout_logs: boolean;
   auto_update: boolean;
   discord_rpc: boolean;
   show_snapshots: boolean;
@@ -263,6 +267,18 @@ export const toggleModInInstance = (instanceId: string, entryId: string) =>
   invoke<boolean>("toggle_mod_in_instance", { instanceId, entryId });
 export const stopInstance = () => invoke<void>("stop_instance");
 export const minimizeToTray = () => invoke<void>("minimize_to_tray");
+
+/** Which instance the logs popout window should display, set at launch time.
+ *  `null` when no game has been launched this session. */
+export interface LogTarget {
+  instance_id: string;
+  name: string;
+}
+export const currentLogTarget = () => invoke<LogTarget | null>("current_log_target");
+/** Read an instance's persisted session log (latest.log). Empty string when
+ *  the file doesn't exist yet. Used to seed the logs popout on open. */
+export const readInstanceLog = (instanceId: string) =>
+  invoke<string>("read_instance_log", { instanceId });
 export const getResolvedJvmArgs = (instanceId: string) => invoke<string>("get_resolved_jvm_args", { instanceId });
 export const getPresetJvmArgs = (instanceId: string) => invoke<string[]>("get_preset_jvm_args", { instanceId });
 /**

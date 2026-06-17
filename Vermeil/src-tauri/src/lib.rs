@@ -302,6 +302,8 @@ pub fn run() {
             launch::get_crash_report,
             launch::stop_instance,
             launch::minimize_to_tray,
+            launch::current_log_target,
+            launch::read_instance_log,
             launch::get_resolved_jvm_args,
             launch::get_preset_jvm_args,
             launch::get_known_preset_args,

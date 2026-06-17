@@ -1,6 +1,8 @@
 /* @refresh reload */
 import { render } from "solid-js/web";
 import App from "./App";
+import LogsPopout from "./screens/LogsPopout";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./styles/base.css";
 import "./styles/layout.css";
 import "./styles/components.css";
@@ -37,4 +39,14 @@ document.addEventListener("click", (e) => {
   }
 });
 
-render(() => <App />, document.getElementById("root")!);
+// The logs popout loads this same bundle in a separate window (label "logs").
+// Branch on the window label and render only the standalone log viewer there,
+// never the full launcher UI (which would spin up a second copy of all the
+// app's state). Label is set at window creation, so it's reliable in
+// production where URL query strings on tauri:// URLs are easy to mishandle.
+const isLogsPopout = getCurrentWindow().label === "logs";
+
+render(
+  () => (isLogsPopout ? <LogsPopout /> : <App />),
+  document.getElementById("root")!,
+);

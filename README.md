@@ -1,9 +1,9 @@
 # Vermeil
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/davekb1976-beep/Vermeil-Launcher?label=Latest)](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest)
-[![Build](https://img.shields.io/github/actions/workflow/status/davekb1976-beep/Vermeil-Launcher/release.yml?label=Build)](https://github.com/davekb1976-beep/Vermeil-Launcher/actions)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-informational)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/badge/Release-v0.5.6-blue?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest)
+[![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/actions)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-informational?style=flat-square)]()
 
 A lightweight Minecraft: Java Edition launcher for Windows and Linux.
 

@@ -305,11 +305,10 @@
 .dock-pin-carousel {
   display: flex;
   align-items: center;
-  /* Hug the tiles. With the 6-pin cap (+ Manage = 7 tiles max) everything
-     fits without scrolling, so the pill sizes to content instead of a fixed
-     scroll viewport. */
-  width: auto;
-  max-width: calc(100vw - 80px);
+  /* Fixed width so the pill stays a consistent size regardless of how many
+     pins exist (with 1 pin it doesn't collapse around the Manage tile). Wide
+     enough for the full 6 pins + Manage tile. */
+  width: min(540px, calc(100vw - 80px));
   animation: pinCarouselIn 0.25s ease-out;
 }
 @keyframes pinCarouselIn {
@@ -325,6 +324,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  width: 100%;
 }
 
 /* Tiles in the carousel — compact with name visible. */

@@ -13,10 +13,47 @@ import {
   LocalSkin,
   SkinVariant,
 } from "../ipc/commands";
-import { SkinViewer, IdleAnimation, FlyingAnimation } from "skinview3d";
+import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
 import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
 import { IconUpload, IconReload, IconTrash2 } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
+
+/**
+ * Idle animation with a gentle elytra flutter.
+ *
+ * Extends skinview3d's IdleAnimation (the slow arm + cape sway) and, only when
+ * the elytra is the active back-equipment, eases the wings open and closed on a
+ * slow loop so they "breathe" instead of sitting frozen. The body never leaves
+ * the upright idle stance — this is deliberately NOT the flight pose.
+ *
+ * Wing angles come straight from the model's own joints: the folded rest is 15°
+ * (0.2617994 rad) on the z axis, and the full flight spread is 90°. We only open
+ * partway (~57°) so it reads as a calm flutter rather than gliding flight.
+ */
+class IdleElytraAnimation extends IdleAnimation {
+  protected animate(player: PlayerObject): void {
+    // Keep the normal idle body sway (arms, cape).
+    super.animate(player);
+
+    // Wings are only visible when the elytra is equipped — skip the work
+    // (and leave the joints untouched) when the cape or nothing is shown.
+    if (!player.elytra.visible) return;
+
+    const FOLDED = 0.2617994; // 15° — the model's resting wing fold
+    const OPEN = 0.85; // ~49° — calm spread, leaves margin inside the viewport
+
+    // 0..1 eased open/close, starting folded. `progress` is seconds (scaled by
+    // the animation's speed); the 2.0 factor gives a ~3.1s open→close→open loop.
+    // Raise it to flutter faster, lower it to slow the breath down.
+    const cycle = (1 - Math.cos(this.progress * 2)) / 2;
+    const z = FOLDED + (OPEN - FOLDED) * cycle;
+
+    player.elytra.leftWing.rotation.x = FOLDED;
+    player.elytra.leftWing.rotation.y = 0.01; // model's tiny offset to avoid z-fighting
+    player.elytra.leftWing.rotation.z = z;
+    player.elytra.updateRightWing();
+  }
+}
 
 /**
  * Skin & cape changer — cinematic hero canvas redesign.
@@ -54,7 +91,13 @@ const Skins: Component = () => {
     }
   });
 
-  const [variant, setVariant] = createSignal<SkinVariant>("CLASSIC");
+  // Selected skin variant. Starts `null` (unknown) rather than defaulting to
+  // a concrete value: the screen fully remounts on every navigation, and the
+  // profile loads asynchronously, so a hardcoded default would flash the wrong
+  // toggle as "active" for a frame before the profile resolves. While null,
+  // neither toggle is highlighted — the profile-load effect sets the real
+  // variant once it arrives.
+  const [variant, setVariant] = createSignal<SkinVariant | null>(null);
   const [busy, setBusy] = createSignal<string | null>(null);
   const [capeCooldownUntil, setCapeCooldownUntil] = createSignal(0);
   const isCapeOnCooldown = () => Date.now() < capeCooldownUntil();
@@ -88,13 +131,16 @@ const Skins: Component = () => {
   // A humanoid model is ~2x taller than its max rotational width, so a tall
   // narrow canvas fills with the model (appears large) instead of wasting
   // horizontal space like a square would, and lets the side docks sit close.
-  // Height drives the size and grows with the window; width is 60% of height,
-  // which still clears the model's widest rotated extent at zoom 0.62.
+  // Height drives the size and grows with the window; width is 80% of height,
+  // chosen to fit an open elytra spread (each wing tip lands roughly ±13.5
+  // world units at the idle flutter's apex, vs ±6 for the body alone) with a
+  // small margin. A tighter ratio looked great with just the skin but clipped
+  // the wings on every flutter peak.
   const computeCanvasSize = () => {
     if (!viewer || !stageEl) return;
     const rect = stageEl.getBoundingClientRect();
     const h = Math.min(rect.height * 0.96, 880);
-    const w = Math.min(rect.width, h * 0.6);
+    const w = Math.min(rect.width, h * 0.8);
     if (h > 0 && w > 0) viewer.setSize(Math.round(w), Math.round(h));
   };
 
@@ -106,7 +152,7 @@ const Skins: Component = () => {
       height: 520,
       skin: undefined,
     });
-    viewer.animation = new IdleAnimation();
+    viewer.animation = new IdleElytraAnimation();
     viewer.controls.enableZoom = false;
     // Zoom out from the default (0.9) so the full model — plus the pedestal
     // below the feet — fits with margin. At 0.9 the model nearly fills the
@@ -153,8 +199,9 @@ const Skins: Component = () => {
     viewer = undefined;
   });
 
-  // Push the active skin + cape into the 3D viewer whenever the profile
-  // changes. Wraps the load in a brief opacity fade for the cinematic swap.
+  // Push the active skin into the 3D viewer whenever the profile changes.
+  // Wraps the load in a brief opacity fade for the cinematic swap. The cape is
+  // loaded by a separate effect so toggling cape/elytra never reloads the skin.
   createEffect(() => {
     const p = profile();
     if (!viewer || !p) return;
@@ -173,23 +220,12 @@ const Skins: Component = () => {
       // 250 ms: long enough to read as a fade, short enough not to feel slow.
       window.setTimeout(() => setCanvasFading(false), 250);
     }
-
-    const activeCape = p.capes.find((c) => c.state === "ACTIVE");
-    if (activeCape) {
-      try {
-        viewer.loadCape(activeCape.texture, {
-          backEquipment: showElytra() ? "elytra" : "cape",
-        });
-      } catch (e) {
-        console.error("Cape load failed:", e);
-      }
-    } else {
-      viewer.resetCape();
-    }
   });
 
-  // Re-render cape as elytra or cape when the toggle changes. Animation
-  // swap uses a short speed ramp to smooth the transition.
+  // Show the active cape on the model whenever the profile or the cape/elytra
+  // toggle changes. Only the back-equipment swaps between "cape" and "elytra";
+  // the model keeps its idle animation with no flying pose or transition, so
+  // the elytra simply appears on the player's back.
   createEffect(() => {
     const elytra = showElytra();
     const p = profile();
@@ -201,24 +237,11 @@ const Skins: Component = () => {
           backEquipment: elytra ? "elytra" : "cape",
         });
       } catch (e) {
-        console.error("Elytra toggle failed:", e);
+        console.error("Cape load failed:", e);
       }
+    } else {
+      viewer.resetCape();
     }
-
-    const newAnim = elytra ? new FlyingAnimation() : new IdleAnimation();
-    if (viewer.animation) viewer.animation.speed = 0;
-    viewer.animation = newAnim;
-    newAnim.speed = 0;
-
-    const duration = 300;
-    const start = performance.now();
-    const ramp = (now: number) => {
-      const elapsed = now - start;
-      const t = Math.min(elapsed / duration, 1);
-      newAnim.speed = t * t * (3 - 2 * t);
-      if (t < 1) requestAnimationFrame(ramp);
-    };
-    requestAnimationFrame(ramp);
   });
 
   // Re-load skin on local variant toggle (Classic ↔ Slim).
@@ -253,13 +276,17 @@ const Skins: Component = () => {
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
       const name = file.name.replace(/\.png$/i, "") || "Custom skin";
-      await uploadSkin(Array.from(bytes), variant(), true, name);
+      // Fall back to Classic if the profile hasn't resolved the variant yet
+      // (variant() is null until then). In practice the profile is loaded by
+      // the time the user can click Upload.
+      const v = variant() ?? "CLASSIC";
+      await uploadSkin(Array.from(bytes), v, true, name);
       await refetchLocal();
       await refetchProfile();
       await refreshActiveSkin();
       showToast({
         title: "Skin equipped",
-        message: `${name} (${variant() === "SLIM" ? "Slim" : "Classic"})`,
+        message: `${name} (${v === "SLIM" ? "Slim" : "Classic"})`,
         type: "success",
       });
     } catch (err) {
@@ -485,6 +512,13 @@ const Skins: Component = () => {
             >
               Refresh
             </button>
+          </div>
+
+          {/* Beta flag — Mojang's profile API isn't a stable public contract,
+              so we flag the feature to set expectations. Floats in the hero's
+              top-left and fades out with the rest of the chrome when idle. */}
+          <div class="skins-floating skins-beta-floating">
+            <span class="beta-pill">Beta</span>
           </div>
 
           {/* Flex row: left dock | model stage | right dock. Layout flow,

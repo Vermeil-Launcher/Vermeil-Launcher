@@ -204,47 +204,49 @@ struct SkinLibraryFile {
 pub async fn fetch_profile(account: &MinecraftProfile) -> Result<PlayerProfile, String> {
     require_microsoft(account)?;
 
-    // Rate-limit guard: if we fetched this account's profile less than 3s ago,
-    // return the cached result. Prevents the double-fetch pattern where the
-    // backend mutation (equip_cape) and the frontend refetch both hit Mojang
-    // within the same second.
-    {
-        static PROFILE_CACHE: OnceLock<Mutex<HashMap<String, (u64, PlayerProfile)>>> = OnceLock::new();
-        let cache = PROFILE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-        let guard = cache.lock().await;
+    // Short-TTL cache that dedupes the mutation-then-refetch pattern: a
+    // mutation re-fetches the profile to return it, then the frontend refetches
+    // again moments later. Without this we'd hit Mojang twice within a second
+    // and risk a 429.
+    //
+    // Crucially, every mutation calls `invalidate_profile_cache` first, so the
+    // post-mutation fetch is always a fresh network read. The cache therefore
+    // only ever serves a copy that's known to still be current — it never
+    // returns a profile that predates a change the user just made.
+    let cache = profile_cache();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
 
+    {
+        let guard = cache.lock().await;
         if let Some((ts, cached)) = guard.get(&account.id) {
             if now.saturating_sub(*ts) < 3 {
                 return Ok(cached.clone());
             }
         }
-
-        // Release the lock before the network call
-        drop(guard);
-
-        let result = fetch_profile_uncached(account).await?;
-
-        // Auto-capture: if the active skin isn't already in the local library,
-        // download and persist it. This builds a skin history over time even for
-        // skins changed externally (minecraft.net, another launcher).
-        if let Some(active) = result.skins.iter().find(|s| s.state == "ACTIVE") {
-            let account_id = account.id.clone();
-            let texture_data_url = active.texture.clone();
-            let variant = active.variant;
-            tokio::spawn(async move {
-                if let Err(e) = auto_capture_skin(&account_id, &texture_data_url, variant) {
-                    tracing::debug!("Auto-capture skin skipped: {}", e);
-                }
-            });
-        }
-
-        // Store in cache
-        let mut guard = cache.lock().await;
-        guard.insert(account.id.clone(), (now, result.clone()));
-
-        Ok(result)
     }
+
+    let result = fetch_profile_uncached(account).await?;
+
+    // Auto-capture: if the active skin isn't already in the local library,
+    // download and persist it. This builds a skin history over time even for
+    // skins changed externally (minecraft.net, another launcher).
+    if let Some(active) = result.skins.iter().find(|s| s.state == "ACTIVE") {
+        let account_id = account.id.clone();
+        let texture_data_url = active.texture.clone();
+        let variant = active.variant;
+        tokio::spawn(async move {
+            if let Err(e) = auto_capture_skin(&account_id, &texture_data_url, variant) {
+                tracing::debug!("Auto-capture skin skipped: {}", e);
+            }
+        });
+    }
+
+    cache.lock().await.insert(account.id.clone(), (now, result.clone()));
+
+    Ok(result)
 }
 
 /// The actual network call to Mojang's profile endpoint. Retries once on 429
@@ -410,6 +412,23 @@ fn texture_cache() -> &'static Mutex<HashMap<String, String>> {
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// Lazy-initialized in-memory cache of recently-fetched profiles, keyed by
+/// account id and holding `(unix_secs, profile)`. See `fetch_profile` for the
+/// short-TTL rationale.
+fn profile_cache() -> &'static Mutex<HashMap<String, (u64, PlayerProfile)>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, (u64, PlayerProfile)>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Drop any cached profile for this account so the next `fetch_profile` does a
+/// real network read. Called right after every profile-mutating Mojang call
+/// (skin upload, reset, cape equip/unequip): the cached copy predates the
+/// change and would otherwise make the UI show the old skin or cape as still
+/// active until the TTL lapses.
+async fn invalidate_profile_cache(account_id: &str) {
+    profile_cache().lock().await.remove(account_id);
+}
+
 fn bytes_to_data_url(bytes: &[u8]) -> String {
     format!(
         "data:image/png;base64,{}",
@@ -464,6 +483,7 @@ pub async fn upload_and_equip_skin(
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
     LAST_UPLOAD_EPOCH.store(now, Ordering::Relaxed);
 
+    invalidate_profile_cache(&account.id).await;
     fetch_profile(account).await
 }
 
@@ -488,6 +508,7 @@ pub async fn reset_skin(account: &MinecraftProfile) -> Result<PlayerProfile, Str
     }
     drop(resp);
 
+    invalidate_profile_cache(&account.id).await;
     fetch_profile(account).await
 }
 
@@ -516,6 +537,7 @@ pub async fn equip_cape(
     }
     drop(resp);
 
+    invalidate_profile_cache(&account.id).await;
     fetch_profile(account).await
 }
 
@@ -536,6 +558,7 @@ pub async fn unequip_cape(account: &MinecraftProfile) -> Result<PlayerProfile, S
     }
     drop(resp);
 
+    invalidate_profile_cache(&account.id).await;
     fetch_profile(account).await
 }
 

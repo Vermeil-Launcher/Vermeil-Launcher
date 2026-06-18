@@ -434,12 +434,16 @@ export interface LocalSkin {
  * - `scale`: multiplier on the contain-fit baseline size (1 = fit whole image).
  * - `bg`: CSS colour filling the cape behind/around the image so the cape has
  *   no transparent edges.
+ * - `res`: HD bake multiplier of the 64×32 atlas (1 = standard 64×32, up to 32
+ *   = 2048×1024). Higher = sharper but larger texture. Optional for capes
+ *   saved before the resolution picker existed (defaults to HD on load).
  */
 export interface CapeTransform {
   dx: number;
   dy: number;
   scale: number;
   bg: string;
+  res?: number;
 }
 
 /** A local, display-only custom cape (never uploaded to Mojang). */

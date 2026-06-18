@@ -3,6 +3,7 @@ import { SkinViewer } from "skinview3d";
 import { LinearFilter } from "three";
 import { saveCustomCape, CustomCape, CapeTransform } from "../ipc/commands";
 import { showToast } from "../App";
+import Dropdown from "../components/Dropdown";
 import { IconImage, IconX } from "../components/Icons";
 
 /**
@@ -41,11 +42,18 @@ const PANEL = { x: 1, y: 1, w: 10, h: 16 };
 const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };
 // Display magnification for the 2D workspace (10×16 panel → 220×352 px).
 const DISP = 22;
-// HD bake multiplier. The cape texture is baked at 64·SCALE × 32·SCALE so the
-// visible face gets 10·SCALE × 16·SCALE texels (160×256 at 16×) instead of a
-// blocky 10×16 — skinview3d renders whatever resolution we give it. Kept a
-// power of two (1024×512) so the GPU texture stays power-of-two.
-const SCALE = 16;
+// Bake-resolution choices: multiplier of the 64×32 atlas → baked texture size.
+// 1× is the classic pixelated cape; 32× (2048×1024) is the sharpest the
+// backend accepts. skinview3d renders whatever resolution we hand it.
+const RES_OPTIONS = [
+  { value: "1", label: "Standard — 64×32" },
+  { value: "2", label: "128×64" },
+  { value: "4", label: "256×128" },
+  { value: "8", label: "512×256" },
+  { value: "16", label: "HD — 1024×512" },
+  { value: "32", label: "Max HD — 2048×1024" },
+];
+const DEFAULT_RES = 16;
 const DEFAULT_BG = "#2b2740";
 
 interface Props {
@@ -69,6 +77,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   const [name, setName] = createSignal(props.editing?.name ?? "Custom Cape");
   const [bg, setBg] = createSignal<string>(props.editing?.transform.bg ?? DEFAULT_BG);
   const [scale, setScale] = createSignal<number>(props.editing?.transform.scale ?? 1);
+  const [res, setRes] = createSignal<number>(props.editing?.transform.res ?? DEFAULT_RES);
   const [hasImage, setHasImage] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
 
@@ -109,17 +118,18 @@ const CustomCapeEditor: Component<Props> = (props) => {
   };
 
   /**
-   * Bake the full cape texture into the reused offscreen canvas at HD
-   * (64·SCALE × 32·SCALE). Coordinates stay in texel units (PANEL/FOOTPRINT)
-   * and are multiplied by SCALE here, so the transform maths and the 2D
-   * workspace (which uses DISP) stay identical. Returns the canvas, or null
-   * when no image is loaded yet.
+   * Bake the full cape texture into the reused offscreen canvas at the chosen
+   * resolution (64·res × 32·res). Coordinates stay in texel units
+   * (PANEL/FOOTPRINT) and are multiplied by the resolution here, so the
+   * transform maths and the 2D workspace (which uses DISP) stay identical.
+   * Returns the canvas, or null when no image is loaded yet.
    */
   const bakeCapeCanvas = (): HTMLCanvasElement | null => {
     if (!sourceImg) return null;
+    const S = res();
     const c = bakeCanvas ?? (bakeCanvas = document.createElement("canvas"));
-    c.width = 64 * SCALE;
-    c.height = 32 * SCALE;
+    c.width = 64 * S;
+    c.height = 32 * S;
     const ctx = c.getContext("2d");
     if (!ctx) return null;
     // Smooth downscale so photos don't look blocky at the cape's texel grid.
@@ -128,15 +138,15 @@ const CustomCapeEditor: Component<Props> = (props) => {
     ctx.clearRect(0, 0, c.width, c.height);
     // Solid background across the whole cape footprint — no transparent edges.
     ctx.fillStyle = bg();
-    ctx.fillRect(FOOTPRINT.x * SCALE, FOOTPRINT.y * SCALE, FOOTPRINT.w * SCALE, FOOTPRINT.h * SCALE);
+    ctx.fillRect(FOOTPRINT.x * S, FOOTPRINT.y * S, FOOTPRINT.w * S, FOOTPRINT.h * S);
     // Positioned image, clipped to the visible back panel.
     ctx.save();
     ctx.beginPath();
-    ctx.rect(PANEL.x * SCALE, PANEL.y * SCALE, PANEL.w * SCALE, PANEL.h * SCALE);
+    ctx.rect(PANEL.x * S, PANEL.y * S, PANEL.w * S, PANEL.h * S);
     ctx.clip();
-    const dw = baseDw * scale() * SCALE;
-    const dh = baseDh * scale() * SCALE;
-    ctx.drawImage(sourceImg, (PANEL.x + dx) * SCALE, (PANEL.y + dy) * SCALE, dw, dh);
+    const dw = baseDw * scale() * S;
+    const dh = baseDh * scale() * S;
+    ctx.drawImage(sourceImg, (PANEL.x + dx) * S, (PANEL.y + dy) * S, dw, dh);
     ctx.restore();
 
     // Auto-derive the surrounding cape faces from the baked front panel so the
@@ -145,7 +155,6 @@ const CustomCapeEditor: Component<Props> = (props) => {
     // 1-texel border stretched outward); the inner face is a full copy. All
     // sampled from the canvas we just drew — 1:1 copies, so disable smoothing
     // to keep them crisp.
-    const S = SCALE;
     const px = PANEL.x * S;
     const py = PANEL.y * S;
     const pw = PANEL.w * S;
@@ -328,6 +337,14 @@ const CustomCapeEditor: Component<Props> = (props) => {
     refresh();
   };
 
+  const handleRes = (v: string) => {
+    const n = parseInt(v, 10);
+    if (!Number.isNaN(n)) {
+      setRes(n);
+      refresh();
+    }
+  };
+
   const handleCenter = () => {
     if (!sourceImg) return;
     dx = (PANEL.w - baseDw * scale()) / 2;
@@ -350,7 +367,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
     const baked = cv.toDataURL("image/png");
     setSaving(true);
     try {
-      const transform: CapeTransform = { dx, dy, scale: scale(), bg: bg() };
+      const transform: CapeTransform = { dx, dy, scale: scale(), bg: bg(), res: res() };
       const cape = await saveCustomCape(
         props.editing?.id ?? null,
         name().trim() || "Custom Cape",
@@ -487,6 +504,16 @@ const CustomCapeEditor: Component<Props> = (props) => {
                 onInput={(e) => handleBg(e.currentTarget.value)}
               />
             </label>
+
+            <div class="cape-control">
+              <span class="cape-control-label">Resolution</span>
+              <Dropdown
+                value={String(res())}
+                options={RES_OPTIONS}
+                onChange={handleRes}
+                width="150px"
+              />
+            </div>
 
             <div class="cape-editor-control-btns">
               <button class="btn" onClick={handleUploadClick}>

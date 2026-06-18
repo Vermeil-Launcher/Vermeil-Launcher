@@ -15,12 +15,14 @@ import { IconImage, IconX } from "../components/Icons";
  *
  * ## Geometry
  *
- * skinview3d's `CapeObject` maps the cape box from a 64×32 atlas. The face an
- * observer sees when the cape drapes down the player's back is the box's
- * outer (-z) face, which `setCapeUVs(0,0,10,16,1)` places at texture rect
- * `(12, 1)` size `10×16`. That rect — `PANEL` below — is where the uploaded
- * image lands. The rest of the cape footprint (`0,0 → 22,17`) is filled with
- * a solid background colour so no cape face renders transparent.
+ * skinview3d's `CapeObject` maps the cape box from a 64×32 atlas, and the
+ * `PlayerObject` attaches it with `rotation.y = Math.PI`. After that flip, the
+ * face an observer sees when looking at the player's back is the box's local
+ * +z ("front") face, which `setCapeUVs(0,0,10,16,1)` places at texture rect
+ * `(1, 1)` size `10×16` — the same rect Minecraft itself uses for the visible
+ * cape art. That rect — `PANEL` below — is where the uploaded image lands.
+ * The rest of the cape footprint (`0,0 → 22,17`) is filled with a solid
+ * background colour so no cape face renders transparent.
  *
  * ## Transform
  *
@@ -30,8 +32,9 @@ import { IconImage, IconX } from "../components/Icons";
  * baseline (`baseDw/baseDh`, derived from the image aspect) times `scale`.
  */
 
-// Outer/back cape face in the 64×32 atlas — the panel the viewer sees.
-const PANEL = { x: 12, y: 1, w: 10, h: 16 };
+// Visible cape face in the 64×32 atlas — the panel the observer sees once the
+// cape mesh's `rotation.y = Math.PI` is applied (its local +z "front" face).
+const PANEL = { x: 1, y: 1, w: 10, h: 16 };
 // Whole cape footprint in the atlas; filled with the background colour so the
 // sides / top / bottom / inner faces never render transparent.
 const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };

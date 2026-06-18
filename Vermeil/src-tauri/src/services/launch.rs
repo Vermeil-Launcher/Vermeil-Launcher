@@ -8,11 +8,19 @@ use std::path::PathBuf;
 use std::process::Command;
 use tauri::Manager;
 
-/// On Windows, Minecraft's GLFW window has no `--maximized` CLI flag, so we
-/// can't tell the JVM to launch already maximized. Instead, after spawning
-/// the JVM we poll for the visible top-level window owned by our PID and
-/// call `ShowWindow(hwnd, SW_MAXIMIZE)` once it appears — same effect as
-/// the user clicking the maximize button on the title bar.
+/// On Windows, after spawning the JVM we poll for the visible top-level
+/// window owned by our PID and, once it appears, bring it to the foreground
+/// so the game is actually focused and on top when it launches. When the
+/// user has "start maximized" enabled we additionally call
+/// `ShowWindow(hwnd, SW_MAXIMIZE)` — Minecraft's GLFW window has no
+/// `--maximized` CLI flag, so we can't ask the JVM to launch maximized.
+///
+/// Foregrounding always runs, maximize is conditional. The JVM is spawned
+/// from a background process (the launcher is usually minimized to tray on
+/// launch, or the user has switched apps during the long load), so Windows'
+/// focus-stealing prevention otherwise leaves the game window *behind* the
+/// active window — even when nothing was maximized. `force_foreground`
+/// works around that; see its own docs.
 ///
 /// The poll runs on an OS thread (not a tokio task) because it makes only
 /// blocking Win32 calls and we don't want to tie up the runtime. It gives
@@ -20,13 +28,13 @@ use tauri::Manager;
 /// (Cobbleverse, ATM10, RAD2 routinely take 45–90 s on first launch with
 /// a slow disk and 200+ mods to initialize). The earlier 30 s ceiling
 /// timed out before the GLFW window appeared on those packs and silently
-/// dropped the maximize.
+/// dropped the focus/maximize.
 ///
 /// We also exit early if the JVM process dies during the wait (user closed
 /// the game, crash before the window appeared, etc.) so we don't keep a
 /// dead-poll thread alive for the full timeout.
 #[cfg(windows)]
-fn maximize_minecraft_window_async(pid: u32) {
+fn focus_minecraft_window_async(pid: u32, maximize: bool) {
     use std::time::Duration;
     use windows_sys::Win32::Foundation::{CloseHandle, HWND, LPARAM};
     use windows_sys::Win32::System::Threading::{
@@ -177,18 +185,22 @@ fn maximize_minecraft_window_async(pid: u32) {
             unsafe {
                 EnumWindows(Some(enum_proc), &mut data as *mut _ as LPARAM);
                 if !data.found_hwnd.is_null() {
-                    ShowWindow(data.found_hwnd, SW_MAXIMIZE);
-                    // SW_MAXIMIZE resizes the window but, from a background
-                    // process, won't pull it in front of the user's active
-                    // window. Force the foreground so the game is actually
-                    // visible and focused when it appears.
+                    // Only resize when the user asked for a maximized window;
+                    // otherwise leave GLFW's launch-size window as-is.
+                    if maximize {
+                        ShowWindow(data.found_hwnd, SW_MAXIMIZE);
+                    }
+                    // Whether or not we maximized, a window created by a
+                    // background process won't pull itself in front of the
+                    // user's active window. Force the foreground so the game
+                    // is actually visible and focused when it appears.
                     force_foreground(data.found_hwnd);
                     return;
                 }
             }
         }
         tracing::warn!(
-            "Couldn't find a visible window for Minecraft PID {} after 120s; skipping maximize",
+            "Couldn't find a visible window for Minecraft PID {} after 120s; skipping focus/maximize",
             pid
         );
     });
@@ -1396,14 +1408,15 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     let mut child = cmd.spawn().map_err(|e| format!("Failed to launch: {}", e))?;
     let pid = child.id();
 
-    // If the user wants the game window maximized, spawn the Win32 polling
-    // helper that watches for Minecraft's GLFW window and calls
-    // ShowWindow(SW_MAXIMIZE) once it appears. On other platforms the launch
+    // Bring the game window to the foreground once it appears, and maximize
+    // it too if the user enabled that. The launcher is typically a background
+    // process by the time the GLFW window shows (minimized to tray, or the
+    // user switched away during the load), so without this the game can open
+    // behind the active window regardless of the maximize setting. On other
+    // platforms the WM focuses the newly-mapped window and the launch
     // dimensions already cover the screen.
     #[cfg(windows)]
-    if win_maximized {
-        maximize_minecraft_window_async(pid);
-    }
+    focus_minecraft_window_async(pid, win_maximized);
 
     // Spawn background task to capture logs and emit them as events
     let instance_id = instance.id.clone();

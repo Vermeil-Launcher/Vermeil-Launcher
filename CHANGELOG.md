@@ -1,18 +1,11 @@
-## 0.5.8
+## 0.5.9
 
 ### Added
 
-- Newly created instances auto-pin themselves to the floating dock until it's full (up to six pins).
-
-### Changed
-
-- Cleaned up the floating dock's pin selector: fixed-width carousel with centered tiles, Manage button anchored on the left, and a friendly hint when nothing is pinned yet.
+- The Linux installer's desktop-shortcut prompt now adapts to the detected desktop environment — placed automatically on KDE, Xfce, Cinnamon, and friends; explained on GNOME (needs the DING extension); skipped on tiling compositors that have no desktop surface.
 
 ### Fixed
 
-- Switching skin variant between Classic and Slim now applies immediately instead of silently snapping back.
-- Restored the Beta badge on the Skins screen.
-- Toggling between cape and elytra no longer throws the model into a flying pose. The elytra now flutters gently in place, and the wings stay inside the viewport at every spread.
-- Mod dependencies show as installed immediately after a single mod install instead of waiting for a refresh.
-- Modrinth mod dependencies now respect the version pinned by the parent mod.
-- The Linux install script is now attached to every release, so the install command in the README works straight from the latest tag.
+- The launcher window can no longer be dragged below its minimum size on Linux compositors that don't enforce size hints for frameless windows. Undersized geometry never gets persisted across launches either.
+- Toggling between Modrinth and CurseForge in Browse Modpacks (and the in-instance Browse tab) no longer leaves the card list empty when responses come back out of order. Failed searches now surface a toast instead of silently rendering nothing.
+- The elytra idle pose is now a subtle continuous breath in time with the rest of the body, instead of a constant full-spread cycle.

@@ -58,6 +58,7 @@ Check:
 - Similar implementations elsewhere in the project.
 - The IPC contract: if you change a Rust command signature, the TypeScript wrapper in `src/ipc/commands.ts` must match.
 - Tauri event names: if you rename or add events, all `listen()` subscribers must be updated.
+- Cross-platform impact: will this behave the same on both Windows and Linux? Watch for platform-specific code (`#[cfg(...)]`, Win32/DWM calls, `navigator.userAgent` branches) and for behavior that relies on the OS/WM/webview to enforce something (window sizing, focus, z-order, TLS, file locking). See **Cross-Platform Parity** in `coding-standards.md`. If you can't run the Linux build, reason about its path explicitly and flag what needs a Linux smoke-test.
 
 Do not patch one instance if the same problem exists in siblings. Surface all affected areas.
 

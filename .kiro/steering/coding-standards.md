@@ -152,11 +152,37 @@ Recognize these parallel groups before making changes:
 | **Launch entry points** | `Home.tsx` and `FloatingDock.tsx` both call `launchInstance`. State setup before launch (clearing logs, setting flags, ensuring account) must match between them. |
 | **IPC contracts** | Every Rust `#[tauri::command]` has a TypeScript wrapper in `ipc/commands.ts`. Change the Rust signature → update the wrapper. New return field → update the TypeScript interface. |
 | **Tauri events** | Every backend `emit()` has a frontend `listen()`. Rename or add an event → update all subscribers. |
-| **Per-platform code** | `#[cfg(windows)]` / `#[cfg(unix)]` branches. Don't fix only one branch unless the bug is platform-specific. |
+| **Per-platform code** | `#[cfg(windows)]` / `#[cfg(unix)]` branches. Don't fix only one branch unless the bug is platform-specific. See the **Cross-Platform Parity** section below — it covers the harder case where a behavior exists on one platform and is missing entirely on the other. |
 
 **Rule:** before considering a change done, ask "what other code does the same thing for a different variant?" Locate every parallel surface, apply the same change, and verify each one before pushing.
 
 If a parallel surface genuinely can't support the feature (e.g. CurseForge has no follower count, so a "follows" sort has no direct equivalent), document the gap with a code comment naming the missing capability — and pick a sensible nearest-equivalent rather than letting the feature silently fail on that surface.
+
+## Cross-Platform Parity (Windows ↔ Linux)
+
+This app ships on **both Windows and Linux**. Every user-facing behavior must work on both. This is a stronger requirement than the "Per-platform code" row above: that row is about keeping two existing `#[cfg]` branches in sync, but the bug that bites hardest is a behavior that exists on one platform and is **absent or unenforced on the other** — there's no second branch to "keep in sync," so a naive parallel-surface scan misses it. Most Linux-only regressions in this project have been exactly this shape.
+
+The two platforms differ in ways that silently change behavior:
+
+- **Windowing.** Windows uses Win32/DWM; Linux uses an X11 or Wayland WM/compositor. Things Windows enforces for you (min window size, focus, z-order, rounded corners) a Linux compositor may treat as advisory or ignore — especially for our frameless (`decorations: false`, client-side-decorated) window. Don't assume a window hint is obeyed; enforce it in app code if the behavior matters.
+- **Webview.** Windows runs WebView2 (Chromium); Linux runs WebKitGTK. They diverge on JS timing/microtask ordering, CSS support, and network/TLS stack (schannel vs system OpenSSL). A frontend behavior that "just works" on WebView2 can break on WebKitGTK.
+- **OS services.** Focus-stealing prevention, process APIs, filesystem semantics (`\\?\` prefix, path separators, case sensitivity), and credential storage (DPAPI vs the Linux fallback) all differ.
+
+### The Rule
+
+When you add or change any user-facing behavior, **confirm it works on both Windows and Linux before calling it done.** Specifically:
+
+- If the behavior is implemented in platform-specific code (`#[cfg(...)]`, a Win32/DWM call, a `navigator.userAgent` branch), provide the equivalent on the other platform — or document in a code comment why it legitimately can't exist there and what the user experiences instead.
+- If the behavior leans on the OS or WM to enforce something (window sizing, focus, z-order, file locking), don't trust the platform to do it uniformly. Verify the Linux compositor / WebKitGTK actually honors it; if it might not, enforce it in app code so the result is the same everywhere.
+- A feature is not "missing on Linux is fine" by default. Absence on one platform is a gap to be closed or explicitly justified, never a silent default.
+
+### Can't physically verify the other platform?
+
+The dev shell is Windows, so you usually can't run the Linux build yourself. When you can't:
+
+- Reason explicitly about the Linux path (WM/compositor, WebKitGTK, OpenSSL) in your analysis, and prefer app-level enforcement over trusting platform behavior.
+- Call out in the change summary that the behavior needs a Linux smoke-test, and what specifically to check.
+- Never assume Windows-passing means Linux-passing. State the assumption so it can be tested.
 
 ## Security & Performance
 
@@ -188,6 +214,7 @@ These apply to the whole app — backend and frontend, every feature and code pa
 - Returning a Windows `\\?\`-prefixed path to the frontend on Windows builds (strip it before serializing)
 - Rendering untrusted content (logs, mod data, network responses) via `innerHTML` instead of escaped text
 - Joining a frontend-supplied ID into a filesystem path without validating it first
+- Shipping a user-facing behavior that works on only one of Windows/Linux without either providing the cross-platform equivalent or documenting why it can't exist (see **Cross-Platform Parity**)
 - Adding a new window to the `default` capability instead of giving it a scoped, least-privilege one
 - **Suppressing compiler warnings instead of fixing them.** Never use `#[allow(dead_code)]`, `#[allow(unused_imports)]`, or `#[allow(unused_variables)]` to silence warnings. If a field, function, or import triggers a warning, the correct response is to either use it or remove it — not hide it. The build must be zero-warning at all times. If a struct field exists only for future use, don't add it until the code that reads it is written in the same commit.
 

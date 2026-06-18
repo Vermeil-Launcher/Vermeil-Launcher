@@ -19,16 +19,17 @@ import { IconUpload, IconReload, IconTrash2 } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 
 /**
- * Idle animation with a gentle elytra flutter.
+ * Idle animation with a subtle elytra breath.
  *
  * Extends skinview3d's IdleAnimation (the slow arm + cape sway) and, only when
- * the elytra is the active back-equipment, eases the wings open and closed on a
- * slow loop so they "breathe" instead of sitting frozen. The body never leaves
- * the upright idle stance — this is deliberately NOT the flight pose.
+ * the elytra is the active back-equipment, breathes the wings on the same slow
+ * tempo so they read as alive instead of frozen — without ever spreading. The
+ * body never leaves the upright idle stance — this is deliberately NOT the
+ * flight pose.
  *
  * Wing angles come straight from the model's own joints: the folded rest is 15°
- * (0.2617994 rad) on the z axis, and the full flight spread is 90°. We only open
- * partway (~57°) so it reads as a calm flutter rather than gliding flight.
+ * (0.2617994 rad) on the z axis. The breath flexes them a few degrees above
+ * that rest and back, never opening anywhere near the flight spread (90°).
  */
 class IdleElytraAnimation extends IdleAnimation {
   protected animate(player: PlayerObject): void {
@@ -40,13 +41,15 @@ class IdleElytraAnimation extends IdleAnimation {
     if (!player.elytra.visible) return;
 
     const FOLDED = 0.2617994; // 15° — the model's resting wing fold
-    const OPEN = 0.85; // ~49° — calm spread, leaves margin inside the viewport
 
-    // 0..1 eased open/close, starting folded. `progress` is seconds (scaled by
-    // the animation's speed); the 2.0 factor gives a ~3.1s open→close→open loop.
-    // Raise it to flutter faster, lower it to slow the breath down.
-    const cycle = (1 - Math.cos(this.progress * 2)) / 2;
-    const z = FOLDED + (OPEN - FOLDED) * cycle;
+    // Continuous breath, matched to the body's idle tempo. skinview3d's idle
+    // arms/cape use `sin(progress) * small`, period 2π ≈ 6.3 s; we ride the
+    // same `progress` so the flex syncs with the rest of the body. AMP is
+    // ~2.3°, picked to be visibly alive but well under any "spreading" read,
+    // and the (1 - cos)/2 form keeps the wings at-or-above FOLDED so they
+    // never close tighter than the rest pose.
+    const AMP = 0.04;
+    const z = FOLDED + AMP * (1 - Math.cos(this.progress)) / 2;
 
     player.elytra.leftWing.rotation.x = FOLDED;
     player.elytra.leftWing.rotation.y = 0.01; // model's tiny offset to avoid z-fighting

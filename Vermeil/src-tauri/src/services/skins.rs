@@ -1014,18 +1014,33 @@ fn bytes_to_data_url_mime(bytes: &[u8], mime: &str) -> String {
     )
 }
 
-/// Validate that the baked cape texture is a real 64×32 PNG. The frontend
-/// always produces this shape, but the bytes cross the IPC boundary so we
-/// check defensively rather than trust the caller.
+/// Validate that the baked cape texture is a valid PNG sized to a whole
+/// multiple of 64×32 (the cape atlas ratio). We accept HD multiples — the
+/// frontend bakes at 16× (1024×512) so a photo on the visible face renders
+/// with real detail instead of 10×16 blocky texels. skinview3d keeps whatever
+/// resolution we hand it (`computeCapeScale` = width/64), so any N× works; we
+/// only bound the upper end to keep the on-disk file and GPU texture sane.
 fn validate_cape_texture(png_bytes: &[u8]) -> Result<(), String> {
     if png_bytes.len() < 24 || &png_bytes[..8] != b"\x89PNG\r\n\x1a\n" {
         return Err("Cape texture isn't a valid PNG".to_string());
     }
     let width = u32::from_be_bytes([png_bytes[16], png_bytes[17], png_bytes[18], png_bytes[19]]);
     let height = u32::from_be_bytes([png_bytes[20], png_bytes[21], png_bytes[22], png_bytes[23]]);
-    if width != 64 || height != 32 {
+    if width == 0
+        || height == 0
+        || width % 64 != 0
+        || height % 32 != 0
+        || width / 64 != height / 32
+    {
         return Err(format!(
-            "Cape texture must be 64x32 — got {}x{}",
+            "Cape texture must be a 64x32 multiple — got {}x{}",
+            width, height
+        ));
+    }
+    // 32× → 2048×1024. Generous for an HD cape, but bounded.
+    if width / 64 > 32 {
+        return Err(format!(
+            "Cape texture too large ({}x{}) — max is 2048x1024",
             width, height
         ));
     }

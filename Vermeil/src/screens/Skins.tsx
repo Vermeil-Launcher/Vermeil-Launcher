@@ -17,7 +17,7 @@ import {
   SkinVariant,
 } from "../ipc/commands";
 import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
-import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
+import { CylinderGeometry, MeshBasicMaterial, Mesh, Group, LinearFilter } from "three";
 import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
@@ -268,10 +268,24 @@ const Skins: Component = () => {
     if (customId) {
       const cc = (caps ?? []).find((c) => c.id === customId);
       if (cc) {
-        try {
-          viewer.loadCape(cc.texture, { backEquipment: elytra ? "elytra" : "cape" });
-        } catch (e) {
-          console.error("Custom cape load failed:", e);
+        // Custom capes are baked HD (1024×512) and look best with linear
+        // filtering. skinview3d sets NearestFilter on each load and, for a
+        // data-URL source, loads async — so flip the filter once it resolves.
+        const r = viewer.loadCape(cc.texture, {
+          backEquipment: elytra ? "elytra" : "cape",
+        }) as unknown as Promise<unknown> | undefined;
+        const smooth = () => {
+          const tex = (viewer as unknown as { capeTexture?: { magFilter: number; minFilter: number; needsUpdate: boolean } })?.capeTexture;
+          if (tex) {
+            tex.magFilter = LinearFilter;
+            tex.minFilter = LinearFilter;
+            tex.needsUpdate = true;
+          }
+        };
+        if (r && typeof (r as { then?: unknown }).then === "function") {
+          r.then(smooth).catch((e) => console.error("Custom cape load failed:", e));
+        } else {
+          smooth();
         }
         return;
       }

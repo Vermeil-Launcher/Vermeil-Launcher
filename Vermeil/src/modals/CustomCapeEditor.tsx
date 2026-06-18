@@ -1,5 +1,6 @@
 import { Component, createSignal, onMount, onCleanup, Show } from "solid-js";
 import { SkinViewer } from "skinview3d";
+import { LinearFilter } from "three";
 import { saveCustomCape, CustomCape, CapeTransform } from "../ipc/commands";
 import { showToast } from "../App";
 import { IconImage, IconX } from "../components/Icons";
@@ -40,6 +41,11 @@ const PANEL = { x: 1, y: 1, w: 10, h: 16 };
 const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };
 // Display magnification for the 2D workspace (10×16 panel → 220×352 px).
 const DISP = 22;
+// HD bake multiplier. The cape texture is baked at 64·SCALE × 32·SCALE so the
+// visible face gets 10·SCALE × 16·SCALE texels (160×256 at 16×) instead of a
+// blocky 10×16 — skinview3d renders whatever resolution we give it. Kept a
+// power of two (1024×512) so the GPU texture stays power-of-two.
+const SCALE = 16;
 const DEFAULT_BG = "#2b2740";
 
 interface Props {
@@ -81,6 +87,10 @@ const CustomCapeEditor: Component<Props> = (props) => {
   let previewCanvas: HTMLCanvasElement | undefined;
   let fileInput: HTMLInputElement | undefined;
   let viewer: SkinViewer | undefined;
+  // Reused offscreen canvas for the HD bake — avoids allocating one per drag
+  // frame. Passed straight to loadCape (a canvas is a TextureSource, so the
+  // load is synchronous with no per-frame PNG encode/decode).
+  let bakeCanvas: HTMLCanvasElement | undefined;
 
   // ─── Compositing ───
 
@@ -98,28 +108,48 @@ const CustomCapeEditor: Component<Props> = (props) => {
     }
   };
 
-  /** Bake the full 64×32 cape texture. Returns a PNG data URL. */
-  const bakeCapeDataUrl = (): string | null => {
+  /**
+   * Bake the full cape texture into the reused offscreen canvas at HD
+   * (64·SCALE × 32·SCALE). Coordinates stay in texel units (PANEL/FOOTPRINT)
+   * and are multiplied by SCALE here, so the transform maths and the 2D
+   * workspace (which uses DISP) stay identical. Returns the canvas, or null
+   * when no image is loaded yet.
+   */
+  const bakeCapeCanvas = (): HTMLCanvasElement | null => {
     if (!sourceImg) return null;
-    const c = document.createElement("canvas");
-    c.width = 64;
-    c.height = 32;
+    const c = bakeCanvas ?? (bakeCanvas = document.createElement("canvas"));
+    c.width = 64 * SCALE;
+    c.height = 32 * SCALE;
     const ctx = c.getContext("2d");
     if (!ctx) return null;
-    ctx.clearRect(0, 0, 64, 32);
+    // Smooth downscale so photos don't look blocky at the cape's texel grid.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0, 0, c.width, c.height);
     // Solid background across the whole cape footprint — no transparent edges.
     ctx.fillStyle = bg();
-    ctx.fillRect(FOOTPRINT.x, FOOTPRINT.y, FOOTPRINT.w, FOOTPRINT.h);
+    ctx.fillRect(FOOTPRINT.x * SCALE, FOOTPRINT.y * SCALE, FOOTPRINT.w * SCALE, FOOTPRINT.h * SCALE);
     // Positioned image, clipped to the visible back panel.
     ctx.save();
     ctx.beginPath();
-    ctx.rect(PANEL.x, PANEL.y, PANEL.w, PANEL.h);
+    ctx.rect(PANEL.x * SCALE, PANEL.y * SCALE, PANEL.w * SCALE, PANEL.h * SCALE);
     ctx.clip();
-    const dw = baseDw * scale();
-    const dh = baseDh * scale();
-    ctx.drawImage(sourceImg, PANEL.x + dx, PANEL.y + dy, dw, dh);
+    const dw = baseDw * scale() * SCALE;
+    const dh = baseDh * scale() * SCALE;
+    ctx.drawImage(sourceImg, (PANEL.x + dx) * SCALE, (PANEL.y + dy) * SCALE, dw, dh);
     ctx.restore();
-    return c.toDataURL("image/png");
+    return c;
+  };
+
+  /** Switch the cape texture to linear filtering so the HD image renders
+   *  smooth rather than nearest-neighbour blocky. skinview3d recreates the
+   *  texture (with NearestFilter) on every loadCape, so this runs after. */
+  const applySmoothCape = () => {
+    const tex = (viewer as unknown as { capeTexture?: { magFilter: number; minFilter: number; needsUpdate: boolean } })?.capeTexture;
+    if (!tex) return;
+    tex.magFilter = LinearFilter;
+    tex.minFilter = LinearFilter;
+    tex.needsUpdate = true;
   };
 
   /** Redraw the 2D editing workspace (grid + background + positioned image). */
@@ -165,18 +195,20 @@ const CustomCapeEditor: Component<Props> = (props) => {
     }
   };
 
-  /** Push the freshly-baked cape into the 3D preview. */
+  /** Push the freshly-baked cape into the 3D preview. Passing the canvas
+   *  (not a data URL) keeps loadCape synchronous, so dragging stays smooth. */
   const updatePreview = () => {
     if (!viewer) return;
-    const url = bakeCapeDataUrl();
-    if (url) {
-      try {
-        viewer.loadCape(url, { backEquipment: "cape" });
-      } catch (e) {
-        console.error("Cape preview failed:", e);
-      }
-    } else {
+    const cv = bakeCapeCanvas();
+    if (!cv) {
       viewer.resetCape();
+      return;
+    }
+    try {
+      viewer.loadCape(cv, { backEquipment: "cape" });
+      applySmoothCape();
+    } catch (e) {
+      console.error("Cape preview failed:", e);
     }
   };
 
@@ -286,11 +318,12 @@ const CustomCapeEditor: Component<Props> = (props) => {
       showToast({ title: "Add an image first", type: "info" });
       return;
     }
-    const baked = bakeCapeDataUrl();
-    if (!baked) {
+    const cv = bakeCapeCanvas();
+    if (!cv) {
       showToast({ title: "Couldn't render cape", type: "error" });
       return;
     }
+    const baked = cv.toDataURL("image/png");
     setSaving(true);
     try {
       const transform: CapeTransform = { dx, dy, scale: scale(), bg: bg() };

@@ -638,11 +638,22 @@ const InstanceMods: Component = () => {
   let searchTimeout: number | undefined;
   let pageTimeout: number | undefined;
 
+  // Monotonic request token. Every doSearch call captures its own value
+  // before awaiting and only commits results when the captured token still
+  // equals the latest — otherwise the user has changed source / sort /
+  // filter / page / view in the meantime and an in-flight reply is no
+  // longer relevant. This subsumes the older `currentPage()` page-staleness
+  // guard (page changes also bump the token) and additionally protects
+  // source-toggle, which previously had no guard at all and could let a
+  // slow Modrinth reply clobber a fast CurseForge reply (or vice versa).
+  let searchToken = 0;
+
   const doSearch = async (page?: number) => {
     const inst = instance();
     if (!inst) return;
     const p = page || currentPage();
     const offset = (p - 1) * viewCount();
+    const token = ++searchToken;
     setSearching(true);
     try {
       // For resources/shaders, allow user to override version (empty = any version)
@@ -651,19 +662,28 @@ const InstanceMods: Component = () => {
         ? browseVersion()
         : inst.game_version;
 
-      let result;
-      if (modSource() === "curseforge") {
-        result = await searchCurseforge(searchQuery(), inst.loader.type, version, offset, viewCount(), sortBy(), filter);
-      } else {
-        result = await searchMods(searchQuery(), inst.loader.type, version, offset, viewCount(), sortBy(), filter);
-      }
+      const source = modSource();
+      const result = source === "curseforge"
+        ? await searchCurseforge(searchQuery(), inst.loader.type, version, offset, viewCount(), sortBy(), filter)
+        : await searchMods(searchQuery(), inst.loader.type, version, offset, viewCount(), sortBy(), filter);
 
-      if (currentPage() === p) {
-        setSearchResults(result.hits);
-        setTotalHits(result.total_hits);
-      }
-    } catch (e) { console.error("Search failed:", e); }
-    finally { setSearching(false); }
+      if (token !== searchToken) return; // superseded by a newer request
+      setSearchResults(result.hits);
+      setTotalHits(result.total_hits);
+    } catch (e) {
+      if (token !== searchToken) return; // superseded; ignore stale error
+      // Surface the failure so an empty Browse pane is never silent. A
+      // transient rate-limit or network blip would otherwise leave the
+      // user staring at an empty grid with no indication of why.
+      console.error("Search failed:", e);
+      showToast({
+        title: `${modSource() === "curseforge" ? "CurseForge" : "Modrinth"} search failed`,
+        message: typeof e === "string" ? e : "Couldn't load results — try again.",
+        type: "error",
+      });
+    } finally {
+      if (token === searchToken) setSearching(false);
+    }
   };
 
   const handleSourceToggle = () => {

@@ -1,5 +1,5 @@
 import { Component, createSignal, For, Show } from "solid-js";
-import { setActiveScreen, refetchInstances, refreshPinnedInstanceIds, instances, trackDownload, completeDownload, failDownload } from "../App";
+import { setActiveScreen, refetchInstances, refreshPinnedInstanceIds, instances, trackDownload, completeDownload, failDownload, showToast } from "../App";
 import { searchModpacks, searchCurseforge, installModpack, installCfModpack, ModHit } from "../ipc/commands";
 import Dropdown from "../components/Dropdown";
 import { IconModrinth, IconCurseForge, IconLayers } from "../components/Icons";
@@ -47,20 +47,41 @@ const BrowseModpacks: Component = () => {
 
   let searchTimeout: number | undefined;
 
+  // Monotonic request token. Every doSearch call increments this and
+  // captures its own value before awaiting. After the await we only commit
+  // results when our captured token still equals the latest — otherwise the
+  // user has switched source / sort / filter / page in the meantime and an
+  // in-flight reply is no longer relevant. Without this, a slow Modrinth
+  // response landing after a quick CurseForge response would clobber the
+  // visible cards with data from the source the user is no longer on.
+  let searchToken = 0;
+
   const doSearch = async (q: string, p: number) => {
+    const token = ++searchToken;
     setSearching(true);
     try {
       const offset = (p - 1) * PAGE_SIZE;
-      let result;
-      if (modSource() === "curseforge") {
-        result = await searchCurseforge(q, loaderFilter(), "", offset, PAGE_SIZE, sortBy(), "modpack");
-      } else {
-        result = await searchModpacks(q, offset, sortBy(), loaderFilter());
-      }
+      const source = modSource();
+      const result = source === "curseforge"
+        ? await searchCurseforge(q, loaderFilter(), "", offset, PAGE_SIZE, sortBy(), "modpack")
+        : await searchModpacks(q, offset, sortBy(), loaderFilter());
+      if (token !== searchToken) return; // superseded by a newer request
       setResults(result.hits);
       setTotalHits(result.total_hits);
-    } catch (e) { console.error(e); }
-    finally { setSearching(false); }
+    } catch (e) {
+      if (token !== searchToken) return; // superseded; ignore stale error
+      // Surface the failure so an empty list is never silent. Without this
+      // a transient CurseForge 429 / network blip would leave the user
+      // staring at empty cards with no indication of why.
+      console.error("Modpack search failed:", e);
+      showToast({
+        title: `${modSource() === "curseforge" ? "CurseForge" : "Modrinth"} search failed`,
+        message: typeof e === "string" ? e : "Couldn't load results — try again.",
+        type: "error",
+      });
+    } finally {
+      if (token === searchToken) setSearching(false);
+    }
   };
 
   const handleSearch = (q: string) => {

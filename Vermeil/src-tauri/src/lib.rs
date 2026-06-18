@@ -19,6 +19,16 @@ fn show_window(app: tauri::AppHandle) {
     }
 }
 
+/// Logical-pixel floor for the launcher's main window. The same numbers live
+/// in `tauri.conf.json`, but the conf-level minimum can't be relied on by
+/// itself: on Linux compositors that don't enforce `xdg_toplevel.set_min_size`
+/// for client-side-decorated windows (we are CSD by `decorations: false`), the
+/// user can drag a window edge below the hint. Centralizing the constants
+/// here lets the setup-time migration and the runtime resize-event clamp
+/// share a single source of truth.
+const MIN_WIDTH: f64 = 1100.0;
+const MIN_HEIGHT: f64 = 720.0;
+
 /// Whether a saved window position lands on a currently-connected monitor.
 ///
 /// We probe a point in the window's titlebar grab area (just inside the
@@ -107,9 +117,9 @@ pub fn run() {
                 //      session left in `window-state.json`.
                 //
                 // Logical pixels are DPI-independent so this works the same
-                // on a 4k monitor at 200% scale as it does at 100%.
-                const MIN_WIDTH: f64 = 1100.0;
-                const MIN_HEIGHT: f64 = 720.0;
+                // on a 4k monitor at 200% scale as it does at 100%. The
+                // constants live at module scope (MIN_WIDTH / MIN_HEIGHT) so
+                // the runtime resize-event clamp below uses the same floor.
 
                 // Restore the window's last position / size / maximized flag
                 // from our in-tree persister (replaces tauri-plugin-window-state
@@ -173,12 +183,21 @@ pub fn run() {
                 }
 
                 // Persist window position / size / maximized on every move,
-                // resize, or close. Filesystem write is ~200 bytes via
-                // atomic_write — cheap enough to skip a debounce. While
-                // maximized we keep the previous unmaximized geometry so
-                // unmaximize restores the right size, and we ignore
-                // zero-sized resize events (those fire when the window is
-                // hidden / minimized and would clobber the saved size).
+                // resize, or close, and clamp the minimum size on every
+                // resize. The clamp is the belt-and-braces fix for Linux
+                // compositors that don't enforce `xdg_toplevel.set_min_size`
+                // on CSD windows: when the WM lets the user drag below the
+                // floor, we observe the undersize via WindowEvent::Resized
+                // and snap the inner size back up. On compliant platforms
+                // (Windows, X11, most Wayland) the clamp branch is a no-op
+                // because the WM already prevents the undersize.
+                //
+                // Filesystem write is ~200 bytes via atomic_write — cheap
+                // enough to skip a debounce. While maximized we keep the
+                // previous unmaximized geometry so unmaximize restores the
+                // right size, and we ignore zero-sized resize events (those
+                // fire when the window is hidden / minimized and would
+                // clobber the saved size).
                 let win_for_events = window.clone();
                 window.on_window_event(move |event| {
                     use tauri::WindowEvent;
@@ -202,6 +221,35 @@ pub fn run() {
                     {
                         return;
                     }
+
+                    // Active min-size clamp on resize. Compare in logical
+                    // pixels (DPI-agnostic) and only re-set when the inner
+                    // size has actually fallen below the floor — avoids a
+                    // feedback loop on compositors that already enforce the
+                    // hint, since `set_size` itself fires another Resized.
+                    if matches!(event, WindowEvent::Resized(_)) {
+                        if let (Ok(scale), Ok(inner)) =
+                            (win_for_events.scale_factor(), win_for_events.inner_size())
+                        {
+                            if inner.width > 0 && inner.height > 0 {
+                                let logical = inner.to_logical::<f64>(scale);
+                                if logical.width < MIN_WIDTH || logical.height < MIN_HEIGHT {
+                                    let _ = win_for_events.set_size(tauri::Size::Logical(
+                                        tauri::LogicalSize {
+                                            width: logical.width.max(MIN_WIDTH),
+                                            height: logical.height.max(MIN_HEIGHT),
+                                        },
+                                    ));
+                                    // Skip persisting this frame — the size we
+                                    // just observed is below floor and the
+                                    // follow-up Resized from set_size will be
+                                    // the one we want to save.
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
                     let mut state = services::window_state::load().unwrap_or_default();
                     let maximized = win_for_events.is_maximized().unwrap_or(false);
                     state.maximized = maximized;
@@ -212,8 +260,25 @@ pub fn run() {
                         }
                         if let Ok(s) = win_for_events.inner_size() {
                             if s.width > 0 && s.height > 0 {
-                                state.width = s.width;
-                                state.height = s.height;
+                                // Defense in depth: never persist a size below
+                                // the floor. If a transient undersize slipped
+                                // past the active clamp above (e.g. event
+                                // ordering on a non-compliant compositor), we
+                                // still refuse to write it to disk, so reopens
+                                // can never start the user inside the bug.
+                                let (mut w, mut h) = (s.width, s.height);
+                                if let Ok(scale) = win_for_events.scale_factor() {
+                                    let min_w = (MIN_WIDTH * scale).round() as u32;
+                                    let min_h = (MIN_HEIGHT * scale).round() as u32;
+                                    if w < min_w {
+                                        w = min_w;
+                                    }
+                                    if h < min_h {
+                                        h = min_h;
+                                    }
+                                }
+                                state.width = w;
+                                state.height = h;
                             }
                         }
                     }

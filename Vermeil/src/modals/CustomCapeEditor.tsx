@@ -73,6 +73,42 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return arr;
 }
 
+/**
+ * Average colour of an image, as a `#rrggbb` hex string. Downscales to a
+ * small canvas and means the (non-transparent) pixels — cheap and gives a
+ * representative tone derived from the image itself, so the cape background
+ * blends with the art instead of clashing with a fixed colour.
+ */
+function computeAverageColor(img: HTMLImageElement, fallback: string): string {
+  const n = 32;
+  const c = document.createElement("canvas");
+  c.width = n;
+  c.height = n;
+  const ctx = c.getContext("2d");
+  if (!ctx) return fallback;
+  ctx.drawImage(img, 0, 0, n, n);
+  let data: Uint8ClampedArray;
+  try {
+    data = ctx.getImageData(0, 0, n, n).data;
+  } catch {
+    return fallback; // tainted canvas (shouldn't happen for same-origin data URLs)
+  }
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 16) continue; // skip near-transparent pixels
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+    count++;
+  }
+  if (count === 0) return fallback;
+  const hex = (v: number) => Math.round(v / count).toString(16).padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+}
+
 const CustomCapeEditor: Component<Props> = (props) => {
   const [name, setName] = createSignal(props.editing?.name ?? "Custom Cape");
   const [bg, setBg] = createSignal<string>(props.editing?.transform.bg ?? DEFAULT_BG);
@@ -286,6 +322,9 @@ const CustomCapeEditor: Component<Props> = (props) => {
       dx = (PANEL.w - baseDw) / 2;
       dy = (PANEL.h - baseDh) / 2;
       setScale(1);
+      // Auto-match the background to the image so the cape's surrounding
+      // faces blend with the art rather than showing a clashing fixed colour.
+      if (sourceImg) setBg(computeAverageColor(sourceImg, DEFAULT_BG));
       setHasImage(true);
       if (!name().trim() || name() === "Custom Cape") {
         const stem = file.name.replace(/\.[^.]+$/, "");

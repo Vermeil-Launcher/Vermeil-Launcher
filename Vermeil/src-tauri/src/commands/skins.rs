@@ -6,7 +6,7 @@
 
 use crate::services::auth::MinecraftProfile;
 use crate::services::skins::{
-    self, LocalSkin, PlayerProfile, SkinVariant,
+    self, CustomCape, LocalSkin, PlayerProfile, SkinVariant,
 };
 use crate::util::{paths, credentials};
 use std::fs;
@@ -108,6 +108,46 @@ pub async fn add_local_skin(
 pub async fn remove_local_skin(hash: String) -> Result<(), String> {
     let account = active_microsoft_account()?;
     skins::remove_local_skin(&account.id, &hash)
+}
+
+// ───────────────────────── Custom capes ─────────────────────────────────
+
+/// List the account's local custom capes (display-only, never sent to Mojang).
+#[tauri::command]
+pub async fn list_custom_capes() -> Result<Vec<CustomCape>, String> {
+    let account = active_microsoft_account()?;
+    Ok(skins::list_custom_capes(&account.id))
+}
+
+/// Create or update a custom cape. `id` is `None` for a new cape, or the
+/// existing cape's id when re-editing. `texture_png` is the baked 64×32 cape
+/// texture; `source_bytes` is the original uploaded image (kept for re-edits).
+#[tauri::command]
+pub async fn save_custom_cape(
+    id: Option<String>,
+    name: String,
+    texture_png: Vec<u8>,
+    source_bytes: Vec<u8>,
+    source_mime: String,
+    transform: serde_json::Value,
+) -> Result<CustomCape, String> {
+    let account = active_microsoft_account()?;
+    skins::save_custom_cape(
+        &account.id,
+        id,
+        &name,
+        &texture_png,
+        &source_bytes,
+        &source_mime,
+        transform,
+    )
+}
+
+/// Delete a custom cape and its backing files.
+#[tauri::command]
+pub async fn remove_custom_cape(id: String) -> Result<(), String> {
+    let account = active_microsoft_account()?;
+    skins::remove_custom_cape(&account.id, &id)
 }
 
 /// Fetch the current skin head for any Microsoft account on file (not just

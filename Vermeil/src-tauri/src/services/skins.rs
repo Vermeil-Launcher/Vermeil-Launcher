@@ -786,3 +786,289 @@ fn hex_lower(bytes: &[u8]) -> String {
     }
     s
 }
+
+// ───────────────────────── Custom cape library ──────────────────────────
+//
+// Local, display-only custom capes. Mojang's API only equips capes the
+// account has actually been granted and rejects arbitrary textures, so these
+// never leave the launcher's 3D viewer — they're a cosmetic preview feature.
+//
+// Each cape stores three things on disk under `<data>/capes/<account_id>/`:
+//   • `<id>.png`  — the baked 64×32 Minecraft cape texture the viewer renders.
+//   • `<id>.src`  — the original uploaded image, kept so the editor can
+//                   reopen and re-position an existing cape.
+//   • an entry in `capes.json` holding the name, source mime, a frontend-owned
+//     transform blob (position/scale/background — opaque to the backend), and
+//     the created-at timestamp.
+//
+// The frontend does the compositing (canvas → 64×32 PNG); the backend only
+// validates, stores, and serves bytes back as data URLs, mirroring the local
+// skin library above.
+
+/// Max accepted size for an uploaded source image. Generous for a static
+/// image while still bounding what an untrusted file can write to disk.
+const MAX_CAPE_SOURCE_BYTES: usize = 8 * 1024 * 1024;
+
+/// A custom cape as the frontend sees it. Textures inlined as data URLs, same
+/// pattern as `RemoteCape` / `LocalSkin`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomCape {
+    /// Stable id (uuid v4) — also the on-disk filename stem.
+    pub id: String,
+    pub name: String,
+    /// Baked 64×32 cape texture as `data:image/png;base64,...`. Fed straight
+    /// to skinview3d's `loadCape`.
+    pub texture: String,
+    /// Original uploaded image as `data:<mime>;base64,...`. Used by the editor
+    /// to repopulate the workspace when re-editing an existing cape.
+    pub source: String,
+    /// Frontend-owned transform (image offset / scale / background colour).
+    /// Opaque to the backend — we round-trip it untouched so the editor can
+    /// add fields (rotation, tiling, …) later without a backend change.
+    pub transform: serde_json::Value,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CustomCapeEntry {
+    id: String,
+    name: String,
+    /// Absolute path to the baked 64×32 PNG.
+    texture_path: String,
+    /// Absolute path to the original uploaded image bytes.
+    source_path: String,
+    /// Mime of the source image (`image/png`, `image/jpeg`, …) so we can
+    /// rebuild its data URL on the way out.
+    source_mime: String,
+    transform: serde_json::Value,
+    created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct CapeLibraryFile {
+    capes: Vec<CustomCapeEntry>,
+}
+
+fn capes_dir(account_id: &str) -> PathBuf {
+    paths::data_dir().join("capes").join(account_id)
+}
+
+fn cape_library_path(account_id: &str) -> PathBuf {
+    capes_dir(account_id).join("capes.json")
+}
+
+fn load_cape_library(account_id: &str) -> CapeLibraryFile {
+    let p = cape_library_path(account_id);
+    if !p.exists() {
+        return CapeLibraryFile::default();
+    }
+    fs::read_to_string(&p)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_cape_library(account_id: &str, lib: &CapeLibraryFile) -> Result<(), String> {
+    let dir = capes_dir(account_id);
+    fs::create_dir_all(&dir).map_err(|e| format!("Create capes dir: {}", e))?;
+    let json = serde_json::to_string_pretty(lib).map_err(|e| e.to_string())?;
+    fs::write(cape_library_path(account_id), json).map_err(|e| format!("Write cape library: {}", e))
+}
+
+fn cape_entry_to_custom_cape(entry: &CustomCapeEntry) -> Option<CustomCape> {
+    let texture_bytes = fs::read(&entry.texture_path).ok()?;
+    let source_bytes = fs::read(&entry.source_path).ok()?;
+    Some(CustomCape {
+        id: entry.id.clone(),
+        name: entry.name.clone(),
+        texture: bytes_to_data_url(&texture_bytes),
+        source: bytes_to_data_url_mime(&source_bytes, &entry.source_mime),
+        transform: entry.transform.clone(),
+        created_at: entry.created_at,
+    })
+}
+
+/// List every custom cape for an account, pruning entries whose backing files
+/// have gone missing (manual deletion, partial copy, etc.).
+pub fn list_custom_capes(account_id: &str) -> Vec<CustomCape> {
+    let mut lib = load_cape_library(account_id);
+    let before = lib.capes.len();
+    lib.capes.retain(|c| {
+        std::path::Path::new(&c.texture_path).exists()
+            && std::path::Path::new(&c.source_path).exists()
+    });
+    if lib.capes.len() != before {
+        let _ = save_cape_library(account_id, &lib);
+    }
+    lib.capes.iter().filter_map(cape_entry_to_custom_cape).collect()
+}
+
+/// Create or update a custom cape. When `id` matches an existing entry the
+/// cape is updated in place (re-edit); otherwise a fresh uuid is minted.
+/// Returns the resulting [`CustomCape`] so the frontend can render it without
+/// a follow-up list call.
+pub fn save_custom_cape(
+    account_id: &str,
+    id: Option<String>,
+    name: &str,
+    texture_png: &[u8],
+    source_bytes: &[u8],
+    source_mime: &str,
+    transform: serde_json::Value,
+) -> Result<CustomCape, String> {
+    // Validate untrusted input before any of it becomes a file on disk.
+    validate_cape_texture(texture_png)?;
+    let sniffed_mime = sniff_image_mime(source_bytes).ok_or_else(|| {
+        "Uploaded file isn't a recognized image (PNG, JPEG, GIF, WebP, or BMP).".to_string()
+    })?;
+    if source_bytes.len() > MAX_CAPE_SOURCE_BYTES {
+        return Err(format!(
+            "Image is too large ({} MB). Max is {} MB.",
+            source_bytes.len() / (1024 * 1024),
+            MAX_CAPE_SOURCE_BYTES / (1024 * 1024)
+        ));
+    }
+    // Trust the sniffed mime over the caller-declared one — the bytes are the
+    // source of truth, the declared value is just a hint.
+    let mime = if sniffed_mime.is_empty() { source_mime } else { sniffed_mime };
+
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("Cape name can't be empty.".to_string());
+    }
+
+    let dir = capes_dir(account_id);
+    fs::create_dir_all(&dir).map_err(|e| format!("Create capes dir: {}", e))?;
+
+    let mut lib = load_cape_library(account_id);
+
+    // Reuse the id when re-editing an existing cape so we overwrite its files
+    // instead of orphaning them. `validate_cape_id` guards against a
+    // frontend-supplied id being turned into a path-traversal filename.
+    let cape_id = match id {
+        Some(existing) if lib.capes.iter().any(|c| c.id == existing) => {
+            validate_cape_id(&existing)?;
+            existing
+        }
+        _ => uuid::Uuid::new_v4().to_string(),
+    };
+
+    let texture_path = dir.join(format!("{}.png", cape_id));
+    let source_path = dir.join(format!("{}.src", cape_id));
+    fs::write(&texture_path, texture_png).map_err(|e| format!("Write cape texture: {}", e))?;
+    fs::write(&source_path, source_bytes).map_err(|e| format!("Write cape source: {}", e))?;
+
+    let created_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    let entry = CustomCapeEntry {
+        id: cape_id.clone(),
+        name: name.to_string(),
+        texture_path: texture_path.to_string_lossy().to_string(),
+        source_path: source_path.to_string_lossy().to_string(),
+        source_mime: mime.to_string(),
+        transform,
+        created_at,
+    };
+
+    if let Some(existing) = lib.capes.iter_mut().find(|c| c.id == cape_id) {
+        // Preserve the original created_at on re-edit.
+        let original_created = existing.created_at;
+        *existing = entry.clone();
+        existing.created_at = original_created;
+    } else {
+        lib.capes.push(entry.clone());
+    }
+    save_cape_library(account_id, &lib)?;
+
+    cape_entry_to_custom_cape(
+        lib.capes.iter().find(|c| c.id == cape_id).unwrap_or(&entry),
+    )
+    .ok_or_else(|| "Failed to read back saved cape".to_string())
+}
+
+/// Remove a custom cape and its backing files.
+pub fn remove_custom_cape(account_id: &str, id: &str) -> Result<(), String> {
+    validate_cape_id(id)?;
+    let mut lib = load_cape_library(account_id);
+    if let Some(pos) = lib.capes.iter().position(|c| c.id == id) {
+        let entry = lib.capes.remove(pos);
+        save_cape_library(account_id, &lib)?;
+        for p in [&entry.texture_path, &entry.source_path] {
+            if std::path::Path::new(p).exists() {
+                let _ = fs::remove_file(p);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Encode bytes as a `data:<mime>;base64,...` URL.
+fn bytes_to_data_url_mime(bytes: &[u8], mime: &str) -> String {
+    format!(
+        "data:{};base64,{}",
+        mime,
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    )
+}
+
+/// Validate that the baked cape texture is a real 64×32 PNG. The frontend
+/// always produces this shape, but the bytes cross the IPC boundary so we
+/// check defensively rather than trust the caller.
+fn validate_cape_texture(png_bytes: &[u8]) -> Result<(), String> {
+    if png_bytes.len() < 24 || &png_bytes[..8] != b"\x89PNG\r\n\x1a\n" {
+        return Err("Cape texture isn't a valid PNG".to_string());
+    }
+    let width = u32::from_be_bytes([png_bytes[16], png_bytes[17], png_bytes[18], png_bytes[19]]);
+    let height = u32::from_be_bytes([png_bytes[20], png_bytes[21], png_bytes[22], png_bytes[23]]);
+    if width != 64 || height != 32 {
+        return Err(format!(
+            "Cape texture must be 64x32 — got {}x{}",
+            width, height
+        ));
+    }
+    Ok(())
+}
+
+/// Detect the image type of an uploaded source by magic bytes. Returns the
+/// mime string, or `None` if the bytes don't look like a supported image.
+/// Used to reject non-image uploads before they're written to disk.
+fn sniff_image_mime(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.len() < 12 {
+        return None;
+    }
+    if &bytes[..8] == b"\x89PNG\r\n\x1a\n" {
+        return Some("image/png");
+    }
+    if bytes[..3] == [0xFF, 0xD8, 0xFF] {
+        return Some("image/jpeg");
+    }
+    if &bytes[..6] == b"GIF87a" || &bytes[..6] == b"GIF89a" {
+        return Some("image/gif");
+    }
+    if &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return Some("image/webp");
+    }
+    if &bytes[..2] == b"BM" {
+        return Some("image/bmp");
+    }
+    None
+}
+
+/// Reject a cape id that could escape the capes directory when joined into a
+/// filename. Ids we mint are plain uuids; this guards the re-edit / remove
+/// paths where the id arrives from the frontend.
+fn validate_cape_id(id: &str) -> Result<(), String> {
+    let ok = !id.is_empty()
+        && id.len() <= 64
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-');
+    if ok {
+        Ok(())
+    } else {
+        Err(format!("Invalid cape id: {}", id))
+    }
+}

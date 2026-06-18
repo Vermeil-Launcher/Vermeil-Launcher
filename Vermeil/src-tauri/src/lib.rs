@@ -416,6 +416,9 @@ pub fn run() {
             skins::add_local_skin,
             skins::remove_local_skin,
             skins::get_account_skin,
+            skins::list_custom_capes,
+            skins::save_custom_cape,
+            skins::remove_custom_cape,
             // Files
             files::list_instance_files,
             files::list_instance_worlds,

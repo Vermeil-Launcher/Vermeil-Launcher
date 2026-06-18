@@ -9,14 +9,18 @@ import {
   listLocalSkins,
   equipLocalSkin,
   removeLocalSkin,
+  listCustomCapes,
+  removeCustomCape,
   PlayerProfile,
   LocalSkin,
+  CustomCape,
   SkinVariant,
 } from "../ipc/commands";
 import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
 import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
-import { IconUpload, IconReload, IconTrash2 } from "../components/Icons";
+import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
+import CustomCapeEditor from "../modals/CustomCapeEditor";
 
 /**
  * Idle animation with a subtle elytra breath.
@@ -105,6 +109,29 @@ const Skins: Component = () => {
   const [capeCooldownUntil, setCapeCooldownUntil] = createSignal(0);
   const isCapeOnCooldown = () => Date.now() < capeCooldownUntil();
   const [showElytra, setShowElytra] = createSignal(false);
+
+  // Local custom capes (display-only — never sent to Mojang). `activeCustomCapeId`
+  // is the cape currently shown on the model; when set it overrides the Mojang
+  // cape in the display effect. Selecting a Mojang cape or "No cape" clears it.
+  const [customCapes, { refetch: refetchCustomCapes }] = createResource<CustomCape[]>(async () => {
+    if (!account() || account()!.is_offline) return [];
+    try {
+      return await listCustomCapes();
+    } catch {
+      return [];
+    }
+  });
+  const [activeCustomCapeId, setActiveCustomCapeId] = createSignal<string | null>(null);
+  const [showCapeEditor, setShowCapeEditor] = createSignal(false);
+  const [editingCape, setEditingCape] = createSignal<CustomCape | null>(null);
+
+  // Active skin texture, handed to the cape editor so its 3D preview shows the
+  // user's own body instead of an empty stand.
+  const activeSkinTexture = (): string | undefined => {
+    const p = profile();
+    const a = p?.skins.find((s) => s.state === "ACTIVE") ?? p?.skins[0];
+    return a?.texture;
+  };
 
   // Idle / chrome auto-hide. Any mousemove on the hero resets the timer;
   // 1.5 s without movement → fade chrome to invisible, leaving just the
@@ -231,8 +258,25 @@ const Skins: Component = () => {
   // the elytra simply appears on the player's back.
   createEffect(() => {
     const elytra = showElytra();
+    const customId = activeCustomCapeId();
+    const caps = customCapes();
     const p = profile();
     if (!viewer || !p) return;
+
+    // A locally-selected custom cape wins over the Mojang cape — it's a
+    // display-only override that lives entirely in the viewer.
+    if (customId) {
+      const cc = (caps ?? []).find((c) => c.id === customId);
+      if (cc) {
+        try {
+          viewer.loadCape(cc.texture, { backEquipment: elytra ? "elytra" : "cape" });
+        } catch (e) {
+          console.error("Custom cape load failed:", e);
+        }
+        return;
+      }
+    }
+
     const activeCape = p.capes.find((c) => c.state === "ACTIVE");
     if (activeCape) {
       try {
@@ -401,6 +445,9 @@ const Skins: Component = () => {
   };
 
   const handleEquipCape = async (capeId: string | null) => {
+    // Selecting a Mojang cape (or "No cape") clears any local custom cape
+    // override so the model reflects the real account state.
+    setActiveCustomCapeId(null);
     if (isCapeOnCooldown()) {
       showToast({
         title: "Slow down",
@@ -418,6 +465,42 @@ const Skins: Component = () => {
       setCapeCooldownUntil(Date.now() + 3000);
     } catch (e) {
       showToast({ title: "Cape change failed", message: String(e), type: "error" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // ─── Custom capes ───
+
+  const openNewCape = () => {
+    setEditingCape(null);
+    setShowCapeEditor(true);
+  };
+
+  const openEditCape = (cape: CustomCape) => {
+    setEditingCape(cape);
+    setShowCapeEditor(true);
+  };
+
+  const handleCapeSaved = async (cape: CustomCape) => {
+    await refetchCustomCapes();
+    // Show the freshly-saved cape on the model immediately.
+    setActiveCustomCapeId(cape.id);
+  };
+
+  const handleEquipCustomCape = (id: string) => {
+    // Toggle: clicking the active custom cape again removes the override.
+    setActiveCustomCapeId(activeCustomCapeId() === id ? null : id);
+  };
+
+  const handleRemoveCustomCape = async (id: string) => {
+    setBusy(`ccape-${id}`);
+    try {
+      await removeCustomCape(id);
+      if (activeCustomCapeId() === id) setActiveCustomCapeId(null);
+      await refetchCustomCapes();
+    } catch (e) {
+      showToast({ title: "Remove failed", message: String(e), type: "error" });
     } finally {
       setBusy(null);
     }
@@ -584,45 +667,101 @@ const Skins: Component = () => {
               />
             </div>
 
-            {/* Right side dock — capes. */}
+            {/* Right side dock — capes (Mojang + local custom). */}
             <div class="skins-fade-on-idle skins-dock-side">
-              <Show
-                when={(profile()?.capes ?? []).length > 0}
-                fallback={
-                  <div class="skins-dock-empty">
-                    Capes you've earned appear here.
-                  </div>
-                }
+              {/* No cape */}
+              <button
+                class={`skins-cape-chip ${
+                  !activeCustomCapeId() && !profile()?.capes.some((c) => c.state === "ACTIVE")
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() => handleEquipCape(null)}
+                disabled={busy() !== null}
+                title="No cape"
               >
-                <button
-                  class={`skins-cape-chip ${
-                    !profile()?.capes.some((c) => c.state === "ACTIVE") ? "active" : ""
-                  }`}
-                  onClick={() => handleEquipCape(null)}
-                  disabled={busy() !== null}
-                  title="No cape"
-                >
-                  <span class="skins-cape-empty-glyph">×</span>
-                </button>
-                <For each={profile()?.capes ?? []}>
-                  {(cape) => (
+                <span class="skins-cape-empty-glyph">×</span>
+              </button>
+
+              {/* Mojang-granted capes */}
+              <For each={profile()?.capes ?? []}>
+                {(cape) => (
+                  <button
+                    class={`skins-cape-chip ${
+                      !activeCustomCapeId() && cape.state === "ACTIVE" ? "active" : ""
+                    }`}
+                    onClick={() => handleEquipCape(cape.id)}
+                    disabled={busy() !== null}
+                    title={cape.alias}
+                  >
+                    <div
+                      class="skins-cape-chip-thumb"
+                      style={{ "background-image": `url(${cape.texture})` }}
+                    />
+                  </button>
+                )}
+              </For>
+
+              {/* Local custom capes */}
+              <For each={customCapes() ?? []}>
+                {(cape) => (
+                  <div
+                    class={`skins-cape-chip skins-cape-chip--custom ${
+                      activeCustomCapeId() === cape.id ? "active" : ""
+                    }`}
+                    title={cape.name}
+                  >
                     <button
-                      class={`skins-cape-chip ${cape.state === "ACTIVE" ? "active" : ""}`}
-                      onClick={() => handleEquipCape(cape.id)}
+                      class="skins-cape-chip-equip"
+                      onClick={() => handleEquipCustomCape(cape.id)}
                       disabled={busy() !== null}
-                      title={cape.alias}
                     >
                       <div
                         class="skins-cape-chip-thumb"
                         style={{ "background-image": `url(${cape.texture})` }}
                       />
                     </button>
-                  )}
-                </For>
-              </Show>
+                    <button
+                      class="skins-cape-chip-edit"
+                      onClick={() => openEditCape(cape)}
+                      disabled={busy() !== null}
+                      title="Edit cape"
+                    >
+                      <IconEdit />
+                    </button>
+                    <button
+                      class="skins-cape-chip-remove"
+                      onClick={() => handleRemoveCustomCape(cape.id)}
+                      disabled={busy() !== null}
+                      title="Remove cape"
+                    >
+                      <IconTrash2 />
+                    </button>
+                  </div>
+                )}
+              </For>
+
+              {/* Create a new custom cape */}
+              <button
+                class="skins-cape-chip skins-cape-add"
+                onClick={openNewCape}
+                disabled={busy() !== null}
+                title="Create custom cape"
+              >
+                <IconPlus />
+              </button>
             </div>
           </div>
         </div>
+
+        <Show when={showCapeEditor()}>
+          <CustomCapeEditor
+            editing={editingCape()}
+            skinTexture={activeSkinTexture()}
+            onClose={() => setShowCapeEditor(false)}
+            onSaved={handleCapeSaved}
+          />
+        </Show>
       </Show>
     </div>
   );

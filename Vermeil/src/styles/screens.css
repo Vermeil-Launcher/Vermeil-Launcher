@@ -1028,3 +1028,144 @@
 .inst-card-icon.orange { background: var(--grad-inst-orange); }
 .inst-card-icon.quilt { background: var(--grad-inst-quilt); }
 .inst-card-icon.purple { background: var(--grad-inst-quilt); }
+
+/* Custom cape chip — equip fills the chip; edit + remove reveal on hover.
+   Mirrors the saved-skin chip pattern. */
+.skins-cape-chip--custom { padding: 0; }
+.skins-cape-chip-equip {
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  display: flex;
+}
+.skins-cape-chip-equip:disabled { opacity: 0.5; cursor: not-allowed; }
+.skins-cape-chip-edit,
+.skins-cape-chip-remove {
+  position: absolute;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.skins-cape-chip-edit { right: 22px; }
+.skins-cape-chip-remove { right: 2px; }
+.skins-cape-chip--custom:hover .skins-cape-chip-edit,
+.skins-cape-chip--custom:hover .skins-cape-chip-remove { display: flex; }
+.skins-cape-chip-edit:hover { background: var(--surface-sunken); color: var(--accent); }
+.skins-cape-chip-remove:hover { background: var(--danger-soft); color: var(--danger); }
+.skins-cape-chip-edit svg,
+.skins-cape-chip-remove svg { width: 11px; height: 11px; }
+
+/* Add-custom-cape button — dashed to read as "create new". */
+.skins-cape-add {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+.skins-cape-add svg { width: 18px; height: 18px; }
+.skins-cape-add:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+
+/* ============================================================
+   Custom cape editor modal (modals/CustomCapeEditor.tsx)
+
+   Two-pane stage: a 2D positioning workspace (the cape's visible back
+   panel, magnified, with a guide grid) beside a live 3D preview of the
+   baked cape on the player. Controls row underneath.
+   ============================================================ */
+.cape-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cape-editor-stage {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  align-items: flex-start;
+}
+.cape-editor-workspace,
+.cape-editor-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+}
+.cape-editor-panel-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.cape-workspace-canvas {
+  background: repeating-conic-gradient(#2a2733 0% 25%, #211f29 0% 50%) 0 / 16px 16px;
+  border: 1px solid var(--border-strong);
+  touch-action: none;
+}
+.cape-workspace-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px dashed var(--border-strong);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.cape-workspace-empty svg { width: 28px; height: 28px; }
+.cape-workspace-empty:hover { color: var(--accent); border-color: var(--accent); }
+.cape-preview-canvas {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  cursor: grab;
+}
+.cape-preview-canvas:active { cursor: grabbing; }
+
+.cape-editor-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.cape-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cape-control-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.cape-control input[type="range"] { width: 160px; }
+.cape-control--bg input[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+}
+.cape-editor-control-btns {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}

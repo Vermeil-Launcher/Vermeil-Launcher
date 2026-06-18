@@ -424,6 +424,37 @@ export interface LocalSkin {
   created_at: number;
 }
 
+/**
+ * Transform describing how an uploaded image is placed onto the cape's
+ * visible back panel (texture rect 12,1,10,16 in the 64×32 atlas). Frontend-
+ * owned: the backend stores it as an opaque blob and never interprets it.
+ *
+ * - `dx` / `dy`: image top-left offset within the panel, in panel-texel units
+ *   (the panel is 10×16). May be negative when the image overhangs.
+ * - `scale`: multiplier on the contain-fit baseline size (1 = fit whole image).
+ * - `bg`: CSS colour filling the cape behind/around the image so the cape has
+ *   no transparent edges.
+ */
+export interface CapeTransform {
+  dx: number;
+  dy: number;
+  scale: number;
+  bg: string;
+}
+
+/** A local, display-only custom cape (never uploaded to Mojang). */
+export interface CustomCape {
+  id: string;
+  name: string;
+  /** Baked 64×32 cape texture as `data:image/png;base64,...`. */
+  texture: string;
+  /** Original uploaded image as `data:<mime>;base64,...`, for re-editing. */
+  source: string;
+  transform: CapeTransform;
+  /** Unix epoch seconds when created. */
+  created_at: number;
+}
+
 export const getSkinProfile = () => invoke<PlayerProfile>("get_skin_profile");
 export const uploadSkin = (
   pngBytes: number[],
@@ -448,6 +479,27 @@ export const addLocalSkin = (name: string, pngBytes: number[], variant: SkinVari
   invoke<LocalSkin>("add_local_skin", { name, pngBytes, variant });
 export const removeLocalSkin = (hash: string) =>
   invoke<void>("remove_local_skin", { hash });
+
+// Custom capes (local, display-only — never sent to Mojang).
+export const listCustomCapes = () => invoke<CustomCape[]>("list_custom_capes");
+export const saveCustomCape = (
+  id: string | null,
+  name: string,
+  texturePng: number[],
+  sourceBytes: number[],
+  sourceMime: string,
+  transform: CapeTransform,
+) =>
+  invoke<CustomCape>("save_custom_cape", {
+    id,
+    name,
+    texturePng,
+    sourceBytes,
+    sourceMime,
+    transform,
+  });
+export const removeCustomCape = (id: string) =>
+  invoke<void>("remove_custom_cape", { id });
 
 /**
  * Fetch a single account's current skin head (data URL) without changing

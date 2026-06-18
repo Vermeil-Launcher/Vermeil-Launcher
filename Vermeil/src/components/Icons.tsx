@@ -268,6 +268,25 @@ export const IconX: Component = () => (
   </svg>
 );
 
+// Image — Feather Icons (MIT). https://github.com/feathericons/feather
+// Used for the custom-cape upload affordance and the empty workspace hint.
+export const IconImage: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <polyline points="21 15 16 10 5 21"/>
+  </svg>
+);
+
+// Edit (pencil) — Feather Icons (MIT). https://github.com/feathericons/feather
+// Used to re-open an existing custom cape in the editor.
+export const IconEdit: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>
+  </svg>
+);
+
 // Chevron-down — Feather Icons (MIT). https://github.com/feathericons/feather
 // Replaces the `▾` glyph in `.custom-dropdown-arrow`.
 export const IconChevronDown: Component = () => (

@@ -14,6 +14,10 @@ interface DropdownProps {
   width?: string;
   /** When true, the control is greyed out and can't be opened. */
   disabled?: boolean;
+  /** Open the options panel upward (above the trigger) instead of downward.
+   *  Use when the dropdown sits near the bottom of its container so the list
+   *  doesn't overflow and trigger a scrollbar. */
+  openUp?: boolean;
 }
 
 /**
@@ -45,7 +49,7 @@ const Dropdown: Component<DropdownProps> = (props) => {
         <span class="custom-dropdown-arrow" classList={{ open: open() }}><IconChevronDown /></span>
       </div>
       <Show when={open() && !props.disabled}>
-        <div class="custom-dropdown-options" style="max-height:180px">
+        <div class="custom-dropdown-options" classList={{ up: props.openUp }} style="max-height:180px">
           <For each={props.options}>
             {(opt) => (
               <div

@@ -512,6 +512,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
                 options={RES_OPTIONS}
                 onChange={handleRes}
                 width="150px"
+                openUp
               />
             </div>
 

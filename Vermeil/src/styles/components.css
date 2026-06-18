@@ -1002,6 +1002,12 @@ select.field-input[size] { appearance: none; }
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
+/* Upward variant — for dropdowns near the bottom of their container, so the
+   options panel rises above the trigger instead of overflowing downward. */
+.custom-dropdown-options.up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
 .custom-dropdown-option {
   padding: var(--space-2) var(--space-3);
   font-size: 12px;

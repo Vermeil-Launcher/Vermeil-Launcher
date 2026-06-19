@@ -4,6 +4,9 @@
 
 ## Prerequisites
 
+The lists below are for building the **launcher**. The companion mod
+(`vermeil-mod/`) needs one extra tool — see [Companion mod](#companion-mod-all-platforms).
+
 ### Windows
 
 - [Node.js 24 LTS](https://nodejs.org/) (includes npm)
@@ -26,6 +29,17 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librs
 ```
 
 Then install Node 24 and pnpm via [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm), and Rust via [rustup](https://rustup.rs/).
+
+### Companion mod (all platforms)
+
+Only needed if you build the mod in `vermeil-mod/`:
+
+- **JDK 25** — [Temurin/Adoptium](https://adoptium.net/) 25. The latest
+  Minecraft (26.1.x) requires Java 25. Confirm with `java -version`.
+
+No separate Gradle install is required — the mod ships a Gradle wrapper
+(`gradlew` / `gradlew.bat`). See [Companion Mod](#companion-mod-vermeil-mod) below
+for build commands.
 
 ## Running in Development
 
@@ -79,8 +93,7 @@ built and distributed (download-on-demand) on its own.
 
 ### Prerequisites
 
-- **JDK 25** (Temurin/Adoptium). The latest Minecraft (26.1.x) requires Java 25.
-  Make sure `java -version` reports 25 before building.
+- **JDK 25** — see [Companion mod](#companion-mod-all-platforms) under Prerequisites.
 - No system Gradle needed — the project ships a Gradle **wrapper**
   (`gradlew` / `gradlew.bat`). Fabric Loom drives the Gradle/Loom versions.
 

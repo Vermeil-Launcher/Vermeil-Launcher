@@ -450,10 +450,8 @@ export interface CapeTransform {
 export interface CustomCape {
   id: string;
   name: string;
-  /** Baked 64×32 cape texture as `data:image/png;base64,...`. */
+  /** Baked cape texture as `data:image/png;base64,...`. */
   texture: string;
-  /** Original uploaded image as `data:<mime>;base64,...`, for re-editing. */
-  source: string;
   transform: CapeTransform;
   /** Unix epoch seconds when created. */
   created_at: number;
@@ -504,6 +502,11 @@ export const saveCustomCape = (
   });
 export const removeCustomCape = (id: string) =>
   invoke<void>("remove_custom_cape", { id });
+/** Fetch a custom cape's original uploaded image (data URL) for re-editing.
+ *  Kept separate from listCustomCapes so the library doesn't inline every
+ *  source image (each up to 8 MB) into memory at once. */
+export const readCustomCapeSource = (id: string) =>
+  invoke<string>("read_custom_cape_source", { id });
 
 /**
  * Fetch a single account's current skin head (data URL) without changing

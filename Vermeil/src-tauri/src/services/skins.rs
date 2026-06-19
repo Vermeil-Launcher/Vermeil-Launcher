@@ -819,9 +819,6 @@ pub struct CustomCape {
     /// Baked 64×32 cape texture as `data:image/png;base64,...`. Fed straight
     /// to skinview3d's `loadCape`.
     pub texture: String,
-    /// Original uploaded image as `data:<mime>;base64,...`. Used by the editor
-    /// to repopulate the workspace when re-editing an existing cape.
-    pub source: String,
     /// Frontend-owned transform (image offset / scale / background colour).
     /// Opaque to the backend — we round-trip it untouched so the editor can
     /// add fields (rotation, tiling, …) later without a backend change.
@@ -875,17 +872,35 @@ fn save_cape_library(account_id: &str, lib: &CapeLibraryFile) -> Result<(), Stri
     fs::write(cape_library_path(account_id), json).map_err(|e| format!("Write cape library: {}", e))
 }
 
+/// Build the frontend-facing cape (texture inlined as a data URL). The source
+/// image is deliberately *not* inlined here — it can be up to 8 MB and is only
+/// needed when re-editing, so the dock/list stays light. The editor pulls it
+/// on demand via `read_custom_cape_source`.
 fn cape_entry_to_custom_cape(entry: &CustomCapeEntry) -> Option<CustomCape> {
     let texture_bytes = fs::read(&entry.texture_path).ok()?;
-    let source_bytes = fs::read(&entry.source_path).ok()?;
     Some(CustomCape {
         id: entry.id.clone(),
         name: entry.name.clone(),
         texture: bytes_to_data_url(&texture_bytes),
-        source: bytes_to_data_url_mime(&source_bytes, &entry.source_mime),
         transform: entry.transform.clone(),
         created_at: entry.created_at,
     })
+}
+
+/// Read one cape's original uploaded image as a `data:<mime>;base64,...` URL.
+/// Used only by the editor when re-opening an existing cape — kept out of the
+/// list payload so a library of HD capes doesn't pin every source image in
+/// memory at once.
+pub fn read_custom_cape_source(account_id: &str, id: &str) -> Result<String, String> {
+    validate_cape_id(id)?;
+    let lib = load_cape_library(account_id);
+    let entry = lib
+        .capes
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| format!("Custom cape {} not found", id))?;
+    let bytes = fs::read(&entry.source_path).map_err(|e| format!("Read cape source: {}", e))?;
+    Ok(bytes_to_data_url_mime(&bytes, &entry.source_mime))
 }
 
 /// List every custom cape for an account, pruning entries whose backing files

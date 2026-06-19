@@ -419,6 +419,7 @@ pub fn run() {
             skins::list_custom_capes,
             skins::save_custom_cape,
             skins::remove_custom_cape,
+            skins::read_custom_cape_source,
             // Files
             files::list_instance_files,
             files::list_instance_worlds,

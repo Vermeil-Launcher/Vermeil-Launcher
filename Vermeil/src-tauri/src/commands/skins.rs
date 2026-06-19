@@ -150,6 +150,13 @@ pub async fn remove_custom_cape(id: String) -> Result<(), String> {
     skins::remove_custom_cape(&account.id, &id)
 }
 
+/// Read a custom cape's original uploaded image (data URL) for re-editing.
+#[tauri::command]
+pub async fn read_custom_cape_source(id: String) -> Result<String, String> {
+    let account = active_microsoft_account()?;
+    skins::read_custom_cape_source(&account.id, &id)
+}
+
 /// Fetch the current skin head for any Microsoft account on file (not just
 /// the active one). Returns the skin texture as a base64 data URL, or
 /// `None` for offline accounts.

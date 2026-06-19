@@ -3,9 +3,9 @@
 //!
 //! Replaces `tauri-plugin-window-state`. The plugin defaulted to writing
 //! `<app_config_dir>/.window-state`, which on Windows resolves to
-//! `%APPDATA%\com.vermeil.launcher\.window-state` — a second app-data folder
-//! sitting next to our real `%APPDATA%\Vermeil\` data dir. Consolidating the
-//! state file into our own data dir kills the duplicate folder.
+//! `%APPDATA%\com.vermeil.launcher\.window-state` (roaming) — a second app-data
+//! folder separate from our real `%LOCALAPPDATA%\Vermeil\` data dir.
+//! Consolidating the state file into our own data dir kills the duplicate folder.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

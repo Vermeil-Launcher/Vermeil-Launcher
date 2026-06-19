@@ -422,7 +422,7 @@ const Settings: Component = () => {
               <div class="settings-row">
                 <div>
                   <div class="settings-key">App directory</div>
-                  <div class="settings-val" style="font-family:var(--font-mono);font-size:10px">%APPDATA%/Vermeil</div>
+                  <div class="settings-val" style="font-family:var(--font-mono);font-size:10px">%LOCALAPPDATA%/Vermeil</div>
                 </div>
               </div>
               <div class="settings-row">

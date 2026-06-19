@@ -223,24 +223,145 @@ export function detectAnimated(bytes: Uint8Array): boolean {
   return false;
 }
 
-// ─── Display image loader ──────────────────────────────────────────────────
+// ─── Frame source (static or animated) ─────────────────────────────────────
 
-/**
- * Load an image for display/animation. The element is appended to the document
- * (1×1, transparent, on-viewport) so the browser keeps animated formats
- * advancing — a detached or `display:none` image may pause. Call `.remove()`
- * on the resolved element when done.
- */
-export function loadDisplayImage(dataUrl: string): Promise<HTMLImageElement> {
+function parseDataUrl(dataUrl: string): { bytes: Uint8Array; mime: string } {
+  const comma = dataUrl.indexOf(",");
+  const mime = dataUrl.slice(5, comma).split(";")[0] || "application/octet-stream";
+  const bin = atob(dataUrl.slice(comma + 1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { bytes, mime };
+}
+
+/** Load a plain still image (no DOM attachment needed — it's only drawn to a
+ *  canvas, never displayed). */
+function loadStillImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.style.cssText =
-      "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("Image load failed"));
     img.src = dataUrl;
-    document.body.appendChild(img);
   });
+}
+
+/** Cap on decoded frames held in memory (bounds a pathological GIF). */
+const MAX_FRAMES = 300;
+
+/** Minimal structural type for the WebCodecs `ImageDecoder` we rely on, so we
+ *  don't require the WebCodecs lib types to be enabled in tsconfig. */
+type ImageDecoderCtor = new (init: { data: Uint8Array; type: string }) => {
+  tracks: { ready: Promise<void>; selectedTrack?: { frameCount?: number } };
+  decode: (opts: { frameIndex: number }) => Promise<{ image: CanvasImageSource }>;
+  close: () => void;
+};
+
+/**
+ * A still-or-animated image source for cape baking.
+ *
+ * Animated formats are decoded frame-by-frame up front via WebCodecs
+ * `ImageDecoder`. This is the reliable path on Chromium/WebView2: it does NOT
+ * depend on an `<img>` being painted, which Chromium pauses for off-screen or
+ * transparent images — that pausing is exactly why drawing a hidden animated
+ * `<img>` to canvas froze on frame 0. `current()` returns the frame for the
+ * present time so callers just bake whatever it hands back each tick.
+ *
+ * Cross-platform: `ImageDecoder` is present on WebView2 (Windows) and recent
+ * WebKitGTK. When it's absent (older WebKitGTK on Linux) we fall back to a
+ * static first frame — the cape shows but doesn't animate. That gap is a
+ * documented Linux limitation to revisit, not a silent failure.
+ */
+export class FrameSource {
+  width = 0;
+  height = 0;
+  animated = false;
+  // VideoFrame[] at runtime; typed loosely so we don't require WebCodecs lib types.
+  private frames: CanvasImageSource[] = [];
+  private durations: number[] = [];
+  private total = 0;
+  private still: HTMLImageElement | null = null;
+  private readonly startTs = performance.now();
+
+  static async load(dataUrl: string): Promise<FrameSource> {
+    const s = new FrameSource();
+    await s.init(dataUrl);
+    return s;
+  }
+
+  private async init(dataUrl: string): Promise<void> {
+    const { bytes, mime } = parseDataUrl(dataUrl);
+    const decoderCtor = (globalThis as unknown as { ImageDecoder?: unknown }).ImageDecoder;
+    if (detectAnimated(bytes) && typeof decoderCtor === "function") {
+      try {
+        // APNG needs the dedicated mime to expose its frames; a plain
+        // "image/png" decodes as a single frame.
+        const isApng = bytes[0] === 0x89 && bytes[1] === 0x50 && findAscii(bytes, "acTL", 8, 8192) >= 0;
+        await this.decodeAll(decoderCtor as ImageDecoderCtor, bytes, isApng ? "image/apng" : mime);
+      } catch {
+        this.disposeFrames(); // decoder failed — fall through to a still frame
+      }
+    }
+    if (this.frames.length > 1) {
+      this.animated = true;
+      const f0 = this.frames[0] as unknown as { displayWidth: number; displayHeight: number };
+      this.width = f0.displayWidth;
+      this.height = f0.displayHeight;
+      return;
+    }
+    // Static, or animated with no usable decoder → a single still frame.
+    this.disposeFrames();
+    const img = await loadStillImage(dataUrl);
+    this.still = img;
+    this.width = img.naturalWidth;
+    this.height = img.naturalHeight;
+  }
+
+  private async decodeAll(
+    Ctor: ImageDecoderCtor,
+    bytes: Uint8Array,
+    type: string,
+  ): Promise<void> {
+    const decoder = new Ctor({ data: bytes, type });
+    await decoder.tracks.ready;
+    const count = Math.min(decoder.tracks.selectedTrack?.frameCount ?? 1, MAX_FRAMES);
+    for (let i = 0; i < count; i++) {
+      const { image } = await decoder.decode({ frameIndex: i });
+      this.frames.push(image);
+      const us = (image as unknown as { duration: number | null }).duration;
+      const ms = us ? us / 1000 : 100;
+      this.durations.push(ms > 0 ? ms : 100);
+    }
+    this.total = this.durations.reduce((a, b) => a + b, 0);
+    decoder.close();
+  }
+
+  /** The frame to draw for the current moment in the loop. */
+  current(): CanvasImageSource {
+    if (this.frames.length > 1 && this.total > 0) {
+      const elapsed = (performance.now() - this.startTs) % this.total;
+      let acc = 0;
+      for (let i = 0; i < this.frames.length; i++) {
+        acc += this.durations[i];
+        if (elapsed < acc) return this.frames[i];
+      }
+      return this.frames[this.frames.length - 1];
+    }
+    return this.still as CanvasImageSource;
+  }
+
+  private disposeFrames(): void {
+    for (const f of this.frames) {
+      (f as unknown as { close?: () => void }).close?.();
+    }
+    this.frames = [];
+    this.durations = [];
+    this.total = 0;
+  }
+
+  dispose(): void {
+    this.disposeFrames();
+    this.still = null;
+  }
 }
 
 // ─── Animation controller ───────────────────────────────────────────────────
@@ -254,13 +375,13 @@ interface CapeViewer {
 }
 
 /**
- * Drives an animated cape onto a skinview3d viewer: holds the animating
- * `<img>`, runs a throttled rAF loop, and re-bakes the current frame onto a
+ * Drives an animated cape onto a skinview3d viewer: decodes the source's
+ * frames, runs a throttled rAF loop, and re-bakes the current frame onto a
  * reused canvas each tick. `getParams` is read every frame so live edits
  * (drag/scale/bg/res) and the elytra toggle take effect immediately.
  */
 export class CapeAnimator {
-  private img: HTMLImageElement | null = null;
+  private src: FrameSource | null = null;
   private raf = 0;
   private last = 0;
   private readonly canvas = document.createElement("canvas");
@@ -273,8 +394,10 @@ export class CapeAnimator {
   /** Begin animating from a source data URL. Replaces any current animation. */
   async start(sourceDataUrl: string): Promise<void> {
     this.stop();
-    const img = await loadDisplayImage(sourceDataUrl);
-    this.img = img;
+    const src = await FrameSource.load(sourceDataUrl);
+    this.src = src;
+    this.render(); // paint the first frame immediately
+    if (!src.animated) return; // static fallback — no loop needed
     const tick = (ts: number) => {
       this.raf = requestAnimationFrame(tick);
       if (ts - this.last < 1000 / ANIM_FPS) return;
@@ -286,9 +409,9 @@ export class CapeAnimator {
 
   /** Bake + upload the current frame once (used immediately and each tick). */
   render(): void {
-    if (!this.img) return;
+    if (!this.src) return;
     const p = this.getParams();
-    bakeCape(this.canvas, this.img, this.img.naturalWidth, this.img.naturalHeight, p);
+    bakeCape(this.canvas, this.src.current(), this.src.width, this.src.height, p);
     try {
       this.viewer.loadCape(this.canvas, { backEquipment: p.elytra ? "elytra" : "cape" });
     } catch {
@@ -296,15 +419,13 @@ export class CapeAnimator {
     }
   }
 
-  /** Stop the loop and detach the image element. */
+  /** Stop the loop and release decoded frames. */
   stop(): void {
     if (this.raf) {
       cancelAnimationFrame(this.raf);
       this.raf = 0;
     }
-    if (this.img) {
-      this.img.remove();
-      this.img = null;
-    }
+    this.src?.dispose();
+    this.src = null;
   }
 }

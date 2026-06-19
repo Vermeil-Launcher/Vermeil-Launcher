@@ -10,8 +10,7 @@ import {
   computeBaseFit,
   computeAverageColor,
   bakeCape,
-  detectAnimated,
-  loadDisplayImage,
+  FrameSource,
 } from "../lib/cape";
 
 /**
@@ -92,7 +91,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   let baseDw = PANEL.w;
   let baseDh = PANEL.h;
 
-  let sourceImg: HTMLImageElement | null = null;
+  let frameSrc: FrameSource | null = null;
   let sourceBytes: Uint8Array | null = null;
   let sourceMime = "image/png";
 
@@ -110,9 +109,9 @@ const CustomCapeEditor: Component<Props> = (props) => {
   /** Bake the full cape texture into the reused offscreen canvas via the shared
    *  compositor. Returns the canvas, or null when no image is loaded yet. */
   const bakeCapeCanvas = (): HTMLCanvasElement | null => {
-    if (!sourceImg) return null;
+    if (!frameSrc) return null;
     const c = bakeCanvas ?? (bakeCanvas = document.createElement("canvas"));
-    bakeCape(c, sourceImg, sourceImg.naturalWidth, sourceImg.naturalHeight, {
+    bakeCape(c, frameSrc.current(), frameSrc.width, frameSrc.height, {
       dx,
       dy,
       scale: scale(),
@@ -154,14 +153,14 @@ const CustomCapeEditor: Component<Props> = (props) => {
     ctx.fillRect(0, 0, W, H);
 
     // Positioned image, clipped to the panel bounds.
-    if (sourceImg) {
+    if (frameSrc) {
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, 0, W, H);
       ctx.clip();
       const dw = baseDw * scale() * DISP;
       const dh = baseDh * scale() * DISP;
-      ctx.drawImage(sourceImg, dx * DISP, dy * DISP, dw, dh);
+      ctx.drawImage(frameSrc.current(), dx * DISP, dy * DISP, dw, dh);
       ctx.restore();
     }
 
@@ -228,11 +227,11 @@ const CustomCapeEditor: Component<Props> = (props) => {
   const handleUploadClick = () => fileInput?.click();
 
   const loadImageFromDataUrl = async (dataUrl: string): Promise<void> => {
-    // Use a DOM-attached image so animated formats keep advancing frames.
-    const img = await loadDisplayImage(dataUrl);
-    if (sourceImg) sourceImg.remove(); // detach the previous one
-    sourceImg = img;
-    const fit = computeBaseFit(img.naturalWidth, img.naturalHeight);
+    // FrameSource decodes animated formats into discrete frames (reliable on
+    // WebView2) or wraps a still image. Dispose the previous one first.
+    frameSrc?.dispose();
+    frameSrc = await FrameSource.load(dataUrl);
+    const fit = computeBaseFit(frameSrc.width, frameSrc.height);
     baseDw = fit.baseDw;
     baseDh = fit.baseDh;
   };
@@ -259,10 +258,10 @@ const CustomCapeEditor: Component<Props> = (props) => {
       setScale(1);
       // Auto-match the background to the image so the cape's surrounding
       // faces blend with the art rather than showing a clashing fixed colour.
-      if (sourceImg) setBg(computeAverageColor(sourceImg, DEFAULT_BG));
+      if (frameSrc) setBg(computeAverageColor(frameSrc.current(), DEFAULT_BG));
       setHasImage(true);
       // Drive a live frame loop for animated sources; a static one bakes once.
-      const animated = detectAnimated(sourceBytes);
+      const animated = frameSrc?.animated ?? false;
       setIsAnimated(animated);
       if (animated) startAnim();
       else stopAnim();
@@ -298,7 +297,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   };
 
   const onWorkspacePointerDown = (e: PointerEvent) => {
-    if (!sourceImg) return;
+    if (!frameSrc) return;
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -325,7 +324,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   };
 
   const handleCenter = () => {
-    if (!sourceImg) return;
+    if (!frameSrc) return;
     dx = (PANEL.w - baseDw * scale()) / 2;
     dy = (PANEL.h - baseDh * scale()) / 2;
     refresh();
@@ -334,7 +333,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   // ─── Save ───
 
   const handleSave = async () => {
-    if (!sourceImg || !sourceBytes) {
+    if (!frameSrc || !sourceBytes) {
       showToast({ title: "Add an image first", type: "info" });
       return;
     }
@@ -400,7 +399,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
         // same panel-texel space so they reapply directly.
         sourceBytes = dataUrlToBytes(sourceUrl);
         sourceMime = sourceUrl.slice(5, sourceUrl.indexOf(";"));
-        const animated = detectAnimated(sourceBytes);
+        const animated = frameSrc?.animated ?? false;
         setIsAnimated(animated);
         if (animated) startAnim();
         setHasImage(true);
@@ -417,7 +416,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
     window.removeEventListener("pointerup", onPointerUp);
     if (previewRaf) cancelAnimationFrame(previewRaf);
     stopAnim();
-    sourceImg?.remove();
+    frameSrc?.dispose();
     viewer?.dispose();
     viewer = undefined;
   });

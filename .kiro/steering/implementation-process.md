@@ -148,6 +148,39 @@ What this step does NOT cover — these belong to the `release-process` skill an
 
 If a user asks for a release, activate the `release-process` skill and follow it. Otherwise, stop after the per-change push.
 
+## Definition of Done — Don't Drop the Small Things
+
+A change is not done when the code works. It is done when every obligation it
+creates is handled. The recurring failure mode on this project is shipping the
+main edit and silently dropping a small-but-important ripple — a stale doc, an
+un-updated prerequisite, an unhandled parallel surface. Those omissions hinder
+development as much as a bug does.
+
+Before calling any change done, walk this list and handle every item that
+applies. Skip the ones that genuinely don't — but decide consciously, don't
+overlook:
+
+- **Docs that describe what changed** — `docs/DEVELOPMENT.md`, READMEs, and any
+  guide that now contradicts reality, including prerequisites/setup steps.
+- **Dependency & toolchain manifests + their docs** — a new/removed/bumped dep or
+  tool ripples into manifests *and* the "what to install" lists. See the
+  `dependencies` skill.
+- **Research notes** — `docs/research/<feature>/` is living; update it and add a
+  `progress.md` milestone entry (see "Research Docs Are Living").
+- **Parallel surfaces** — every other place that does the same thing for a
+  different variant (content sources, loaders, account types, launch entry
+  points, per-platform code). See "Parallel Implementations" in
+  `coding-standards.md`.
+- **The IPC/event contract** — Rust signature ↔ TS wrapper, `emit()` ↔ `listen()`.
+- **Cross-platform parity** — confirmed on both, or flagged for a Linux smoke-test.
+- **Build/verify** — the relevant build ran clean with zero new warnings; tests
+  where applicable; temp files cleaned up.
+- **Commit & push** — committed in logical units and pushed (step 12).
+
+If you're unsure whether something ripples, check it rather than assume it
+doesn't. The cost of checking is small; the cost of a silent omission is a
+half-finished change the user has to catch.
+
 ## Research Docs Are Living
 
 Some features are researched and prototyped before they're built, with notes

@@ -182,22 +182,40 @@ const CustomCapeEditor: Component<Props> = (props) => {
     // Solid background across the whole cape footprint — no transparent edges.
     ctx.fillStyle = bg();
     ctx.fillRect(FOOTPRINT.x * S, FOOTPRINT.y * S, FOOTPRINT.w * S, FOOTPRINT.h * S);
-    // Positioned image, clipped to the visible back panel.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(PANEL.x * S, PANEL.y * S, PANEL.w * S, PANEL.h * S);
-    ctx.clip();
+    // Draw the image across the front panel and the thin faces adjacent to it
+    // in the atlas, so that when the image is scaled past the panel edge the
+    // sides/top show its *continuation* (the next slice of the image) rather
+    // than a stretched edge or a duplicate. The atlas lays the left/right side
+    // faces and the top face immediately around the front, so a single draw at
+    // the front's position — clipped to that region — wraps correctly. The
+    // bottom face sits elsewhere in the atlas and gets its own offset. The
+    // inner face is left as solid background (no draw here) so a scaled-up
+    // image never duplicates onto the player's back. Where the image doesn't
+    // reach (not overflowing), these regions simply keep the background fill.
     const dw = baseDw * scale() * S;
     const dh = baseDh * scale() * S;
-    ctx.drawImage(sourceImg, (PANEL.x + dx) * S, (PANEL.y + dy) * S, dw, dh);
+    const ix = (PANEL.x + dx) * S;
+    const iy = (PANEL.y + dy) * S;
+
+    // Front + left/right side faces (atlas x[0,12], y[1,17]) and the top face
+    // (atlas x[1,11], y[0,1]) — all continuous with the front image position.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, PANEL.y * S, (PANEL.w + 2) * S, PANEL.h * S);
+    ctx.rect(PANEL.x * S, 0, PANEL.w * S, PANEL.y * S);
+    ctx.clip();
+    ctx.drawImage(sourceImg, ix, iy, dw, dh);
     ctx.restore();
 
-    // The thin surrounding faces (left/right sides, top, bottom) and the inner
-    // face keep the solid background fill applied above. It's sampled from the
-    // image's average colour, so it reads as a matching border. We deliberately
-    // don't paint the image's edge pixels onto them: those faces are only one
-    // texel deep, so stretching an edge strip across a face smeared into a
-    // visibly distorted band at viewing angles.
+    // Bottom face (atlas x[11,21], y[0,1]) — the continuation just below the
+    // front, so the image is shifted to land panel-(0,16) at atlas-(11,0).
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect((PANEL.x + PANEL.w) * S, 0, PANEL.w * S, PANEL.y * S);
+    ctx.clip();
+    ctx.drawImage(sourceImg, (PANEL.x + PANEL.w + dx) * S, (dy - PANEL.h) * S, dw, dh);
+    ctx.restore();
+
     return c;
   };
 

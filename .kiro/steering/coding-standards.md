@@ -16,7 +16,7 @@ Vermeil/
 │   ├── modals/                   # Modal dialogs
 │   ├── ipc/commands.ts           # ALL Tauri invoke wrappers (single source of truth)
 │   ├── services/                 # Frontend-only logic (updater, etc.)
-│   ├── styles/global.css         # All CSS (variables, reset, components)
+│   ├── styles/                   # Modular CSS: base, components, layout, screens, modals, dock, logs, notifications
 │   ├── App.tsx                   # Root component, global state, screen routing
 │   └── index.tsx                 # Entry point
 ├── src-tauri/

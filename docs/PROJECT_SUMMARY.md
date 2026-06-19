@@ -7,7 +7,7 @@ Vermeil is a custom Minecraft: Java Edition launcher built with **Rust (Tauri 2)
 **Repository:** https://github.com/davekb1976-beep/Vermeil-Launcher
 **Author:** davekb1976-beep
 **License:** MIT
-**Current Version:** 0.2.5
+**Current Version:** 0.5.9
 
 ---
 
@@ -17,7 +17,7 @@ Vermeil is a custom Minecraft: Java Edition launcher built with **Rust (Tauri 2)
 |-------|-----------|
 | Backend | Rust, Tauri 2 |
 | Frontend | SolidJS, TypeScript, Vite |
-| Styling | Single global CSS file (dark theme, custom design system) |
+| Styling | Modular CSS in `src/styles/` (base, components, layout, screens, modals, dock, logs, notifications) — dark theme, custom design system |
 | Package manager | pnpm |
 | Build system | Tauri CLI + Vite |
 | CI/CD | GitHub Actions (Windows + Linux matrix) |
@@ -40,7 +40,7 @@ Vermeil-Launcher/               # Repo root
 │   │   ├── modals/             # Modal dialogs (CreateCustom, BrowseModpacks, etc.)
 │   │   ├── ipc/commands.ts     # ALL Tauri invoke wrappers (single source of truth)
 │   │   ├── services/           # Frontend-only logic (updater)
-│   │   ├── styles/global.css   # All CSS
+│   │   ├── styles/             # Modular CSS (base, components, layout, screens, modals, dock, logs, notifications)
 │   │   ├── App.tsx             # Root component, global state, routing
 │   │   └── index.tsx           # Entry point
 │   ├── src-tauri/              # Rust backend
@@ -63,7 +63,9 @@ Vermeil-Launcher/               # Repo root
 
 ---
 
-## Features Implemented (as of v0.2.2)
+## Features Implemented
+
+*Representative feature set as of v0.5.9 — not an exhaustive per-release log. See git history for full detail.*
 
 ### Core Launcher
 - Microsoft account authentication (Xbox SISU/XSTS flow)
@@ -117,6 +119,7 @@ Vermeil-Launcher/               # Repo root
 - Elytra toggle with animation
 - Cape equip/unequip
 - Local skin library
+- Custom local capes — upload a static or animated image and edit it in the 3D viewer
 
 ### Settings
 - Global Instance tab with video settings (FPS, VSync, FOV, GUI Scale, View Bobbing)
@@ -173,6 +176,7 @@ Vermeil-Launcher/               # Repo root
 | 0.2.0 | Custom dropdowns, slider fix, fullscreen sync, Ubuntu 24.04 build |
 | 0.2.1 | FOV Effects slider, pin modal upgrade, Linux install script |
 | 0.2.2 | Linux window resize, skin library auto-capture |
+| 0.2.3 – 0.5.9 | Ongoing fixes and features (see git tags + CHANGELOG.md); notable: custom local capes (static and animated) |
 
 ---
 

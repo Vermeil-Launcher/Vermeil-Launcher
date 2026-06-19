@@ -183,10 +183,10 @@ always-on for any capeless local player), support refreshing the texture when th
 file changes without a restart, and wire the launcher to write
 `<instanceDir>/vermeil/cape.png` + install the mod jar (download-on-demand).
 
-## Stage 3 — animated capes (done, decode + load verified)
+## Stage 3 — animated capes (done, confirmed in-game)
 
-Status: **implemented; build + animated-load verified in-game. Visual
-confirmation of the moving cape is the remaining manual check.**
+Status: **implemented and visually confirmed — the cape animates on the player's
+back in third person.**
 
 The cape can now be an animation, played by the game's own texture-tick loop
 rather than a custom scheduler:
@@ -218,9 +218,8 @@ rather than a custom scheduler:
 **Verified here:** `gradlew build` → `BUILD SUCCESSFUL` (Gson, used for the
 optional metadata, is on the Minecraft classpath). Converted the first 16 frames
 of a test GIF into a 256×4096 strip + `cape.json`; `runClient` logged
-`Loaded custom cape texture (256x256, 16 frames @ 60ms).` with no errors. The
-per-tick frame swap isn't logged, so "the cape visibly animates" is the manual
-check.
+`Loaded custom cape texture (256x256, 16 frames @ 60ms).` with no errors — and
+the cape visibly cycles the frames on the player's back in third person.
 
 **Still next:** a launcher-set on/off toggle, live-reload when the file changes
 without a restart, and the launcher side — bake the editor's animation to a frame

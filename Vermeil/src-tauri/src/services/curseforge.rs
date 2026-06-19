@@ -195,10 +195,7 @@ pub async fn search(
         }
     }
 
-    let resp = HTTP
-        .get(&url)
-        .header("x-api-key", api_key)
-        .send()
+    let resp = crate::util::http::send_with_retry(|| HTTP.get(&url).header("x-api-key", api_key))
         .await
         .map_err(|e| format!("CurseForge search failed: {}", e))?;
 

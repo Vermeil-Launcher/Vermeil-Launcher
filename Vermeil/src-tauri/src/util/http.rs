@@ -17,3 +17,42 @@ lazy_static::lazy_static! {
         .build()
         .expect("Failed to create HTTP client");
 }
+
+/// Send a request built by `build`, retrying transient failures with a short
+/// backoff. Intended for read-only API calls (search, metadata) where a
+/// momentary backend blip shouldn't surface as a user-facing error — e.g.
+/// Modrinth's search backend occasionally returns 5xx for a few seconds.
+///
+/// Retries on connection errors, HTTP 429 (rate limit), and 5xx. Client errors
+/// (4xx other than 429) are returned as-is so the caller can surface the body —
+/// they won't change on retry. `build` is called once per attempt so each retry
+/// gets a fresh request (no `RequestBuilder` clone needed).
+pub async fn send_with_retry<F>(build: F) -> Result<reqwest::Response, String>
+where
+    F: Fn() -> reqwest::RequestBuilder,
+{
+    const ATTEMPTS: u32 = 3;
+    const BASE_BACKOFF_MS: u64 = 400;
+
+    let mut last_err = String::new();
+    for attempt in 0..ATTEMPTS {
+        match build().send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_success() || !(status.as_u16() == 429 || status.is_server_error()) {
+                    return Ok(resp);
+                }
+                last_err = format!("HTTP {}", status);
+            }
+            Err(e) => last_err = e.to_string(),
+        }
+        if attempt + 1 < ATTEMPTS {
+            // Linear backoff: 400ms, 800ms.
+            tokio::time::sleep(std::time::Duration::from_millis(
+                BASE_BACKOFF_MS * (attempt as u64 + 1),
+            ))
+            .await;
+        }
+    }
+    Err(last_err)
+}

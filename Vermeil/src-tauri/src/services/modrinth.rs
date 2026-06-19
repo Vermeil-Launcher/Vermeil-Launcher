@@ -111,9 +111,7 @@ pub async fn search_mods(
         sort
     );
 
-    let resp = crate::util::http::HTTP
-        .get(&url)
-        .send()
+    let resp = crate::util::http::send_with_retry(|| crate::util::http::HTTP.get(&url))
         .await
         .map_err(|e| format!("Modrinth search failed: {}", e))?;
 
@@ -152,9 +150,7 @@ pub async fn search_modpacks(
         sort
     );
 
-    let resp = crate::util::http::HTTP
-        .get(&url)
-        .send()
+    let resp = crate::util::http::send_with_retry(|| crate::util::http::HTTP.get(&url))
         .await
         .map_err(|e| format!("Modrinth modpack search failed: {}", e))?;
 

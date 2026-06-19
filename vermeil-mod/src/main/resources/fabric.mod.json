@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "vermeil",
+	"version": "${version}",
+	"name": "Vermeil",
+	"description": "Companion mod for the Vermeil launcher. First feature: renders the launcher's local custom capes in-game.",
+	"authors": [
+		"Vermeil"
+	],
+	"contact": {
+		"homepage": "https://github.com/davekb1976-beep/Vermeil-Launcher",
+		"sources": "https://github.com/davekb1976-beep/Vermeil-Launcher"
+	},
+	"license": "MIT",
+	"icon": "assets/vermeil/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.vermeil.VermeilMod"
+		],
+		"client": [
+			"com.vermeil.client.VermeilModClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

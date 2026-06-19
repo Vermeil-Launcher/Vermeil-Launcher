@@ -24,6 +24,32 @@ full version × loader matrix.
 If that works, every later piece (other loaders, 1.8.9, animation, launcher
 auto-install) is an extension of a proven core.
 
+## Naming & scope
+
+The mod id is **`vermeil`**; the project folder is **`vermeil-mod/`**. It's the
+general-purpose Vermeil client mod — capes are its first feature, but it's named
+and structured so later features slot in without a rename.
+
+## Distribution (does it ship with the exe?)
+
+No. The mod is a separate Java **`.jar`**, built with a different toolchain; it
+is not compiled into the launcher binary. Chosen model: **download on demand** —
+publish the per-version/per-loader jars to our GitHub releases and have the
+launcher fetch the matching one and drop it into the instance's `mods/`, the
+same way it already pulls loaders, Java, and mods. (Bundling the jars in the
+installer is the offline fallback, at the cost of installer size and tying mod
+updates to launcher releases.)
+
+## Tooling (to build/test the mod)
+
+- **JDK 21** (Temurin/Adoptium) — modern Minecraft (1.21+) needs Java 21.
+- **Gradle 8.x** matching the Loom version (e.g. Loom 1.10 → Gradle 8.12).
+  Installing Gradle lets us `gradle build` directly without a binary wrapper.
+- A Fabric instance of the target version to drop the built jar into and launch.
+
+Pin exact versions (MC, Yarn, Loader, Fabric API, Loom) from the official
+Fabric "Develop" page for the chosen MC version before building.
+
 ## Shape of the mod (Fabric)
 
 - A standard Fabric mod: `build.gradle` (Fabric Loom), `fabric.mod.json`, a
@@ -50,9 +76,9 @@ built and run in-game**.
 
 ## Where it lives
 
-A separate Gradle project (its own folder, e.g. `cape-mod/` at the repo root, or
-a dedicated repo). It is not part of the Tauri/SolidJS build and must stay out
-of the launcher's `pnpm`/`cargo` pipelines.
+A separate Gradle project at **`vermeil-mod/`** (repo root) — the general
+Vermeil client mod. It is **not** part of the Tauri/SolidJS build and must stay
+out of the launcher's `pnpm`/`cargo` pipelines.
 
 ## After the PoC
 

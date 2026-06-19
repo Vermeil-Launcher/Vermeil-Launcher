@@ -183,6 +183,50 @@ always-on for any capeless local player), support refreshing the texture when th
 file changes without a restart, and wire the launcher to write
 `<instanceDir>/vermeil/cape.png` + install the mod jar (download-on-demand).
 
+## Stage 3 — animated capes (done, decode + load verified)
+
+Status: **implemented; build + animated-load verified in-game. Visual
+confirmation of the moving cape is the remaining manual check.**
+
+The cape can now be an animation, played by the game's own texture-tick loop
+rather than a custom scheduler:
+
+- **Format / contract.** The cape texture is square (Minecraft's cape layout is
+  64×64, scaled up for HD). A square PNG is a static cape; a **vertical frame
+  strip** whose height is a whole multiple of its width is an animation — each
+  `width × width` block is one frame, top to bottom. Optional
+  `<gameDir>/vermeil/cape.json` carries `{"frameTimeMs": N}` for playback speed
+  (default 100 ms). This keeps the on-disk format pure PNG (so the strict
+  `NativeImage.read` PNG decoder is enough) and pushes all source-format decoding
+  (GIF/APNG/WebP → frames) to the launcher, which already has that capability.
+- **Why a strip, not a GIF.** Verified that 26.1.2's `NativeImage.read` is a
+  **PNG-only** decoder (a renamed GIF fails with `Bad PNG Signature`) and only
+  ever yields a single image, so the mod can't consume animated source formats
+  directly. A frame strip is format-agnostic and matches how Minecraft itself
+  does animated textures.
+- **Playback.** `VermeilCapeTexture extends DynamicTexture implements
+  TickableTexture`. Registering a `TickableTexture` makes the texture manager call
+  `tick()` once per client tick on the render thread (where GPU uploads must
+  happen). On a frame change we `copyFrom` the next decoded frame into the live
+  buffer and `upload()`; unchanged ticks do nothing, so a slow animation costs a
+  few uploads a second, not one per tick.
+- **Bounds.** Frames are decoded once into memory and the count is capped so a
+  pathological strip can't exhaust the heap (`MAX_TEXTURE_BYTES = 64 MiB`; frame
+  count is clamped to what fits). The PNG is external input — a malformed or
+  missing file logs and falls back to the solid placeholder.
+
+**Verified here:** `gradlew build` → `BUILD SUCCESSFUL` (Gson, used for the
+optional metadata, is on the Minecraft classpath). Converted the first 16 frames
+of a test GIF into a 256×4096 strip + `cape.json`; `runClient` logged
+`Loaded custom cape texture (256x256, 16 frames @ 60ms).` with no errors. The
+per-tick frame swap isn't logged, so "the cape visibly animates" is the manual
+check.
+
+**Still next:** a launcher-set on/off toggle, live-reload when the file changes
+without a restart, and the launcher side — bake the editor's animation to a frame
+strip + `cape.json`, write them into the instance, and install the mod jar
+(download-on-demand).
+
 ## Process & tooling — mod standards captured (before Stage 2 impl)
 
 - Added a `minecraft-mod` skill (`.kiro/skills/minecraft-mod/SKILL.md`) capturing

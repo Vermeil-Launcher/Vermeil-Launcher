@@ -56,9 +56,13 @@ gap rather than implying universal coverage.
    **version-specific** and resolved against official mappings. (Our PoC pins
    **official Mojang mappings** even on Fabric — Loom supports this — so the
    decompiled names match the code; see `progress.md`.)
-4. Animation: upload the next frame's pixels to the dynamic texture each client
-   tick, driven by the same per-frame data the viewer uses. Static first;
-   animation is a follow-up.
+4. Animation: the on-disk cape is a **vertical frame strip** of square frames
+   (PNG only — the game's texture decoder is PNG-only), with an optional
+   `cape.json` for frame time. The mod decodes the strip into frames and cycles
+   them by implementing the game's `TickableTexture` (the texture manager ticks
+   it on the render thread), uploading the next frame only when it changes. The
+   launcher bakes its editor's animation into the strip; the source format
+   (GIF/APNG/WebP) is decoded launcher-side, not by the mod.
 
 Notes:
 - In-game cape geometry/UV is the standard cape model — the same atlas layout
@@ -95,4 +99,6 @@ Likely **two** mod projects, not one:
   the mod locates it (config or fixed path). *(Provisionally settled: the mod
   reads a fixed `<gameDir>/vermeil/cape.png` — the instance dir at runtime — via
   Fabric's game-dir API. Revisit if a shared/per-account location is needed.)*
-- Per-frame animation cost in-game at high resolution.
+- Per-frame animation cost in-game at high resolution. *(Mitigated: frames are
+  decoded once and capped to a memory budget; uploads happen only on frame change,
+  not every tick. Revisit if very high-res HD strips prove costly.)*

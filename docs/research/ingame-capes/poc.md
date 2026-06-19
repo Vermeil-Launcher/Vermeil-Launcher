@@ -68,7 +68,8 @@ Yarn.
   and vanilla's "no cape texture → skip" branch — resolved against the **official
   Mojang-mapped** decompiled sources for that version (via `genSources` +
   `javap`). This is the one real unknown; it must be confirmed from the mappings,
-  not assumed. *(Resolved for 26.1.x — see `progress.md` Stage 2 investigation.)*
+  not assumed. *(Resolved for 26.1.x and implemented — the hook is the tail of
+  `AvatarRenderer.extractRenderState`; see `progress.md` Stage 2.)*
 
 ## Build / test reality
 

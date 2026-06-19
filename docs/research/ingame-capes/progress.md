@@ -98,6 +98,62 @@ Implementation lands next (mixin + client init + re-added
 `vermeil.client.mixins.json`), build-verified here, then `runClient` to confirm
 the cape shows on the player's back.
 
+### Stage 2 implementation — cape render hook (done, build + load verified)
+
+Status: **implemented; built, mod-loads, and mixin-applies cleanly. Visual
+confirmation on the player's back is the one remaining manual check.**
+
+Verified every render-path fact against the 26.1.2 Mojang-mapped decompiled
+sources (`genSources` + `javap`) before writing a line — and corrected an earlier
+note in the process:
+
+- The skin/cape decision is made in **`AvatarRenderer.extractRenderState(Avatar,
+  AvatarRenderState, float)`**, which sets `state.skin = entity.getSkin()` and
+  `state.showCape = entity.isModelPartShown(CAPE)`. The private `extractCapeState`
+  only computes flap/lean animation — it does **not** touch skin or showCape. So
+  the hook target is the **tail of `extractRenderState`**, not the cape-state
+  method (the earlier note had this wrong).
+- `CapeLayer.submit` renders only when `state.showCape && skin.cape() != null`,
+  binding `RenderTypes.entitySolid(skin.cape().texturePath())`. Swapping the
+  skin's `cape` to a texture whose `texturePath()` is `vermeil:cape` and forcing
+  `showCape = true` is therefore sufficient; the body texture
+  (`getTextureLocation` → `skin.body()`) is untouched.
+- `PlayerSkin` is the record `(ClientAsset.Texture body, cape, elytra;
+  PlayerModelType model; boolean secure)`; we rebuild it via the canonical
+  constructor. `ClientAsset.Texture` is satisfied by the vanilla
+  `ClientAsset.ResourceTexture(id, id)` record (two-arg canonical constructor
+  returns the path unmangled).
+- Texture registration: `new DynamicTexture(Supplier<String>, NativeImage)` +
+  `Minecraft.getTextureManager().register(Identifier, AbstractTexture)`;
+  `NativeImage(w, h, true)` + `setPixelABGR`. `Identifier.fromNamespaceAndPath`.
+  `Minecraft.getInstance().player` is public; `LocalPlayer → AbstractClientPlayer
+  → Player → Avatar`, so the local-player gate `entity == mc.player` is type-safe.
+- Mixin `compatibilityLevel`: confirmed the bundled Mixin (0.8.7) supports
+  `JAVA_25`, so the config uses it.
+
+**What I added** (client source set only):
+- `client/.../cape/VermeilCape.java` — registers a procedurally-generated solid
+  cape `NativeImage` as a `DynamicTexture` under `vermeil:cape`, lazily on the
+  render thread (GPU device must exist), and exposes the cape `Texture` handle.
+- `client/.../mixin/AvatarRendererMixin.java` — `@Inject` at the tail of
+  `extractRenderState`; for the local player with no cape, forces `showCape` and
+  swaps `state.skin` to point `cape()` at our texture. Never overrides an account
+  that already has a Mojang cape.
+- Re-added `vermeil.client.mixins.json` (compat `JAVA_25`) and wired it into
+  `fabric.mod.json` under `"mixins"` (client environment).
+
+**Verified here:** `gradlew build` → `BUILD SUCCESSFUL` (no empty-client-resources
+warning now that the config exists). `gradlew runClient` → game loaded into a
+world; debug log shows `Mixing AvatarRendererMixin ... into ... AvatarRenderer`
+and the `@Inject` bound to the exact `(Avatar, AvatarRenderState, F)V` descriptor;
+no mixin errors, no crash (the only ERRORs are dev-environment Realms/auth 401s,
+unrelated). The cape geometry only mutates when the local player avatar is drawn,
+so the final "red cape visible in third person" check is manual.
+
+**Stage 2b (next):** replace the procedural solid pixels with bytes read from the
+launcher's local cape file, and gate the override behind a launcher-set toggle
+instead of always-on.
+
 ## Process & tooling — mod standards captured (before Stage 2 impl)
 
 - Added a `minecraft-mod` skill (`.kiro/skills/minecraft-mod/SKILL.md`) capturing

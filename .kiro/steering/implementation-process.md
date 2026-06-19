@@ -138,6 +138,7 @@ Every completed change gets committed and pushed before the task is reported don
 - Match the repo's brevity. Most existing commits are subject-only — the scope and summary already say what changed. Add a body only when the *why* genuinely isn't obvious from the diff or the subject, and even then keep it to one or two short sentences. Don't write multi-paragraph essays. The chat reply is the place for full reasoning; the commit message is just a label.
 - Push to `main` directly. This repo's history is linear on `main` — no feature branches, no PRs.
 - Don't combine multiple unrelated changes into one commit. If a single task produced two distinct logical changes, make two commits.
+- Conversely, don't *over-split* one logical change into a stream of tiny commits — that floods the history. A change and the docs that describe it are the **same** logical change: commit a feature together with its own research/`progress.md`/doc update, not as a separate `docs:` commit. Batch related doc edits (e.g. reconciling several files for the same drift) into one commit too. One logical change → one commit.
 
 What this step does NOT cover — these belong to the `release-process` skill and only happen when the user explicitly says "release":
 

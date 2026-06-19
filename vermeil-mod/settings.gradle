@@ -4,8 +4,26 @@ pluginManagement {
 			name = 'Fabric'
 			url = 'https://maven.fabricmc.net/'
 		}
+		maven {
+			name = 'KikuGie Snapshots'
+			url = 'https://maven.kikugie.dev/snapshots'
+		}
 		mavenCentral()
 		gradlePluginPortal()
+	}
+}
+
+plugins {
+	id 'dev.kikugie.stonecutter' version '0.9.6'
+}
+
+// Multi-version tree (Stonecutter). Each version is a node; the shared source
+// lives in root src/ and is preprocessed per node. See
+// docs/research/ingame-capes/research.md for the node plan and hook differences.
+stonecutter {
+	create(rootProject) {
+		versions('26.2')
+		vcsVersion = '26.2'
 	}
 }
 

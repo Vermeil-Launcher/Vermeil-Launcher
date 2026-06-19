@@ -35,13 +35,30 @@ JDK 25 is on PATH in the dev shell, so the mod CAN be built and smoke-tested her
 (unlike the launcher's runtime, which needs a real install). Use it — treat mod
 code as **unverified until built and run in-game**.
 
-- Build: `vermeil-mod\gradlew.bat build` → expect `BUILD SUCCESSFUL`, jar at
-  `vermeil-mod/build/libs/vermeil-<version>.jar`.
-- Run in-game: `vermeil-mod\gradlew.bat runClient` → game launches; confirm the
-  init log lines fire (`Vermeil mod initialized.` / `Vermeil client
-  initialized.`) and the feature renders, then exit cleanly with no crash.
+- Build: `vermeil-mod\gradlew.bat build` → builds the **active** Stonecutter node;
+  jar at `vermeil-mod/versions/<node>/build/libs/vermeil-<version>.jar`. Expect
+  `BUILD SUCCESSFUL`.
+- Build all versions: `vermeil-mod\gradlew.bat chiseledBuild`.
+- Run in-game: `vermeil-mod\gradlew.bat runClient` → launches the active node's
+  client; confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
+  client initialized.`) and the feature renders, then exit cleanly with no crash.
 - Use `git -C` for git; run `gradlew` directly. PowerShell shell — chain with
   `;`, never `&&`.
+
+## Multi-version (Stonecutter)
+
+The mod is a **Stonecutter** multi-version project (`dev.kikugie.stonecutter`):
+one shared source tree in `src/`, one node per Minecraft version under
+`versions/<version>/`. Per-node pins (MC / loader / Fabric API / `java_version`)
+live in `versions/<version>/gradle.properties`; shared values in root
+`gradle.properties`; `settings.gradle` registers the nodes via
+`stonecutter { create(rootProject) { versions(...) ; vcsVersion = ... } }`. The
+generated `stonecutter.gradle.kts` controller holds the active node. Gate the few
+version-specific lines with `//? if <cond> { … }` comments (the cape render hook
+differs by era — render-state vs `CapeFeatureRenderer`). `build.gradle` is one
+shared script that runs per node; read per-node values via `project.<prop>` and
+branch on `stonecutter`/`sc` (e.g. `sc.current.version`). Verify each node against
+**its own** genSources — what's true on one version is not assumed on another.
 
 ## Research before hooking: verify mappings, never guess
 

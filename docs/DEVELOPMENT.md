@@ -97,17 +97,29 @@ built and distributed (download-on-demand) on its own.
 - No system Gradle needed — the project ships a Gradle **wrapper**
   (`gradlew` / `gradlew.bat`). Fabric Loom drives the Gradle/Loom versions.
 
-Exact pins (MC, Fabric loader, Fabric API, Loom, mod version) live in
-`vermeil-mod/gradle.properties`. The project uses **official Mojang mappings**,
-not Yarn.
+### Multi-version (Stonecutter)
+
+The mod targets multiple Minecraft versions via **Stonecutter**
+(`dev.kikugie.stonecutter`): one shared source tree in `vermeil-mod/src/`, one
+"node" per version under `vermeil-mod/versions/<version>/`. Per-node pins
+(Minecraft, Fabric loader, Fabric API, `java_version`) live in
+`versions/<version>/gradle.properties`; shared values (mod version, Loom) in the
+root `gradle.properties`. The project uses **official Mojang mappings**. The few
+version-specific lines are gated with `//? if <version>` Stonecutter comments.
 
 ### Building & running the mod
 
 ```powershell
 # from repo root, on Windows
-vermeil-mod\gradlew.bat build       # -> BUILD SUCCESSFUL, jar in build/libs/
-vermeil-mod\gradlew.bat runClient   # launches a dev game client to test in
-vermeil-mod\gradlew.bat genSources  # decompiled Mojang-mapped sources (for research)
+vermeil-mod\gradlew.bat build           # build the ACTIVE node -> versions/<node>/build/libs/
+vermeil-mod\gradlew.bat chiseledBuild   # build EVERY node (all versions)
+vermeil-mod\gradlew.bat runClient       # launch a dev client for the active node
+vermeil-mod\gradlew.bat genSources      # decompiled Mojang-mapped sources (research)
+```
+
+Switch the active node via the Gradle `stonecutter` task group (e.g. a generated
+`Set active project to <version>` task). Each node compiles to its own Java
+release (26.x → 25, 1.21.x → 21, 1.20.1 → 17).
 ```
 
 ```bash

@@ -384,3 +384,36 @@ sole node first (prove the build-system change → `chiseledBuild` still emits t
 26.2 jar), then add a 1.21 render-state node, then the 1.20.1 feature-renderer node.
 Then the separate legacy Forge project (1.12.2, 1.8.9), and the still-open mod-jar
 publish + download-on-demand.
+
+
+## Stage 7 — Stonecutter conversion, single node (done, builds)
+
+Status: **build-system converted to Stonecutter with one node (26.2); builds clean.**
+
+Proved the build-system change in isolation before adding versions (per the plan):
+
+- `settings.gradle` now applies `dev.kikugie.stonecutter` 0.9.6 (KikuGie snapshots
+  repo added to `pluginManagement`) and registers the tree:
+  `stonecutter { create(rootProject) { versions('26.2'); vcsVersion = '26.2' } }`.
+- Per-node deps moved to `versions/26.2/gradle.properties` (minecraft/loader/
+  fabric_api/java_version); root `gradle.properties` keeps only shared values.
+  `build.gradle` is unchanged except the Java release/compat now reads
+  `project.java_version` (so each node can target its own Java).
+- Stonecutter generated the `stonecutter.gradle.kts` controller (`active "26.2"`).
+  Build artifacts land under `versions/<node>/build` — already covered by the
+  existing unanchored `.gitignore` entries (`build/`, `.gradle/`, `run/`).
+- Acknowledged the Groovy-buildscript advisory with
+  `dev.kikugie.stonecutter.hard_mode=true` (Groovy works; Kotlin DSL is the tool's
+  preference, not a requirement).
+- **Verified:** `gradlew build` → `> Task :26.2:build` … `BUILD SUCCESSFUL`. The
+  source is unchanged (single node, no preprocessor comments yet), so the jar is
+  functionally identical to the pre-Stonecutter 26.2 jar already verified rendering.
+
+Build commands now: `gradlew build` builds the **active** node; `gradlew
+chiseledBuild` builds **all** nodes; `gradlew "Set active project to <ver>"`
+switches the active node; `runClient` runs the active node.
+
+**Still next:** add the remaining nodes (26.1.x, 1.21.x, 1.20.1), then gate the two
+cape hooks with `//? if` (render-state for 26.x/1.21.2+, `CapeFeatureRenderer` for
+1.20.1/1.21.0–1.21.1), verifying each node via genSources + runClient. Then the
+separate legacy Forge project (1.12.2, 1.8.9) and mod-jar publish + download-on-demand.

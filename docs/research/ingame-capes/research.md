@@ -102,3 +102,51 @@ Likely **two** mod projects, not one:
 - Per-frame animation cost in-game at high resolution. *(Mitigated: frames are
   decoded once and capped to a memory budget; uploads happen only on frame change,
   not every tick. Revisit if very high-res HD strips prove costly.)*
+
+## Target version matrix (multi-version plan)
+
+Goal versions: **26.x (latest)**, **1.21.x**, **1.20.1**, **1.12.2**, **1.8.9**.
+All are achievable — a client mod can render a custom cape on every one of them —
+but **not from one jar or one codebase**: the loader, mappings, Java version, and
+cape-render API differ across Minecraft's eras. The exact hook names per version
+are confirmed at build time from that version's decompiled sources (genSources /
+MCP), not assumed here; what's fixed is the *era* each version belongs to.
+
+| Version | Loader(s) | Java | Mappings | Cape render era | Cape texture |
+|---------|-----------|------|----------|-----------------|--------------|
+| 26.x (latest) | Fabric/Quilt | 25 | Mojang | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `PlayerSkin`) — **built/verified on 26.1.2** | 64×64 |
+| 1.21.x | Fabric/Quilt/(Neo)Forge | 21 | Mojang/Yarn | mixed: 1.21.2+ = render-state; 1.21.0–1.21.1 = feature-renderer | 64×64 |
+| 1.20.1 | Fabric/Forge/NeoForge | 17 | Mojang/Yarn | feature-renderer (`CapeFeatureRenderer`, `PlayerSkin`) | 64×64 |
+| 1.12.2 | Forge only | 8 | MCP/SRG | legacy (`LayerCape`, `AbstractClientPlayer.getLocationCape()`) | 64×32 |
+| 1.8.9 | Forge / Legacy Fabric | 8 | MCP/SRG | legacy (`LayerCape`, `getLocationCape()`) | 64×32 |
+
+### The three porting families
+
+1. **Modern Fabric (render-state)** — 26.x + 1.21.2+. Closest to what's built; the
+   current hook nearly transfers (note 26.x renamed `Player*` → `Avatar*`, so the
+   class names differ even within this family). Mostly version bumps + mapping tweaks.
+2. **Mid Fabric (feature-renderer)** — 1.20.1 + 1.21.0/1.21.1. Same loader/Java-ish
+   but a different hook: `CapeFeatureRenderer` instead of `CapeLayer.submit`.
+3. **Legacy Forge** — 1.12.2 + 1.8.9. Separate project: Forge (not Fabric), MCP/SRG
+   mappings, Java 8, ancient Gradle/Loom-equivalent toolchain, `LayerCape` hook, and
+   **64×32** cape textures. Heaviest lift; 1.8.9 is the PvP target.
+
+### Ripples into the launcher
+
+- The cape baker already produces both 64×32 (editor/skinview3d) and 64×64 (mod).
+  Legacy targets want 64×32, modern want 64×64 → the launcher picks the layout per
+  target version.
+- `instance_cape::is_supported` / `version_supported` grow from "26.1.x only" into a
+  real `(version range, loader)` table, and download-on-demand fetches the matching
+  per-version jar.
+
+### Chosen order (easiest-reusing-first)
+
+1. **26.x + 1.21.2+** (render-state family).
+2. **1.20.1 + 1.21.0/1.21.1** (feature-renderer family).
+3. **1.8.9 + 1.12.2** (legacy Forge).
+
+Open question for family work: build system for multi-version Fabric — a
+preprocessor like **Stonecutter** (single source, per-version conditional code,
+emits many jars) vs separate source sets/branches. Decide before adding the second
+modern version so the matrix doesn't fork into copy-pasted projects.

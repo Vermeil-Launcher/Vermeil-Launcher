@@ -321,3 +321,38 @@ mod present themselves. Blocked on publishing the mod jar.
   still named JDK 21, Gradle 8.x, Yarn mappings, MC 1.21.x and claimed the mod
   couldn't be built in the dev shell. Updated to JDK 25, the Gradle wrapper,
   official Mojang mappings, latest MC, and the fact the mod builds/runs here.
+
+
+## Stage 6 — multi-version: bump to latest 26.2 (done, verified in-game)
+
+Status: **mod bumped 26.1.2 → 26.2 and verified in-game; multi-version matrix
+documented; launcher support widened to 26.2.**
+
+Kicking off the multi-version work (research matrix added to `research.md` — five
+target versions across three porting "families": modern Fabric render-state,
+mid Fabric feature-renderer, legacy Forge). Started with the easiest reuse —
+bumping the existing render-state mod to the current release the user actually
+runs (26.2):
+
+- **Pins** (from Fabric meta + Modrinth, not guessed): `minecraft_version=26.2`,
+  `loader_version=0.19.3`, `fabric_api_version=0.152.2+26.2`. `fabric.mod.json`
+  `depends.minecraft` → `~26.2`.
+- **Hook transferred cleanly.** A 26.1.2 → 26.2 bump kept the render-state API
+  intact — the mod compiled unchanged against 26.2's Mojang mappings (so
+  `AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `PlayerSkin`,
+  `AvatarRenderState` are all unchanged). No code edits to the mixin or cape code.
+- **Verified:** `gradlew build` → `BUILD SUCCESSFUL`. `runClient` → log shows
+  `Loading Minecraft 26.2 with Fabric Loader 0.19.3`, `Mixing AvatarRendererMixin
+  ... into ... AvatarRenderer`, and `Loaded custom cape texture (256x256, 16
+  frames @ 120ms)` — mixin binds and the animated cape loads on 26.2, no errors.
+- **Launcher:** `instance_cape::version_supported` widened from `26.1` to `26.2`
+  so the user's 26.2 instances are now "supported" and get the cape synced.
+
+Note: this is a single-version bump (the one jar now targets 26.2, not 26.1.2).
+True simultaneous multi-version (26.x + 1.21.x + …) needs a build-system decision
+(Stonecutter vs separate source sets) — flagged in `research.md`, to settle before
+adding the second modern version so the matrix doesn't fork into copy-pasted projects.
+
+**Still next:** decide the multi-version build system, then port family-by-family
+(1.21.2+ render-state → 1.20.1/1.21.1 feature-renderer → 1.8.9/1.12.2 legacy Forge),
+plus the still-open mod-jar publish + download-on-demand auto-install.

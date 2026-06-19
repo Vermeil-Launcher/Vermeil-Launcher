@@ -101,10 +101,11 @@ fn loader_supported(loader: &LoaderType) -> bool {
 }
 
 /// Minecraft versions the companion mod currently targets. Tracks the mod's
-/// `gradle.properties` (`minecraft_version = 26.1.x`); widen as the mod adds
-/// version branches.
+/// `gradle.properties` (`minecraft_version = 26.2`); widen into a real
+/// per-version table as the mod adds version branches (see the matrix in
+/// `docs/research/ingame-capes/research.md`).
 fn version_supported(version: &str) -> bool {
-    version.starts_with("26.1")
+    version.starts_with("26.2")
 }
 
 /// Whether the companion mod can render a cape on this instance.

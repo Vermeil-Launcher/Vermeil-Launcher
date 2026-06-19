@@ -1,6 +1,7 @@
 use crate::models::instance::{Instance, CreateInstanceConfig};
 use crate::services::instance_service;
-use crate::services::instance_cape::{self, IngameCapeState};
+use crate::services::instance_cape;
+use crate::models::settings::IngameCapeSettings;
 
 #[tauri::command]
 pub async fn list_instances() -> Result<Vec<Instance>, String> {
@@ -268,7 +269,7 @@ pub async fn set_ingame_cape(
     strip_png: Vec<u8>,
     frame_time_ms: Option<u32>,
 ) -> Result<(), String> {
-    instance_cape::set_ingame_cape(cape_id, &strip_png, frame_time_ms)?;
+    instance_cape::set_ingame_cape(cape_id, &strip_png, frame_time_ms).await?;
     instance_cape::sync_all_instances().await;
     Ok(())
 }
@@ -276,7 +277,7 @@ pub async fn set_ingame_cape(
 /// Toggle the in-game cape on/off without re-baking it.
 #[tauri::command]
 pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
-    instance_cape::set_ingame_cape_enabled(enabled)?;
+    instance_cape::set_ingame_cape_enabled(enabled).await?;
     instance_cape::sync_all_instances().await;
     Ok(())
 }
@@ -284,13 +285,13 @@ pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
 /// Remove the in-game cape entirely.
 #[tauri::command]
 pub async fn clear_ingame_cape() -> Result<(), String> {
-    instance_cape::clear_ingame_cape()?;
+    instance_cape::clear_ingame_cape().await?;
     instance_cape::sync_all_instances().await;
     Ok(())
 }
 
 /// Read the current in-game cape state, or `None` if none is set.
 #[tauri::command]
-pub async fn get_ingame_cape() -> Result<Option<IngameCapeState>, String> {
-    Ok(instance_cape::get_ingame_cape())
+pub async fn get_ingame_cape() -> Result<Option<IngameCapeSettings>, String> {
+    Ok(instance_cape::get_ingame_cape().await)
 }

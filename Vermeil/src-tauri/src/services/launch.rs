@@ -1375,7 +1375,7 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // Sync the in-game custom cape (companion mod) into this instance: write it
     // if the global toggle is on and the instance is supported, otherwise remove
     // any stale copy. Best-effort — never blocks the launch.
-    crate::services::instance_cape::sync_to_instance(instance, &game_dir);
+    crate::services::instance_cape::sync_to_instance(instance, &game_dir).await;
 
     // 8. Spawn process with stdout/stderr capture
     let mut cmd = Command::new(&java);

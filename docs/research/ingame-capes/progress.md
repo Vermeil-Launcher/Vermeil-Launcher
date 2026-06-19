@@ -277,11 +277,13 @@ toggle instead, so that was removed).
   `64·res` slot, stacking animation frames into a vertical strip (the mod's strip
   format). Animated strips are capped to 8× resolution so a high-res GIF doesn't
   produce a huge multi-frame PNG.
-- **Global store.** `services/instance_cape.rs` stores the chosen baked cape once
-  at `<data>/ingame_cape/` (`cape.png` + `cape.json` = `enabled`, `frameTimeMs`,
-  launcher-only `capeId`). Commands `set_ingame_cape` / `set_ingame_cape_enabled`
-  / `clear_ingame_cape` / `get_ingame_cape`, registered in `lib.rs`, wrapped in
-  `ipc/commands.ts`.
+- **State in settings, image as one file.** The toggle state lives in the
+  launcher settings (`config.json` → `ingame_cape`: `enabled`, `cape_id`,
+  `frame_time_ms`) — same place as every other launcher preference — and the
+  baked cape image is a single top-level file `<data>/ingame-cape.png` (binary,
+  can't live in JSON). No dedicated sub-folder. Commands `set_ingame_cape` /
+  `set_ingame_cape_enabled` / `clear_ingame_cape` / `get_ingame_cape`, registered
+  in `lib.rs`, wrapped in `ipc/commands.ts`.
 - **Supported-only, auto-applied.** A cape only goes onto instances the mod runs
   on: loader Fabric/Quilt and MC version `26.1.x` (tracks the mod's
   `gradle.properties`; widen as the mod adds versions). `sync_to_instance` writes

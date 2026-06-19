@@ -48,6 +48,13 @@ pub struct LauncherSettings {
     #[serde(default)]
     pub video_settings: GlobalVideoSettings,
 
+    /// In-game custom cape (companion mod). A single global toggle: the chosen
+    /// library cape is rendered in-game on supported instances. The baked cape
+    /// image itself lives at `<data>/ingame-cape.png` (binary, can't go in JSON);
+    /// this just records the on/off state and which cape it is.
+    #[serde(default)]
+    pub ingame_cape: IngameCapeSettings,
+
     /// User-customizable keyboard shortcuts. Map of action ID → key combo
     /// (e.g. `"Ctrl+P"`). Action IDs are defined in `Vermeil/src/lib/keybinds.ts`
     /// (frontend is the source of truth for the action registry; settings just
@@ -118,6 +125,21 @@ pub struct GlobalVideoSettings {
 fn default_concurrent_downloads() -> u8 { 10 }
 fn default_concurrent_writes() -> u8 { 10 }
 
+/// In-game custom cape state (companion mod). The baked cape image lives at
+/// `<data>/ingame-cape.png`; this is just the toggle + which library cape.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct IngameCapeSettings {
+    /// Whether the in-game cape is shown on supported instances.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Id of the library cape currently set for in-game display.
+    #[serde(default)]
+    pub cape_id: Option<String>,
+    /// Per-frame duration for an animated cape (ms). `None` for a static cape.
+    #[serde(default)]
+    pub frame_time_ms: Option<u32>,
+}
+
 impl Default for LauncherSettings {
     fn default() -> Self {
         Self {
@@ -139,6 +161,7 @@ impl Default for LauncherSettings {
             sidebar_pinned_instances: Vec::new(),
             video_settings: GlobalVideoSettings::default(),
             keybinds: HashMap::new(),
+            ingame_cape: IngameCapeSettings::default(),
             adaptive_ram: false,
             adaptive_ram_min_mb: 0,
             adaptive_ram_max_mb: 0,

@@ -62,4 +62,38 @@ Mojang-granted cape. Steps:
    `vermeil.client.mixins.json`.
 4. Verify with `gradlew build`, then `runClient` to see the cape on the model.
 
-_(entries appended as each step lands)_
+### Stage 2 investigation — cape pipeline on 26.1.2 (resolved from decompiled evidence)
+
+Done by `genSources` + inspecting the Mojang-mapped classes with `javap` (no
+guessing). The 26.1.x renderer uses the modern *render-state* pipeline, which is
+more abstracted than older versions:
+
+- **Renderer:** `net.minecraft.client.renderer.entity.player.AvatarRenderer`
+  (the player renderer was renamed "Avatar" in 26.x). It has
+  `extractRenderState(Avatar, AvatarRenderState, float)` and a private
+  `extractCapeState(Avatar, AvatarRenderState, float)`.
+- **Render state:** `AvatarRenderState` carries `PlayerSkin skin` and a
+  `boolean showCape` (plus `capeFlap/capeLean` animation). There is no bare
+  cape-`Identifier` field — the cape lives inside `skin`.
+- **Skin:** `net.minecraft.world.entity.player.PlayerSkin` is a record
+  `(ClientAsset.Texture body, cape, elytra; PlayerModelType model; boolean
+  secure)` with a public constructor and `with(PlayerSkin.Patch)`.
+- **Texture handle:** `ClientAsset.Texture` is an interface exposing
+  `texturePath()` → `Identifier` (`Identifier` is the renamed `ResourceLocation`
+  in 26.x). The cape layer binds that identifier.
+- **Layer:** `CapeLayer` renders via the new `submit(PoseStack,
+  SubmitNodeCollector, int, AvatarRenderState, …)` API.
+
+**Chosen hook:** Mixin the tail of the avatar render-state extraction — when the
+player has no cape (`skin.cape() == null`) and our custom cape is active, set
+`showCape = true` and replace `skin` with one whose `cape()` points at our
+texture. The vanilla `CapeLayer` then renders it through the normal path.
+
+**Texture source (incremental):** first prove the hook with a procedurally
+generated `DynamicTexture` registered under a `vermeil:cape` identifier (no
+binary asset to author, fully code). Once the cape visibly renders, swap the
+texture's pixels for ones read from the launcher's local cape file.
+
+Implementation lands next (mixin + client init + re-added
+`vermeil.client.mixins.json`), build-verified here, then `runClient` to confirm
+the cape shows on the player's back.

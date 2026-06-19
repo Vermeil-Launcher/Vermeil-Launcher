@@ -154,6 +154,35 @@ so the final "red cape visible in third person" check is manual.
 launcher's local cape file, and gate the override behind a launcher-set toggle
 instead of always-on.
 
+### Stage 2b — load the cape from a local file (done, load path verified)
+
+Status: **implemented; build + file-load verified in-game. Visual confirmation of
+the textured cape is the remaining manual check.**
+
+- The cape pixels now come from a PNG at a fixed path under the game directory,
+  **`<gameDir>/vermeil/cape.png`** (resolved via Fabric's
+  `FabricLoader.getInstance().getGameDir()`). In dev that's `run/vermeil/cape.png`;
+  in a real instance it's the instance dir, so the launcher can write there. This
+  settles the "where does the mod read the cape" open question for now (fixed
+  path, launcher-agnostic).
+- `VermeilCape.loadCapeImage()` reads the file with `NativeImage.read(InputStream)`.
+  The PNG is **external input**, so a missing or malformed file is caught and
+  logged, and we fall back to the generated solid placeholder rather than crash
+  rendering. The path is a fixed constant (no frontend-supplied segment), so
+  there's no traversal concern.
+- **Verified here:** `gradlew build` → `BUILD SUCCESSFUL`. With a 64×32 test PNG
+  dropped at `run/vermeil/cape.png`, `runClient` logged
+  `Loaded custom cape texture from …\run\vermeil\cape.png (64x32).` on the render
+  thread with no error, then a clean shutdown. So the read → parse → register
+  path is exercised and working; the user confirmed earlier that the bound texture
+  renders on the player's back (solid placeholder at that point), so a valid PNG
+  now shows its actual pixels.
+
+**Still next:** gate the override behind a launcher-set toggle (instead of
+always-on for any capeless local player), support refreshing the texture when the
+file changes without a restart, and wire the launcher to write
+`<instanceDir>/vermeil/cape.png` + install the mod jar (download-on-demand).
+
 ## Process & tooling — mod standards captured (before Stage 2 impl)
 
 - Added a `minecraft-mod` skill (`.kiro/skills/minecraft-mod/SKILL.md`) capturing

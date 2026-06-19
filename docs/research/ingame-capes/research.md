@@ -92,5 +92,7 @@ Likely **two** mod projects, not one:
 - Does 1.8.9 (Legacy Fabric + Forge 1.8.9) fit a shared multiloader project, or
   need a separate legacy project? (Likely separate.)
 - Where to write the cape file (instance dir vs a shared launcher dir) and how
-  the mod locates it (config or fixed path).
+  the mod locates it (config or fixed path). *(Provisionally settled: the mod
+  reads a fixed `<gameDir>/vermeil/cape.png` — the instance dir at runtime — via
+  Fabric's game-dir API. Revisit if a shared/per-account location is needed.)*
 - Per-frame animation cost in-game at high resolution.

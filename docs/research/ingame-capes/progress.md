@@ -260,6 +260,40 @@ setting, not part of the mod.)
 strip + `cape.json`, write them into the instance's `vermeil/` dir, toggle
 `enabled` from the launcher UI, and install the mod jar (download-on-demand).
 
+## Stage 5 — launcher integration: apply a cape to instances (done, builds)
+
+Status: **implemented; backend `cargo check` and frontend `pnpm build` both
+clean. In-app visual/flow test pending (needs a running launcher build).**
+
+The launcher can now write a custom cape into an instance for the mod to render,
+from the Skins screen:
+
+- **Format bridge.** The editor bakes a 64×32 atlas, but the in-game mod uses a
+  **64×64** cape texture — feeding it the 64×32 PNG would sample the wrong UV
+  region. New `bakeModCapeStrip()` in `lib/cape.ts` re-lays the art into the mod's
+  layout: it reuses `bakeCape` and drops each frame into the top of a square
+  `64·res` slot, stacking animation frames into a vertical strip (the mod's strip
+  format). `FrameSource` now exposes its frames/durations. Animated strips are
+  capped to 8× resolution so a high-res GIF doesn't produce a huge multi-frame PNG.
+- **Backend.** `services/instance_cape.rs` writes `cape.png` + `cape.json` into
+  `instances/<id>/.minecraft/vermeil/` (the mod's read path — the game CWD).
+  `cape.json` is the single source of truth for the toggle (`enabled`,
+  `frameTimeMs`, launcher-only `capeId`), so no `Instance` model migration. PNG
+  validated as a square frame or square-frame strip, size/frame-count bounded,
+  instance id guarded against path traversal. Commands `set_instance_cape` /
+  `set_instance_cape_enabled` / `clear_instance_cape` / `get_instance_cape`,
+  registered in `lib.rs`, wrapped in `ipc/commands.ts`.
+- **UI.** Per the decision to keep cape management on the Skins screen, each
+  custom-cape chip gets an "in-game" (monitor) action opening `InGameCapeModal`,
+  which lists the user's instances with a per-instance on/off toggle. The cape is
+  baked once and reused across instances. The modal notes that in-game capes need
+  the companion mod and apply per instance (unlike a universal Mojang cape).
+
+**Still next:** install the mod jar on demand (download-on-demand from a GitHub
+release into the instance's `mods/`) — currently the user must have the companion
+mod present themselves. Blocked on publishing the mod jar. Then an end-to-end
+in-app test of the apply flow.
+
 ## Process & tooling — mod standards captured (before Stage 2 impl)
 
 - Added a `minecraft-mod` skill (`.kiro/skills/minecraft-mod/SKILL.md`) capturing

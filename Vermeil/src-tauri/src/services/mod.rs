@@ -7,6 +7,7 @@ pub mod discord;
 pub mod download;
 pub mod fabric;
 pub mod icon_cache;
+pub mod instance_cape;
 pub mod instance_service;
 pub mod java;
 pub mod launch;

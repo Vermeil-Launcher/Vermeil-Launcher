@@ -114,6 +114,62 @@ export function bakeCape(
   ctx.restore();
 }
 
+// ─── In-game (companion mod) cape baking ───────────────────────────────────
+
+/** Result of baking a cape for the companion mod. */
+export interface ModCapeBake {
+  /** PNG bytes: a square 64·res frame, or a vertical strip of N square frames. */
+  png: Uint8Array;
+  /** Per-frame duration for an animation (mod default is 100). */
+  frameTimeMs: number;
+  /** Frame count (1 = static). */
+  frames: number;
+}
+
+function dataUrlToPngBytes(dataUrl: string): Uint8Array {
+  const b64 = dataUrl.split(",")[1] ?? "";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+/**
+ * Bake a cape for the Vermeil companion mod.
+ *
+ * The in-game cape model (modern Minecraft) uses a **64×64** texture, where the
+ * visible art occupies the same `PANEL` rect `(1,1)` size `10×16` as the editor's
+ * 64×32 atlas — just on a taller sheet whose lower half the cape never samples.
+ * So we reuse {@link bakeCape} (which lays the art out on a 64×32 canvas) and drop
+ * each baked frame into the **top** of a square `64·res` frame slot. Animations
+ * become a vertical strip of those square frames (height = width × frames), which
+ * is exactly the strip format the mod decodes. Static capes are a single frame.
+ */
+export function bakeModCapeStrip(src: FrameSource, t: CapeBakeParams): ModCapeBake {
+  const S = t.res;
+  const frame = 64 * S; // square frame edge
+  const n = src.frameCount;
+
+  const strip = document.createElement("canvas");
+  strip.width = frame;
+  strip.height = frame * n;
+  const ctx = strip.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D context unavailable");
+
+  // Per-frame 64×32 bake, reused across frames, composited into each slot's top.
+  const tmp = document.createElement("canvas");
+  for (let i = 0; i < n; i++) {
+    bakeCape(tmp, src.frameAt(i), src.width, src.height, t);
+    ctx.drawImage(tmp, 0, i * frame);
+  }
+
+  return {
+    png: dataUrlToPngBytes(strip.toDataURL("image/png")),
+    frameTimeMs: Math.max(1, Math.round(src.averageDurationMs)),
+    frames: n,
+  };
+}
+
 // ─── Animation detection ─────────────────────────────────────────────────
 
 function findAscii(b: Uint8Array, needle: string, start: number, maxScan: number): number {
@@ -315,6 +371,25 @@ export class FrameSource {
       return this.frames[this.frames.length - 1];
     }
     return this.still as CanvasImageSource;
+  }
+
+  /** Number of discrete frames (1 for a static or undecodable-animated source). */
+  get frameCount(): number {
+    return this.frames.length > 1 ? this.frames.length : 1;
+  }
+
+  /** The i-th frame (clamped), or the still image for a static source. */
+  frameAt(i: number): CanvasImageSource {
+    if (this.frames.length > 1) {
+      return this.frames[Math.max(0, Math.min(i, this.frames.length - 1))];
+    }
+    return this.still as CanvasImageSource;
+  }
+
+  /** Mean per-frame duration in ms (defaults to 100 when unknown). */
+  get averageDurationMs(): number {
+    if (this.durations.length === 0 || this.total <= 0) return 100;
+    return this.total / this.durations.length;
   }
 
   private disposeFrames(): void {

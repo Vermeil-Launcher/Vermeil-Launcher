@@ -351,6 +351,10 @@ pub fn run() {
             instances::install_modpack,
             instances::install_cf_modpack,
             instances::prepare_instance,
+            instances::set_instance_cape,
+            instances::set_instance_cape_enabled,
+            instances::clear_instance_cape,
+            instances::get_instance_cape,
             // CurseForge import
             cf_import::import_cf_zip,
             cf_import::import_cf_code,

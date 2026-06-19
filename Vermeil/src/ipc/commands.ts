@@ -511,6 +511,42 @@ export const removeCustomCape = (id: string) =>
 export const readCustomCapeSource = (id: string) =>
   invoke<string>("read_custom_cape_source", { id });
 
+/** Per-instance in-game cape state (companion mod). */
+export interface InstanceCapeState {
+  enabled: boolean;
+  cape_id: string | null;
+  frame_time_ms: number | null;
+}
+
+/** Write a baked cape (square frame, or vertical strip of square frames) into an
+ *  instance for the companion mod to render, and set its on/off toggle. */
+export const setInstanceCape = (
+  id: string,
+  capeId: string | null,
+  stripPng: number[],
+  frameTimeMs: number | null,
+  enabled: boolean,
+) =>
+  invoke<void>("set_instance_cape", {
+    id,
+    capeId,
+    stripPng,
+    frameTimeMs,
+    enabled,
+  });
+
+/** Toggle an instance's in-game cape on/off without re-baking (mod live-reloads). */
+export const setInstanceCapeEnabled = (id: string, enabled: boolean) =>
+  invoke<void>("set_instance_cape_enabled", { id, enabled });
+
+/** Remove an instance's in-game cape entirely. */
+export const clearInstanceCape = (id: string) =>
+  invoke<void>("clear_instance_cape", { id });
+
+/** Read an instance's current in-game cape state, or null if none is set. */
+export const getInstanceCape = (id: string) =>
+  invoke<InstanceCapeState | null>("get_instance_cape", { id });
+
 /**
  * Fetch a single account's current skin head (data URL) without changing
  * the active account. Used by the Account screen so every Microsoft row

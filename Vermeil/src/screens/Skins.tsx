@@ -19,9 +19,10 @@ import {
 } from "../ipc/commands";
 import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
 import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
-import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
+import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit, IconMonitor } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
+import InGameCapeModal from "../modals/InGameCapeModal";
 import { CapeAnimator, clampRes } from "../lib/cape";
 
 /**
@@ -126,6 +127,8 @@ const Skins: Component = () => {
   const [activeCustomCapeId, setActiveCustomCapeId] = createSignal<string | null>(null);
   const [showCapeEditor, setShowCapeEditor] = createSignal(false);
   const [editingCape, setEditingCape] = createSignal<CustomCape | null>(null);
+  // Cape being applied to instances for in-game display (companion mod).
+  const [inGameCape, setInGameCape] = createSignal<CustomCape | null>(null);
 
   // Active skin texture, handed to the cape editor so its 3D preview shows the
   // user's own body instead of an empty stand.
@@ -791,6 +794,14 @@ const Skins: Component = () => {
                       />
                     </button>
                     <button
+                      class="skins-cape-chip-ingame"
+                      onClick={() => setInGameCape(cape)}
+                      disabled={busy() !== null}
+                      title="Show in-game"
+                    >
+                      <IconMonitor />
+                    </button>
+                    <button
                       class="skins-cape-chip-edit"
                       onClick={() => openEditCape(cape)}
                       disabled={busy() !== null}
@@ -829,6 +840,13 @@ const Skins: Component = () => {
             skinTexture={activeSkinTexture()}
             onClose={() => setShowCapeEditor(false)}
             onSaved={handleCapeSaved}
+          />
+        </Show>
+
+        <Show when={inGameCape()}>
+          <InGameCapeModal
+            cape={inGameCape()!}
+            onClose={() => setInGameCape(null)}
           />
         </Show>
       </Show>

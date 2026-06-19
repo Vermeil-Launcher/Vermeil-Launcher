@@ -53,8 +53,9 @@ gap rather than implying universal coverage.
 3. The mod hooks player cape rendering so the local player's cape draws with our
    texture even when the account has no Mojang cape (vanilla skips the cape part
    when there's no cape texture). The exact hook target (class/method) is
-   **version-specific** and resolved against official mappings: Yarn for
-   Fabric/Legacy Fabric; Mojang official mappings for Forge/NeoForge.
+   **version-specific** and resolved against official mappings. (Our PoC pins
+   **official Mojang mappings** even on Fabric — Loom supports this — so the
+   decompiled names match the code; see `progress.md`.)
 4. Animation: upload the next frame's pixels to the dynamic texture each client
    tick, driven by the same per-frame data the viewer uses. Static first;
    animation is a follow-up.

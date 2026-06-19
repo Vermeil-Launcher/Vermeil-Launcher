@@ -5,10 +5,11 @@ full version × loader matrix.
 
 ## Target for the PoC
 
-- **Minecraft: the current stable release** (e.g. 1.21.x). Modern render system,
-  best-documented APIs, easiest tooling — the fastest path to validating the
-  idea. (1.8.9 PvP support is the *second* milestone, once the mechanism is
-  proven; it needs a separate legacy toolchain.)
+- **Minecraft: the current stable release.** We locked onto the latest version
+  (26.1.x at scaffold time). Modern render system, best-documented APIs, latest
+  tooling — the fastest path to validating the idea. (1.8.9 PvP support is the
+  *second* milestone, once the mechanism is proven; it needs a separate legacy
+  toolchain.)
 - **Loader: Fabric.** Simplest dev setup, and a Fabric jar also runs on Quilt
   via its compatibility layer, so one build covers two loaders for free.
 - **Static cape only.** Animation comes after the static path works.
@@ -42,13 +43,15 @@ updates to launcher releases.)
 
 ## Tooling (to build/test the mod)
 
-- **JDK 21** (Temurin/Adoptium) — modern Minecraft (1.21+) needs Java 21.
-- **Gradle 8.x** matching the Loom version (e.g. Loom 1.10 → Gradle 8.12).
-  Installing Gradle lets us `gradle build` directly without a binary wrapper.
-- A Fabric instance of the target version to drop the built jar into and launch.
+- **JDK 25** (Temurin/Adoptium) — the latest Minecraft (26.1.x) requires Java 25.
+- The project's **Gradle wrapper** (`gradlew`); Fabric Loom drives the Gradle and
+  Loom versions, so no separate Gradle install is needed.
+- A Fabric dev client (`gradlew runClient`) to launch and inspect the result.
 
-Pin exact versions (MC, Yarn, Loader, Fabric API, Loom) from the official
-Fabric "Develop" page for the chosen MC version before building.
+Exact pins (MC, Fabric loader, Fabric API, Loom, mod version) live in
+`vermeil-mod/gradle.properties`, taken from the official Fabric "Develop" page
+for the target MC version. The project uses **official Mojang mappings**, not
+Yarn.
 
 ## Shape of the mod (Fabric)
 
@@ -62,17 +65,18 @@ Fabric "Develop" page for the chosen MC version before building.
 ## Still to verify before writing the Mixin
 
 - The exact class/method the cape layer renders through on the target version,
-  and vanilla's "no cape texture → skip" branch — resolved against **official
-  Yarn mappings** for that version. This is the one real unknown; it must be
-  confirmed from the mappings, not assumed.
+  and vanilla's "no cape texture → skip" branch — resolved against the **official
+  Mojang-mapped** decompiled sources for that version (via `genSources` +
+  `javap`). This is the one real unknown; it must be confirmed from the mappings,
+  not assumed. *(Resolved for 26.1.x — see `progress.md` Stage 2 investigation.)*
 
 ## Build / test reality
 
-This can't be built or run in the launcher's dev environment — a Minecraft mod
-needs a JDK + Gradle and an actual game client to test in. So the PoC mod is
-developed and tested separately (build with Gradle, drop into a Fabric instance,
-launch, look at the player's back). Treat any mod code as **unverified until
-built and run in-game**.
+The mod needs a JDK + Gradle and an actual game client to build and test —
+separate from the launcher's Tauri/SolidJS toolchain. In the current dev shell
+JDK 25 is on PATH, so the mod **can** be built (`gradlew build`) and smoke-tested
+(`gradlew runClient`) here. Even so, treat any mod code as **unverified until
+built and run in-game** — a clean compile is not proof the feature renders.
 
 ## Where it lives
 

@@ -69,21 +69,64 @@ Outputs:
 | `cargo check` | `Vermeil/src-tauri/` | Type-check Rust backend |
 | `cargo build --release` | `Vermeil/src-tauri/` | Build Rust backend only |
 
+## Companion Mod (`vermeil-mod/`)
+
+The repo includes the **Vermeil companion Minecraft mod** at `vermeil-mod/` — a
+separate Java/Fabric Gradle project (the general Vermeil client mod; in-game
+custom capes are its first feature). It is **not** part of the launcher's
+Tauri/SolidJS build and is excluded from the `pnpm` and `cargo` pipelines; it is
+built and distributed (download-on-demand) on its own.
+
+### Prerequisites
+
+- **JDK 25** (Temurin/Adoptium). The latest Minecraft (26.1.x) requires Java 25.
+  Make sure `java -version` reports 25 before building.
+- No system Gradle needed — the project ships a Gradle **wrapper**
+  (`gradlew` / `gradlew.bat`). Fabric Loom drives the Gradle/Loom versions.
+
+Exact pins (MC, Fabric loader, Fabric API, Loom, mod version) live in
+`vermeil-mod/gradle.properties`. The project uses **official Mojang mappings**,
+not Yarn.
+
+### Building & running the mod
+
+```powershell
+# from repo root, on Windows
+vermeil-mod\gradlew.bat build       # -> BUILD SUCCESSFUL, jar in build/libs/
+vermeil-mod\gradlew.bat runClient   # launches a dev game client to test in
+vermeil-mod\gradlew.bat genSources  # decompiled Mojang-mapped sources (for research)
+```
+
+```bash
+# on Linux
+./vermeil-mod/gradlew build
+./vermeil-mod/gradlew runClient
+```
+
+Treat mod code as **unverified until built and run in-game**. Background,
+research notes, and the proof-of-concept plan live in
+[`docs/research/ingame-capes/`](research/ingame-capes/). Contributor conventions
+for the mod (Mixin discipline, mappings research, Java naming) are documented in
+the `minecraft-mod` skill under `.kiro/skills/`.
+
 ## Project Structure
 
 ```
-Vermeil/
-├── src/                  # SolidJS frontend
-├── src-tauri/            # Rust backend (Tauri)
-│   ├── src/
-│   │   ├── commands/     # IPC command handlers
-│   │   ├── services/     # Business logic
-│   │   ├── models/       # Data types
-│   │   ├── util/         # Helpers (paths, http)
-│   │   ├── lib.rs        # Plugin/command registration
-│   │   └── main.rs       # Entry point
-│   ├── Cargo.toml
-│   └── tauri.conf.json   # Tauri config (version, window, plugins)
-├── package.json
-└── vite.config.ts
+Vermeil-Launcher/             # repo root
+├── Vermeil/                  # the launcher (Tauri app)
+│   ├── src/                  # SolidJS frontend
+│   ├── src-tauri/            # Rust backend (Tauri)
+│   │   ├── src/
+│   │   │   ├── commands/     # IPC command handlers
+│   │   │   ├── services/     # Business logic
+│   │   │   ├── models/       # Data types
+│   │   │   ├── util/         # Helpers (paths, http)
+│   │   │   ├── lib.rs        # Plugin/command registration
+│   │   │   └── main.rs       # Entry point
+│   │   ├── Cargo.toml
+│   │   └── tauri.conf.json   # Tauri config (version, window, plugins)
+│   ├── package.json
+│   └── vite.config.ts
+├── vermeil-mod/              # companion Minecraft mod (Java/Fabric, separate build)
+└── docs/                     # project docs + docs/research/ notes
 ```

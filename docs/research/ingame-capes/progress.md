@@ -97,3 +97,22 @@ texture's pixels for ones read from the launcher's local cape file.
 Implementation lands next (mixin + client init + re-added
 `vermeil.client.mixins.json`), build-verified here, then `runClient` to confirm
 the cape shows on the player's back.
+
+## Process & tooling — mod standards captured (before Stage 2 impl)
+
+- Added a `minecraft-mod` skill (`.kiro/skills/minecraft-mod/SKILL.md`) capturing
+  the mod's real toolchain (JDK 25, Gradle wrapper, Loom, official Mojang
+  mappings), the build/`runClient` verify loop, the genSources/`javap`
+  "verify mappings, never guess" research discipline, Mixin conventions, Java
+  naming, distribution model, and the originality rule — so this knowledge isn't
+  re-derived each time.
+- Added a "Research Docs Are Living" rule to `implementation-process.md`:
+  `docs/research/<feature>/` notes are updated in the same change that makes a
+  decision real, with a `progress.md` entry per milestone. This entry is the rule
+  applied to itself.
+- Registered `vermeil-mod/` in `coding-standards.md` and documented the mod's
+  build/prereqs in `docs/DEVELOPMENT.md`.
+- **Doc-currency fix:** reconciled `poc.md` / `research.md` with reality — they
+  still named JDK 21, Gradle 8.x, Yarn mappings, MC 1.21.x and claimed the mod
+  couldn't be built in the dev shell. Updated to JDK 25, the Gradle wrapper,
+  official Mojang mappings, latest MC, and the fact the mod builds/runs here.

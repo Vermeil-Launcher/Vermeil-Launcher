@@ -1,6 +1,6 @@
 ---
 name: minecraft-mod
-description: Work on the Vermeil companion Minecraft mod (Java/Fabric/Mixin) in vermeil-mod/. Use when writing or changing mod code, adding a cape/render feature, hooking the game with a Mixin, resolving mappings, or building/running the mod with Gradle. Keywords: fabric, mixin, mod, java, gradle, loom, cape, render, minecraft, vermeil-mod, genSources, runClient.
+description: Work on the Vermeil companion Minecraft mod (Java/Fabric/Mixin) in vermeil-mod/. Use when writing or changing mod code, adding a cape/render feature, hooking the game with a Mixin, resolving mappings, or building/running the mod with Gradle. Relevant terms include fabric, mixin, java, gradle, loom, cape, render, vermeil-mod, genSources, runClient.
 ---
 
 # Working on the Vermeil Companion Mod

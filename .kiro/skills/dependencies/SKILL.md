@@ -1,6 +1,6 @@
 ---
 name: dependencies
-description: Add, update, or remove dependencies and toolchain/system prerequisites safely — Rust crates, npm packages, Gradle/Java mod deps, and required tools like JDK or Build Tools. Use when installing a library, bumping versions, adding a build tool, evaluating a crate, or removing unused packages. Always ripples the change into the docs that list dependencies.
+description: Add, update, or remove dependencies and toolchain/system prerequisites safely, covering Rust crates, npm packages, Gradle/Java mod deps, and required tools like JDK or Build Tools. Use when installing a library, bumping versions, adding a build tool, evaluating a crate, or removing unused packages. Always ripples the change into the docs that list dependencies.
 ---
 
 # Dependency Management

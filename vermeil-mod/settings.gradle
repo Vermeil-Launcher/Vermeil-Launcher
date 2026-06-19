@@ -22,7 +22,7 @@ plugins {
 // docs/research/ingame-capes/research.md for the node plan and hook differences.
 stonecutter {
 	create(rootProject) {
-		versions('26.2')
+		versions('26.1.2', '26.2')
 		vcsVersion = '26.2'
 	}
 }

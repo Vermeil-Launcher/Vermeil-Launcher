@@ -417,3 +417,39 @@ switches the active node; `runClient` runs the active node.
 cape hooks with `//? if` (render-state for 26.x/1.21.2+, `CapeFeatureRenderer` for
 1.20.1/1.21.0–1.21.1), verifying each node via genSources + runClient. Then the
 separate legacy Forge project (1.12.2, 1.8.9) and mod-jar publish + download-on-demand.
+
+
+## Stage 8 — second Fabric node (26.1.2) + real `chiseledBuild` (done, builds)
+
+Status: **two-node Stonecutter tree (26.1.2 + 26.2); both build, `chiseledBuild`
+builds all nodes; launcher support widened to 26.1.x.**
+
+First multi-version node added — the easiest reuse, since 26.1.2 and 26.2 share
+the identical render-state cape hook (same Mojang-mapped `AvatarRenderer`/
+`CapeLayer`/`AvatarRenderState`), so the shared `src/` compiles for both with **no
+`//? if` conditionals**:
+
+- `settings.gradle` → `versions('26.1.2', '26.2')`, `vcsVersion = '26.2'`.
+- `versions/26.1.2/gradle.properties` pins (from Fabric meta + Modrinth, not
+  guessed): `minecraft_version=26.1.2`, `loader_version=0.19.3`,
+  `fabric_api_version=0.151.0+26.1.2`, `java_version=25`.
+- **`chiseledBuild` now real.** Stonecutter 0.9 removed the old `registerChiseled`
+  / `stonecutter.chiseled` helper (confirmed against the 0.9 KDoc); the supported
+  way is task aggregation. The controller `stonecutter.gradle.kts` registers a
+  `chiseledBuild` task that `dependsOn(stonecutter.tasks.named("build"))` — the
+  lazy collection of every node's `build`. Prior docs already claimed
+  `gradlew chiseledBuild` worked; this makes it true rather than correcting them.
+- **Launcher:** `instance_cape::version_supported` widened from `26.2`-only to
+  `26.1.x` + `26.2` (both built nodes share the hook), so the user's 26.1.x
+  instances are "supported" and get the cape synced.
+
+**Verified:** `gradlew 26.1.2:build 26.2:build` and `gradlew chiseledBuild` both →
+`BUILD SUCCESSFUL` (both nodes). Launcher `cargo check` → clean. The shared source
+is unchanged, so both jars are functionally the render-verified cape mod, now
+emitted per version.
+
+**Still next:** add a 1.21 render-state node (reuse the hook with `Player*`
+class/state names via `//? if >=1.21.2`), then the 1.20.1 `CapeFeatureRenderer`
+node (second hook), each verified via genSources + runClient. Then the separate
+legacy Forge project (1.12.2, 1.8.9) and the still-open mod-jar publish +
+download-on-demand auto-install.

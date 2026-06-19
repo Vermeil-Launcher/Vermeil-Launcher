@@ -453,3 +453,57 @@ class/state names via `//? if >=1.21.2`), then the 1.20.1 `CapeFeatureRenderer`
 node (second hook), each verified via genSources + runClient. Then the separate
 legacy Forge project (1.12.2, 1.8.9) and the still-open mod-jar publish +
 download-on-demand auto-install.
+
+
+## Stage 9 — global cape dir instead of per-instance copies (done, builds)
+
+Status: **redesigned to one global cape; mod + launcher build clean. In-app
+end-to-end smoke test pending.**
+
+The per-instance file model (Stage 5) had two problems the user flagged: it
+scattered a `vermeil/` folder into instances, and an instance only got the cape
+at the moment it was synced (toggle time for prepared instances, launch time for
+the rest) — inconsistent across pre-existing vs newly-created vs imported. Fixed
+by making the cape **global** and pointing the mod at it, rather than copying
+files per instance:
+
+- **Mod.** `VermeilCape` now resolves its cape directory from the
+  `vermeil.capeDir` system property when set, falling back to
+  `<gameDir>/vermeil/` when absent (so a manual, launcher-less install still
+  works). Pure path resolution — version-agnostic, no `//? if`, applies to both
+  nodes. The cape files are now just `cape.png` / `cape.json` under that dir.
+- **Launcher.** One global cape at `<data>/ingame-cape/` (`cape.png` +
+  `cape.json`, the latter mirroring the settings toggle/frame-time for the mod to
+  read). At launch, `instance_cape::jvm_property` returns
+  `-Dvermeil.capeDir=<that dir>` for **supported** instances that have a cape set;
+  `launch.rs` pushes it into the JVM args. The per-instance writer
+  (`apply_to_instance` / `sync_to_instance` / `sync_all_instances`) is gone, as
+  are the `sync_all_instances()` calls in the cape commands — setting/toggling now
+  just rewrites the global files, and any running supported instance live-reloads
+  because it's polling that same global dir.
+- **Cleanup.** `cleanup_legacy_instance_capes` (best-effort, run when the user
+  next sets a cape) removes the old single-file global cape (`<data>/ingame-cape.png`)
+  and any `instances/*/.minecraft/vermeil/cape.{png,json}` left by the old design,
+  dropping an emptied `vermeil/` dir — so the scattered folders the user saw go
+  away. It only removes the two files it used to write; if the user put anything
+  else in `vermeil/`, the dir is left alone.
+- **Concern check.** The "folders on any loader" report doesn't match the current
+  code path — `apply_to_instance` only *created* `vermeil/` in the supported+on
+  branch, so vanilla/Forge never got a folder from it; the report was stale
+  folders from an earlier iteration, which the cleanup now clears regardless.
+
+**Verified here:** mod `gradlew 26.2:compileClientJava --rerun-tasks` → executed,
+`BUILD SUCCESSFUL`; `gradlew chiseledBuild` → both nodes build. Launcher
+`cargo check` → clean, zero warnings. The IPC command names/signatures are
+unchanged, so the frontend is untouched.
+
+**Needs an in-app smoke test (Windows + a Linux pass):** rebuild/replace the mod
+jar in a supported instance, launch it, confirm `-Dvermeil.capeDir=…` is in the
+resolved JVM args (Settings shows resolved args) and the cape renders from the
+global dir; toggle off/on and confirm a running instance live-reloads. Path is
+passed as a single argv element so spaces are safe; Java parses backslash paths
+fine on Windows and `data_dir()` isn't `\\?\`-prefixed.
+
+**Still next:** the still-open mod-jar publish + download-on-demand auto-install,
+and continuing the version matrix (1.21 render-state node, then 1.20.1
+feature-renderer).

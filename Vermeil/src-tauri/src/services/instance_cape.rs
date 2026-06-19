@@ -1,19 +1,20 @@
 //! In-game custom cape integration with the Vermeil companion mod.
 //!
-//! The companion mod reads its cape from `<game_dir>/vermeil/cape.png` (the game
-//! dir is `instances/<id>/.minecraft`) plus a `cape.json` toggle/metadata file.
-//!
 //! This is a **global, single-toggle** feature. The state (on/off, which library
 //! cape, frame timing) lives in the launcher settings (`config.json` →
-//! `ingame_cape`), and the baked cape image lives at `<data>/ingame-cape.png` —
-//! no scattered sub-folders. The launcher applies the cape automatically, but
-//! only to **supported** instances (the loaders + Minecraft versions the mod
-//! runs on). There is no per-instance selection.
+//! `ingame_cape`), and the cape itself is stored **once** in a global cape
+//! directory — `<data>/ingame-cape/` holding `cape.png` (the baked texture) and
+//! `cape.json` (`{enabled, frameTimeMs}`, mirrored from settings for the mod to
+//! read). There are no per-instance copies.
 //!
-//! At launch we sync the cape into the launching instance (`sync_to_instance`):
-//! write it if the instance is supported and the toggle is on, otherwise remove
-//! any stale copy — so new instances are covered with no bookkeeping. Toggling
-//! also applies to all already-prepared instances immediately (`sync_all_instances`).
+//! The companion mod reads its cape from the directory named by the
+//! `vermeil.capeDir` system property. At launch we inject
+//! `-Dvermeil.capeDir=<global dir>` for **supported** instances (the loaders +
+//! Minecraft versions the mod runs on) when a cape has been set — see
+//! [`jvm_property`]. So every instance (custom, modpack, imported, pre-existing
+//! or new) is pointed at the same global cape uniformly, and a running supported
+//! instance live-reloads when the global files change. Unsupported instances get
+//! no property, so they're never touched.
 //!
 //! The cape PNG is baked **by the frontend** (canvas — the backend has no image
 //! library) into the mod's texture layout: a square 64×64 cape frame, or a
@@ -25,7 +26,7 @@ use crate::services::{instance_service, settings_service};
 use crate::util::paths;
 use serde::Serialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Largest cape strip we'll store — bounds an untrusted/baked PNG on disk.
 const MAX_STRIP_BYTES: usize = 32 * 1024 * 1024;
@@ -34,34 +35,56 @@ const MAX_FRAME_SIZE: u32 = 2048;
 /// Largest frame count we'll accept in a strip.
 const MAX_FRAMES: u32 = 300;
 
-/// Per-instance `cape.json` the mod reads (`capeId` is launcher-only and omitted).
+/// The `cape.json` the mod reads (`capeId` is launcher-only and omitted).
 #[derive(Debug, Serialize)]
-struct InstanceCapeMeta {
+struct CapeMeta {
     enabled: bool,
     #[serde(rename = "frameTimeMs", skip_serializing_if = "Option::is_none")]
     frame_time_ms: Option<u32>,
 }
 
-/// The single baked in-game cape image (the mod's frame-strip layout).
-fn ingame_png() -> PathBuf {
-    paths::data_dir().join("ingame-cape.png")
+/// The single global cape directory the mod is pointed at (`vermeil.capeDir`).
+fn global_cape_dir() -> PathBuf {
+    paths::data_dir().join("ingame-cape")
+}
+
+fn global_cape_png() -> PathBuf {
+    global_cape_dir().join("cape.png")
+}
+
+fn global_cape_meta() -> PathBuf {
+    global_cape_dir().join("cape.json")
+}
+
+/// Write the mod-facing `cape.json` mirroring the launcher's toggle state.
+fn write_global_meta(enabled: bool, frame_time_ms: Option<u32>) -> Result<(), String> {
+    fs::create_dir_all(global_cape_dir()).map_err(|e| format!("create cape dir: {}", e))?;
+    let meta = CapeMeta { enabled, frame_time_ms };
+    let json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
+    paths::atomic_write(global_cape_meta(), json.as_bytes())
+        .map_err(|e| format!("write cape.json: {}", e))
 }
 
 // ───────────────────────── Toggle / store (settings-backed) ─────────────
 
-/// Set the in-game cape: store the baked strip and record it in settings (on).
+/// Set the in-game cape: store the baked strip + meta in the global cape dir and
+/// record it in settings (on). Running supported instances live-reload it.
 pub async fn set_ingame_cape(
     cape_id: Option<String>,
     strip_png: &[u8],
     frame_time_ms: Option<u32>,
 ) -> Result<(), String> {
     validate_strip(strip_png)?;
-    fs::create_dir_all(paths::data_dir()).map_err(|e| format!("Create data dir: {}", e))?;
-    paths::atomic_write(ingame_png(), strip_png).map_err(|e| format!("Write ingame cape: {}", e))?;
+    fs::create_dir_all(global_cape_dir()).map_err(|e| format!("create cape dir: {}", e))?;
+    paths::atomic_write(global_cape_png(), strip_png).map_err(|e| format!("write cape.png: {}", e))?;
+    write_global_meta(true, frame_time_ms)?;
 
     let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
     settings.ingame_cape = IngameCapeSettings { enabled: true, cape_id, frame_time_ms };
-    settings_service::save(&settings).await.map_err(|e| e.to_string())
+    settings_service::save(&settings).await.map_err(|e| e.to_string())?;
+
+    cleanup_legacy_instance_capes().await;
+    Ok(())
 }
 
 /// Flip the toggle without re-baking. Errors if no cape has been set yet.
@@ -71,13 +94,18 @@ pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
         return Err("No in-game cape has been set yet.".to_string());
     }
     settings.ingame_cape.enabled = enabled;
-    settings_service::save(&settings).await.map_err(|e| e.to_string())
+    let frame_time_ms = settings.ingame_cape.frame_time_ms;
+    settings_service::save(&settings).await.map_err(|e| e.to_string())?;
+
+    // Mirror into the global cape.json so running instances live-reload.
+    write_global_meta(enabled, frame_time_ms)?;
+    Ok(())
 }
 
-/// Remove the in-game cape entirely (image + settings).
+/// Remove the in-game cape entirely (global files + settings).
 pub async fn clear_ingame_cape() -> Result<(), String> {
-    if ingame_png().exists() {
-        let _ = fs::remove_file(ingame_png());
+    if global_cape_dir().exists() {
+        let _ = fs::remove_dir_all(global_cape_dir());
     }
     let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
     settings.ingame_cape = IngameCapeSettings::default();
@@ -93,7 +121,7 @@ pub async fn get_ingame_cape() -> Option<IngameCapeSettings> {
     Some(settings.ingame_cape)
 }
 
-// ───────────────────────── Per-launch / bulk sync ───────────────────────
+// ───────────────────────── Support gate + launch wiring ──────────────────
 
 /// Loaders the companion mod runs on. It's a Fabric mod; Quilt runs Fabric mods.
 fn loader_supported(loader: &LoaderType) -> bool {
@@ -114,81 +142,50 @@ pub fn is_supported(instance: &Instance) -> bool {
     loader_supported(&instance.loader.loader_type) && version_supported(&instance.game_version)
 }
 
-/// Write or remove the cape in one instance's game dir given the toggle state.
-/// Best-effort: failures are logged, never propagated (a cape must never block a
-/// launch). Writes when the toggle is on and the instance is supported and a
-/// baked cape exists; otherwise removes any stale copy.
-fn apply_to_instance(instance: &Instance, game_dir: &Path, enabled: bool, frame_time_ms: Option<u32>) {
-    let dest_dir = game_dir.join("vermeil");
-    let dest_png = dest_dir.join("cape.png");
-    let dest_meta = dest_dir.join("cape.json");
-
-    let active = enabled && is_supported(instance) && ingame_png().exists();
-
-    if !active {
-        for path in [&dest_png, &dest_meta] {
-            if path.exists() {
-                if let Err(e) = fs::remove_file(path) {
-                    tracing::warn!("Could not remove stale in-game cape {}: {}", path.display(), e);
-                }
-            }
-        }
-        return;
+/// The `-Dvermeil.capeDir=…` JVM argument to inject at launch, or `None` when the
+/// instance isn't supported or no cape has been set. Pointing every supported
+/// instance at the one global cape dir is what replaces per-instance file copies:
+/// the mod reads the shared cape, and toggling/swapping it live-reloads anywhere
+/// it's running.
+pub fn jvm_property(instance: &Instance) -> Option<String> {
+    if !is_supported(instance) || !global_cape_png().is_file() {
+        return None;
     }
-
-    if let Err(e) = (|| -> Result<(), String> {
-        fs::create_dir_all(&dest_dir).map_err(|e| format!("create {}: {}", dest_dir.display(), e))?;
-        fs::copy(ingame_png(), &dest_png).map_err(|e| format!("copy cape.png: {}", e))?;
-        let meta = InstanceCapeMeta { enabled: true, frame_time_ms };
-        let json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
-        paths::atomic_write(&dest_meta, json.as_bytes()).map_err(|e| format!("write cape.json: {}", e))?;
-        Ok(())
-    })() {
-        tracing::warn!("Could not sync in-game cape into instance {}: {}", instance.id, e);
-    }
+    Some(format!("-Dvermeil.capeDir={}", global_cape_dir().display()))
 }
 
-/// Sync the in-game cape into one instance at launch. Best-effort.
-pub async fn sync_to_instance(instance: &Instance, game_dir: &Path) {
-    let settings = match settings_service::load().await {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("In-game cape: could not load settings: {}", e);
-            return;
-        }
-    };
-    apply_to_instance(
-        instance,
-        game_dir,
-        settings.ingame_cape.enabled,
-        settings.ingame_cape.frame_time_ms,
-    );
-}
+/// Best-effort removal of cape files written by the earlier per-instance design
+/// (`instances/<id>/.minecraft/vermeil/cape.{png,json}`) and the old single-file
+/// global cape (`<data>/ingame-cape.png`). The mod now reads the global cape dir
+/// via `vermeil.capeDir`, so these are obsolete; clean them up the next time the
+/// user touches the cape so no stale folders linger. Never propagates errors.
+async fn cleanup_legacy_instance_capes() {
+    // Old single-file global cape (superseded by the ingame-cape/ dir).
+    let legacy_global = paths::data_dir().join("ingame-cape.png");
+    if legacy_global.is_file() {
+        let _ = fs::remove_file(&legacy_global);
+    }
 
-/// Apply the current in-game cape state to every already-prepared instance now,
-/// so toggling takes effect immediately and visibly (a running, supported
-/// instance live-reloads it) instead of only at next launch. Instances that
-/// haven't been prepared yet (no `.minecraft`) are skipped — they get the cape
-/// from `sync_to_instance` when they launch. Best-effort.
-pub async fn sync_all_instances() {
-    let settings = match settings_service::load().await {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("In-game cape: could not load settings to sync: {}", e);
-            return;
-        }
-    };
     let instances = match instance_service::list_all().await {
         Ok(v) => v,
-        Err(e) => {
-            tracing::warn!("In-game cape: could not list instances to sync: {}", e);
-            return;
-        }
+        Err(_) => return,
     };
     for inst in &instances {
-        let game_dir = paths::instances_dir().join(&inst.id).join(".minecraft");
-        if game_dir.exists() {
-            apply_to_instance(inst, &game_dir, settings.ingame_cape.enabled, settings.ingame_cape.frame_time_ms);
+        let vermeil_dir = paths::instances_dir().join(&inst.id).join(".minecraft").join("vermeil");
+        if !vermeil_dir.exists() {
+            continue;
+        }
+        for name in ["cape.png", "cape.json"] {
+            let f = vermeil_dir.join(name);
+            if f.exists() {
+                let _ = fs::remove_file(&f);
+            }
+        }
+        // Drop the dir if it's now empty (don't disturb it if the user put other files there).
+        if let Ok(mut entries) = fs::read_dir(&vermeil_dir) {
+            if entries.next().is_none() {
+                let _ = fs::remove_dir(&vermeil_dir);
+            }
         }
     }
 }

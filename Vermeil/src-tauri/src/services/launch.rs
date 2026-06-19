@@ -1152,6 +1152,13 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         jvm_args.push(val);
     }
 
+    // In-game custom cape (companion mod): point the mod at the one global cape
+    // dir via `-Dvermeil.capeDir`, for supported instances with a cape set. This
+    // replaces per-instance file copies — see services::instance_cape.
+    if let Some(cape_arg) = crate::services::instance_cape::jvm_property(instance) {
+        jvm_args.push(cape_arg);
+    }
+
     // 7. Build game arguments — parse from version.json with rules
     let game_dir = paths::instances_dir().join(&instance.id).join(".minecraft");
     // Always true — every instance has an explicit resolution configured (default 1280x720).
@@ -1371,11 +1378,6 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         }
         let _ = fs::write(&options_path, &content);
     }
-
-    // Sync the in-game custom cape (companion mod) into this instance: write it
-    // if the global toggle is on and the instance is supported, otherwise remove
-    // any stale copy. Best-effort — never blocks the launch.
-    crate::services::instance_cape::sync_to_instance(instance, &game_dir).await;
 
     // 8. Spawn process with stdout/stderr capture
     let mut cmd = Command::new(&java);

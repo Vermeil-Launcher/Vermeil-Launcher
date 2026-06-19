@@ -260,34 +260,29 @@ pub async fn prepare_instance(id: String, window: tauri::WebviewWindow) -> Resul
 
 /// Set the in-game custom cape: store the baked cape (a square frame, or a
 /// vertical strip of square frames for an animation) and turn it on. The
-/// launcher applies it automatically to supported instances at launch — no
-/// per-instance selection. `cape_id` records which library cape this is (UI
-/// only); `frame_time_ms` is the per-frame duration for animated strips.
+/// launcher stores it once in the global cape dir and points supported instances
+/// at it via a JVM property at launch — no per-instance copies, no selection.
+/// `cape_id` records which library cape this is (UI only); `frame_time_ms` is
+/// the per-frame duration for animated strips.
 #[tauri::command]
 pub async fn set_ingame_cape(
     cape_id: Option<String>,
     strip_png: Vec<u8>,
     frame_time_ms: Option<u32>,
 ) -> Result<(), String> {
-    instance_cape::set_ingame_cape(cape_id, &strip_png, frame_time_ms).await?;
-    instance_cape::sync_all_instances().await;
-    Ok(())
+    instance_cape::set_ingame_cape(cape_id, &strip_png, frame_time_ms).await
 }
 
 /// Toggle the in-game cape on/off without re-baking it.
 #[tauri::command]
 pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
-    instance_cape::set_ingame_cape_enabled(enabled).await?;
-    instance_cape::sync_all_instances().await;
-    Ok(())
+    instance_cape::set_ingame_cape_enabled(enabled).await
 }
 
 /// Remove the in-game cape entirely.
 #[tauri::command]
 pub async fn clear_ingame_cape() -> Result<(), String> {
-    instance_cape::clear_ingame_cape().await?;
-    instance_cape::sync_all_instances().await;
-    Ok(())
+    instance_cape::clear_ingame_cape().await
 }
 
 /// Read the current in-game cape state, or `None` if none is set.

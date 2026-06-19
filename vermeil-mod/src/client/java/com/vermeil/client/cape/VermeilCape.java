@@ -19,15 +19,20 @@ import net.minecraft.resources.Identifier;
 /**
  * Manages the launcher's in-game custom cape on the client.
  *
- * <p>The launcher controls the cape through two files in the game directory,
- * which the launcher writes into the instance:
+ * <p>The launcher controls the cape through two files in a cape directory:
  * <ul>
- *   <li>{@code vermeil/cape.png} — the cape texture (see {@link VermeilCapeTexture}
+ *   <li>{@code cape.png} — the cape texture (see {@link VermeilCapeTexture}
  *       for the static-vs-animated frame-strip format), and</li>
- *   <li>{@code vermeil/cape.json} (optional) — {@code {"enabled": bool,
+ *   <li>{@code cape.json} (optional) — {@code {"enabled": bool,
  *       "frameTimeMs": int}}. {@code enabled} is the on/off toggle (default true
  *       when absent); {@code frameTimeMs} is the animation speed.</li>
  * </ul>
+ *
+ * <p>The cape directory is resolved from the {@code vermeil.capeDir} system
+ * property when set (the launcher points every instance at one shared, global
+ * cape dir so the cape isn't duplicated per instance). When the property is
+ * absent — e.g. a manual install with no launcher — it falls back to
+ * {@code <gameDir>/vermeil/}, keeping the mod usable on its own.
  *
  * <p>The render hook ({@code AvatarRendererMixin}) asks {@link #isActive()} and,
  * when active, points the local player's skin at {@link #capeTexture()}. We poll
@@ -40,9 +45,11 @@ public final class VermeilCape {
 	/** Identifier the cape texture is registered under and that the cape layer binds. */
 	public static final Identifier CAPE_ID = Identifier.fromNamespaceAndPath("vermeil", "cape");
 
-	/** Cape texture and metadata locations, relative to the game directory. */
-	private static final String CAPE_FILE = "vermeil/cape.png";
-	private static final String CAPE_META = "vermeil/cape.json";
+	/** System property the launcher sets to a shared, global cape directory. */
+	private static final String CAPE_DIR_PROPERTY = "vermeil.capeDir";
+	/** Cape texture and metadata file names, resolved under {@link #capeDir()}. */
+	private static final String CAPE_FILE = "cape.png";
+	private static final String CAPE_META = "cape.json";
 
 	private static final long DEFAULT_FRAME_TIME_MS = 100L;
 	/** Upper bound on decoded animation memory, so a pathological strip can't exhaust the heap. */
@@ -63,6 +70,19 @@ public final class VermeilCape {
 	private static int tickCounter;
 
 	private VermeilCape() {
+	}
+
+	/**
+	 * The directory the cape files live in. Prefers the launcher-supplied global
+	 * dir ({@code -Dvermeil.capeDir}); falls back to {@code <gameDir>/vermeil/} so
+	 * a manual install with no launcher still works.
+	 */
+	private static Path capeDir() {
+		String override = System.getProperty(CAPE_DIR_PROPERTY);
+		if (override != null && !override.isBlank()) {
+			return Path.of(override);
+		}
+		return FabricLoader.getInstance().getGameDir().resolve("vermeil");
 	}
 
 	/** The cape texture handle to place into a player skin. */
@@ -97,7 +117,7 @@ public final class VermeilCape {
 
 	/** Loads or releases the cape texture based on the current files and toggle. */
 	private static void reload(final Minecraft minecraft) {
-		Path capeFile = FabricLoader.getInstance().getGameDir().resolve(CAPE_FILE);
+		Path capeFile = capeDir().resolve(CAPE_FILE);
 		CapeSettings settings = readSettings();
 
 		if (!settings.enabled() || !Files.isRegularFile(capeFile)) {
@@ -174,7 +194,7 @@ public final class VermeilCape {
 
 	/** Reads the toggle and animation speed from the optional metadata file. */
 	private static CapeSettings readSettings() {
-		Path meta = FabricLoader.getInstance().getGameDir().resolve(CAPE_META);
+		Path meta = capeDir().resolve(CAPE_META);
 		boolean enabled = true;
 		long frameTimeMs = DEFAULT_FRAME_TIME_MS;
 		if (Files.isRegularFile(meta)) {
@@ -198,7 +218,7 @@ public final class VermeilCape {
 
 	/** A short signature of the cape files (path presence + size + mtime) to detect changes. */
 	private static String currentSignature() {
-		Path dir = FabricLoader.getInstance().getGameDir();
+		Path dir = capeDir();
 		return fileSignature(dir.resolve(CAPE_FILE)) + "|" + fileSignature(dir.resolve(CAPE_META));
 	}
 

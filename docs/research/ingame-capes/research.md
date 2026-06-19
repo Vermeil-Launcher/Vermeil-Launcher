@@ -96,9 +96,13 @@ Likely **two** mod projects, not one:
 - Does 1.8.9 (Legacy Fabric + Forge 1.8.9) fit a shared multiloader project, or
   need a separate legacy project? (Likely separate.)
 - Where to write the cape file (instance dir vs a shared launcher dir) and how
-  the mod locates it (config or fixed path). *(Provisionally settled: the mod
-  reads a fixed `<gameDir>/vermeil/cape.png` — the instance dir at runtime — via
-  Fabric's game-dir API. Revisit if a shared/per-account location is needed.)*
+  the mod locates it (config or fixed path). *(Settled: one shared, global cape
+  dir. The mod resolves its cape dir from the `vermeil.capeDir` system property
+  when set, falling back to `<gameDir>/vermeil/` for a launcher-less manual
+  install. The launcher stores the cape once at `<data>/ingame-cape/`
+  (`cape.png` + `cape.json`) and injects `-Dvermeil.capeDir=<that dir>` at launch
+  for supported instances — so the cape isn't duplicated per instance and every
+  instance type behaves identically.)*
 - Per-frame animation cost in-game at high resolution. *(Mitigated: frames are
   decoded once and capped to a memory budget; uploads happen only on frame change,
   not every tick. Revisit if very high-res HD strips prove costly.)*

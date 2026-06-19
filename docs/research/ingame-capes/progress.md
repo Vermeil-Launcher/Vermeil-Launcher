@@ -356,3 +356,31 @@ adding the second modern version so the matrix doesn't fork into copy-pasted pro
 **Still next:** decide the multi-version build system, then port family-by-family
 (1.21.2+ render-state → 1.20.1/1.21.1 feature-renderer → 1.8.9/1.12.2 legacy Forge),
 plus the still-open mod-jar publish + download-on-demand auto-install.
+
+
+## Stage 6b — loader scope locked + Stonecutter setup researched
+
+Status: **research/decisions only — no build changes yet.**
+
+- **Loader scope = Plan A**, recorded in `research.md`: two families only. Fabric
+  (covers Quilt free) for the modern versions; classic Forge for the legacy ones.
+  Quilt and NeoForge dropped as explicit targets (NeoForge is a deliberate
+  reach-vs-effort cut, not a popularity claim). 1.8.9 = **Forge only** (Legacy
+  Fabric dropped as a niche backport not worth its own toolchain).
+- So the modern Fabric (Stonecutter) tree targets **26.2 + 1.21.x + 1.20.1**;
+  1.12.2 + 1.8.9 are a separate legacy Forge project.
+- **Stonecutter setup confirmed from the official docs** (0.9.6, needs Gradle 9+
+  which we have): plugin coordinates, `settings.gradle` `create/versions/vcsVersion`,
+  the version-aware `build.gradle` via `sc.current.*`, per-node
+  `versions/<node>/gradle.properties`, and the `//? if …` comment syntax — all
+  written up in `research.md` with our concrete node list and Java-per-version map.
+- **Key finding:** the modern Fabric tree spans **two render hooks**, not one rename
+  — render-state (26.2 / 1.21.2+) vs feature-renderer (`CapeFeatureRenderer` on
+  1.20.1 / 1.21.0–1.21.1) — gated by a Stonecutter condition. Each verified per node
+  via genSources when built.
+
+**Still next:** implement — convert `vermeil-mod` to Stonecutter with 26.2 as the
+sole node first (prove the build-system change → `chiseledBuild` still emits the
+26.2 jar), then add a 1.21 render-state node, then the 1.20.1 feature-renderer node.
+Then the separate legacy Forge project (1.12.2, 1.8.9), and the still-open mod-jar
+publish + download-on-demand.

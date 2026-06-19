@@ -41,8 +41,11 @@ import {
  * baseline (`baseDw/baseDh`, derived from the image aspect) times `scale`.
  */
 
-// Display magnification for the 2D workspace (10×16 panel → 220×352 px).
-const DISP = 22;
+// Display magnification for the 2D workspace. The workspace shows the cape as
+// an unfolded cross-net — the front panel plus the 1-texel side/top/bottom
+// faces around it (12×18 texels) — so 20px keeps it compact and balanced with
+// the 3D preview beside it.
+const DISP = 20;
 // Bake-resolution choices: multiplier of the 64×32 atlas → baked texture size.
 // 1× is the classic pixelated cape; 32× (2048×1024) is the sharpest the
 // backend accepts. skinview3d renders whatever resolution we hand it.
@@ -139,46 +142,74 @@ const CustomCapeEditor: Component<Props> = (props) => {
       console.error("Cape preview failed:", e);
     }
   };
+  // The workspace shows the cape unfolded as a cross-net: the front panel in
+  // the centre, with the 1-texel side/top/bottom faces around it. Because
+  // those faces sit adjacent to the front here, a single continuous image draw
+  // (at the front's position, offset by the net's 1-texel border) previews
+  // exactly how the art wraps onto each face in the bake. The corners and the
+  // inner/back face aren't part of the net — they stay background.
+  const NET_W = PANEL.w + 2; // left + front + right  = 12
+  const NET_H = PANEL.h + 2; // top  + front + bottom = 18
+  const FX = 1; // front-panel offset within the net, in texels
+  const FY = 1;
+
   const redrawWorkspace = () => {
     const cv = workspaceCanvas;
     if (!cv) return;
     const ctx = cv.getContext("2d");
     if (!ctx) return;
-    const W = PANEL.w * DISP;
-    const H = PANEL.h * DISP;
-
+    const W = NET_W * DISP;
+    const H = NET_H * DISP;
     ctx.clearRect(0, 0, W, H);
-    // Background fill (matches what the cape will show behind the image).
+
+    // The cross shape: a full-width band for left+front+right, plus the top and
+    // bottom strips above/below the front. Used for both the bg fill and the
+    // image clip so only the real faces are painted (corners stay transparent).
+    const crossPath = () => {
+      ctx.beginPath();
+      ctx.rect(0, FY * DISP, NET_W * DISP, PANEL.h * DISP); // left+front+right band
+      ctx.rect(FX * DISP, 0, PANEL.w * DISP, FY * DISP); // top strip
+      ctx.rect(FX * DISP, (FY + PANEL.h) * DISP, PANEL.w * DISP, DISP); // bottom strip
+    };
+
+    // Background fill across the cross.
+    ctx.save();
+    crossPath();
+    ctx.clip();
     ctx.fillStyle = bg();
     ctx.fillRect(0, 0, W, H);
 
-    // Positioned image, clipped to the panel bounds.
+    // Positioned image — drawn once at the front's position (shifted by the
+    // net border). The clip keeps it inside the cross; the edge faces show the
+    // image's continuation past the front, matching the baked cape.
     if (frameSrc) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, W, H);
-      ctx.clip();
       const dw = baseDw * scale() * DISP;
       const dh = baseDh * scale() * DISP;
-      ctx.drawImage(frameSrc.current(), dx * DISP, dy * DISP, dw, dh);
-      ctx.restore();
+      ctx.drawImage(frameSrc.current(), (FX + dx) * DISP, (FY + dy) * DISP, dw, dh);
     }
+    ctx.restore();
 
-    // Blender-style guide grid — one line per texel.
+    // Guide grid — one line per texel across the net.
     ctx.strokeStyle = "rgba(255,255,255,0.10)";
     ctx.lineWidth = 1;
-    for (let gx = 0; gx <= PANEL.w; gx++) {
+    for (let gx = 0; gx <= NET_W; gx++) {
       ctx.beginPath();
       ctx.moveTo(gx * DISP + 0.5, 0);
       ctx.lineTo(gx * DISP + 0.5, H);
       ctx.stroke();
     }
-    for (let gy = 0; gy <= PANEL.h; gy++) {
+    for (let gy = 0; gy <= NET_H; gy++) {
       ctx.beginPath();
       ctx.moveTo(0, gy * DISP + 0.5);
       ctx.lineTo(W, gy * DISP + 0.5);
       ctx.stroke();
     }
+
+    // Outline the front panel so it's clear which region is the visible face
+    // vs the thin wrap edges around it.
+    ctx.strokeStyle = "rgba(139,92,246,0.9)"; // --accent
+    ctx.lineWidth = 2;
+    ctx.strokeRect(FX * DISP, FY * DISP, PANEL.w * DISP, PANEL.h * DISP);
   };
 
   const refresh = () => {
@@ -439,14 +470,14 @@ const CustomCapeEditor: Component<Props> = (props) => {
           />
 
           <div class="cape-editor-stage">
-            {/* 2D positioning workspace */}
+            {/* 2D positioning workspace — cape unfolded as a cross-net. */}
             <div class="cape-editor-workspace">
-              <div class="cape-editor-panel-label">Back panel</div>
+              <div class="cape-editor-panel-label">Layout</div>
               <canvas
                 ref={workspaceCanvas}
                 class="cape-workspace-canvas"
-                width={PANEL.w * DISP}
-                height={PANEL.h * DISP}
+                width={(PANEL.w + 2) * DISP}
+                height={(PANEL.h + 2) * DISP}
                 onPointerDown={onWorkspacePointerDown}
                 style={{ cursor: hasImage() ? "move" : "default" }}
               />

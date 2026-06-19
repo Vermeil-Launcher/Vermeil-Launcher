@@ -146,6 +146,24 @@ What this step does NOT cover — these belong to the `release-process` skill an
 
 If a user asks for a release, activate the `release-process` skill and follow it. Otherwise, stop after the per-change push.
 
+## Research Docs Are Living
+
+Some features are researched and prototyped before they're built, with notes
+kept in `docs/research/<feature>/` (typically `research.md`, `poc.md`,
+`progress.md`). These are committed for transparency — they are part of the
+project, not scratch paper. Treat them as **living documents**, not write-once:
+
+- When a decision, toolchain fact, target version, hook, or plan changes, update
+  the affected note **in the same change** that makes the change real. A stale
+  research note (e.g. one still naming the old JDK/mappings/version) is a bug.
+- `research.md` = findings and the why; `poc.md` = the proof-of-concept plan and
+  its current shape; `progress.md` = a chronological journal — add an entry per
+  milestone describing what was done, the key decisions, and how it was verified.
+- Don't let the docs drift behind the code. If you notice a note contradicts the
+  current reality while working, fix it then, not "later".
+- Originality applies here too: describe only what we found and what our code
+  does; never reference another launcher's/client's/mod's source.
+
 ## Shell Commands
 
 - The workspace shell is **PowerShell** (Windows). Use `;` to chain commands if needed, or run each as a separate call. Do not use `&&` (PowerShell does not support it the same way).

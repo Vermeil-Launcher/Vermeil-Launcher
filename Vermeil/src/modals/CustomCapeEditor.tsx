@@ -8,7 +8,6 @@ import {
   PANEL,
   clampRes,
   computeBaseFit,
-  computeAverageColor,
   bakeCape,
   FrameSource,
 } from "../lib/cape";
@@ -287,9 +286,6 @@ const CustomCapeEditor: Component<Props> = (props) => {
       dx = (PANEL.w - baseDw) / 2;
       dy = (PANEL.h - baseDh) / 2;
       setScale(1);
-      // Auto-match the background to the image so the cape's surrounding
-      // faces blend with the art rather than showing a clashing fixed colour.
-      if (frameSrc) setBg(computeAverageColor(frameSrc.current(), DEFAULT_BG));
       setHasImage(true);
       // Drive a live frame loop for animated sources; a static one bakes once.
       const animated = frameSrc?.animated ?? false;

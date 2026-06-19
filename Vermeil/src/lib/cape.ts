@@ -114,38 +114,6 @@ export function bakeCape(
   ctx.restore();
 }
 
-/** Average colour of an image as `#rrggbb`, derived from a small downscale.
- *  Used to auto-match the cape background to the uploaded art. */
-export function computeAverageColor(source: CanvasImageSource, fallback: string): string {
-  const n = 32;
-  const c = document.createElement("canvas");
-  c.width = n;
-  c.height = n;
-  const ctx = c.getContext("2d");
-  if (!ctx) return fallback;
-  ctx.drawImage(source, 0, 0, n, n);
-  let data: Uint8ClampedArray;
-  try {
-    data = ctx.getImageData(0, 0, n, n).data;
-  } catch {
-    return fallback;
-  }
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let count = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] < 16) continue;
-    r += data[i];
-    g += data[i + 1];
-    b += data[i + 2];
-    count++;
-  }
-  if (count === 0) return fallback;
-  const hex = (v: number) => Math.round(v / count).toString(16).padStart(2, "0");
-  return `#${hex(r)}${hex(g)}${hex(b)}`;
-}
-
 // ─── Animation detection ─────────────────────────────────────────────────
 
 function findAscii(b: Uint8Array, needle: string, start: number, maxScan: number): number {

@@ -11,6 +11,7 @@ import {
   removeLocalSkin,
   listCustomCapes,
   removeCustomCape,
+  readCustomCapeSource,
   PlayerProfile,
   LocalSkin,
   CustomCape,
@@ -21,6 +22,7 @@ import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
 import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
+import { CapeAnimator, clampRes } from "../lib/cape";
 
 /**
  * Idle animation with a subtle elytra breath.
@@ -157,6 +159,53 @@ const Skins: Component = () => {
   let heroEl: HTMLDivElement | undefined;
   let stageEl: HTMLDivElement | undefined;
 
+  // Animated custom capes drive a live frame loop instead of a static texture.
+  // We keep one animator for the main viewer and track which cape it's playing
+  // so the display effect can re-run (e.g. on elytra toggle) without restarting
+  // it. `getParams` reads the live transform + elytra each frame.
+  let capeAnimator: CapeAnimator | undefined;
+  let animatorCapeId: string | null = null;
+
+  const ensureAnimator = (): CapeAnimator => {
+    if (!capeAnimator) {
+      capeAnimator = new CapeAnimator(viewer!, () => {
+        const live = (customCapes() ?? []).find((c) => c.id === animatorCapeId);
+        const t = live?.transform;
+        return {
+          dx: t?.dx ?? 0,
+          dy: t?.dy ?? 0,
+          scale: t?.scale ?? 1,
+          bg: t?.bg ?? "#2b2740",
+          res: clampRes(t?.res),
+          elytra: showElytra(),
+        };
+      });
+    }
+    return capeAnimator;
+  };
+
+  const startCapeAnimation = async (cape: CustomCape) => {
+    animatorCapeId = cape.id; // mark up-front so re-runs don't double-start
+    try {
+      const src = await readCustomCapeSource(cape.id);
+      if (animatorCapeId !== cape.id || !viewer) return; // superseded while fetching
+      await ensureAnimator().start(src);
+    } catch (e) {
+      console.error("Animated cape failed, falling back to static frame:", e);
+      // Fall back to the stored poster texture so the cape still shows.
+      try {
+        viewer?.loadCape(cape.texture, { backEquipment: showElytra() ? "elytra" : "cape" });
+      } catch {
+        // viewer gone; ignore
+      }
+    }
+  };
+
+  const stopCapeAnimation = () => {
+    capeAnimator?.stop();
+    animatorCapeId = null;
+  };
+
   // Size the canvas to a PORTRAIT rect that scales with the stage height.
   // A humanoid model is ~2x taller than its max rotational width, so a tall
   // narrow canvas fills with the model (appears large) instead of wasting
@@ -225,6 +274,7 @@ const Skins: Component = () => {
   });
 
   onCleanup(() => {
+    stopCapeAnimation();
     viewer?.dispose();
     viewer = undefined;
   });
@@ -263,23 +313,37 @@ const Skins: Component = () => {
     const p = profile();
     if (!viewer || !p) return;
 
-    // A locally-selected custom cape wins over the Mojang cape — it's a
-    // display-only override that lives entirely in the viewer.
-    if (customId) {
-      const cc = (caps ?? []).find((c) => c.id === customId);
-      if (cc) {
-        // Rendered with skinview3d's default nearest filtering (crisp texels)
-        // so the cape's baked resolution shows as a real pixel grid, matching
-        // the editor preview. loadCape is async for a data-URL source, so
-        // guard the returned promise's rejection.
-        const r = viewer.loadCape(cc.texture, {
-          backEquipment: elytra ? "elytra" : "cape",
-        }) as unknown as Promise<unknown> | undefined;
-        if (r && typeof (r as { then?: unknown }).then === "function") {
-          r.catch((e) => console.error("Custom cape load failed:", e));
-        }
-        return;
+    const cc = customId ? (caps ?? []).find((c) => c.id === customId) : undefined;
+
+    // Animated custom cape → drive the live frame loop. The animator reads the
+    // elytra toggle live each frame, so a re-run from toggling elytra must NOT
+    // restart it — only (re)start when the target cape actually changes.
+    if (cc && cc.transform.animated) {
+      if (animatorCapeId !== cc.id) {
+        stopCapeAnimation();
+        startCapeAnimation(cc);
       }
+      return;
+    }
+
+    // Not an animated custom cape — make sure any running animation is stopped
+    // before we paint a static texture.
+    stopCapeAnimation();
+
+    // A locally-selected static custom cape wins over the Mojang cape — it's a
+    // display-only override that lives entirely in the viewer.
+    if (cc) {
+      // Rendered with skinview3d's default nearest filtering (crisp texels)
+      // so the cape's baked resolution shows as a real pixel grid, matching
+      // the editor preview. loadCape is async for a data-URL source, so
+      // guard the returned promise's rejection.
+      const r = viewer.loadCape(cc.texture, {
+        backEquipment: elytra ? "elytra" : "cape",
+      }) as unknown as Promise<unknown> | undefined;
+      if (r && typeof (r as { then?: unknown }).then === "function") {
+        r.catch((e) => console.error("Custom cape load failed:", e));
+      }
+      return;
     }
 
     const activeCape = p.capes.find((c) => c.state === "ACTIVE");

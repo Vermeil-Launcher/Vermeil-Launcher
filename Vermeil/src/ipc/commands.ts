@@ -437,6 +437,8 @@ export interface LocalSkin {
  * - `res`: HD bake multiplier of the 64×32 atlas (1 = standard 64×32, up to 32
  *   = 2048×1024). Higher = sharper but larger texture. Optional for capes
  *   saved before the resolution picker existed (defaults to HD on load).
+ * - `animated`: true when the source is a multi-frame GIF / APNG / animated
+ *   WebP, so the display drives a live frame loop instead of a static bake.
  */
 export interface CapeTransform {
   dx: number;
@@ -444,6 +446,7 @@ export interface CapeTransform {
   scale: number;
   bg: string;
   res?: number;
+  animated?: boolean;
 }
 
 /** A local, display-only custom cape (never uploaded to Mojang). */

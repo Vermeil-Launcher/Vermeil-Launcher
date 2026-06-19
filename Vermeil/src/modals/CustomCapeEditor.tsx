@@ -4,6 +4,15 @@ import { saveCustomCape, readCustomCapeSource, CustomCape, CapeTransform } from 
 import { showToast } from "../App";
 import Dropdown from "../components/Dropdown";
 import { IconImage, IconX } from "../components/Icons";
+import {
+  PANEL,
+  clampRes,
+  computeBaseFit,
+  computeAverageColor,
+  bakeCape,
+  detectAnimated,
+  loadDisplayImage,
+} from "../lib/cape";
 
 /**
  * Custom cape editor — a local, display-only cape designer.
@@ -33,12 +42,6 @@ import { IconImage, IconX } from "../components/Icons";
  * baseline (`baseDw/baseDh`, derived from the image aspect) times `scale`.
  */
 
-// Visible cape face in the 64×32 atlas — the panel the observer sees once the
-// cape mesh's `rotation.y = Math.PI` is applied (its local +z "front" face).
-const PANEL = { x: 1, y: 1, w: 10, h: 16 };
-// Whole cape footprint in the atlas; filled with the background colour so the
-// sides / top / bottom / inner faces never render transparent.
-const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };
 // Display magnification for the 2D workspace (10×16 panel → 220×352 px).
 const DISP = 22;
 // Bake-resolution choices: multiplier of the 64×32 atlas → baked texture size.
@@ -52,16 +55,7 @@ const RES_OPTIONS = [
   { value: "16", label: "HD — 1024×512" },
   { value: "32", label: "Max HD — 2048×1024" },
 ];
-const DEFAULT_RES = 16;
 const DEFAULT_BG = "#2b2740";
-const ALLOWED_RES = [1, 2, 4, 8, 16, 32];
-
-/** Clamp a resolution to the supported set. Guards the re-edit path against a
- *  tampered or stale `capes.json` carrying a wild value that would size the
- *  bake canvas to 64·res and blow up memory. */
-function clampRes(r: number | undefined): number {
-  return r !== undefined && ALLOWED_RES.includes(r) ? r : DEFAULT_RES;
-}
 
 interface Props {
   /** Existing cape to re-edit, or null/undefined to create a new one. */
@@ -80,42 +74,6 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return arr;
 }
 
-/**
- * Average colour of an image, as a `#rrggbb` hex string. Downscales to a
- * small canvas and means the (non-transparent) pixels — cheap and gives a
- * representative tone derived from the image itself, so the cape background
- * blends with the art instead of clashing with a fixed colour.
- */
-function computeAverageColor(img: HTMLImageElement, fallback: string): string {
-  const n = 32;
-  const c = document.createElement("canvas");
-  c.width = n;
-  c.height = n;
-  const ctx = c.getContext("2d");
-  if (!ctx) return fallback;
-  ctx.drawImage(img, 0, 0, n, n);
-  let data: Uint8ClampedArray;
-  try {
-    data = ctx.getImageData(0, 0, n, n).data;
-  } catch {
-    return fallback; // tainted canvas (shouldn't happen for same-origin data URLs)
-  }
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let count = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] < 16) continue; // skip near-transparent pixels
-    r += data[i];
-    g += data[i + 1];
-    b += data[i + 2];
-    count++;
-  }
-  if (count === 0) return fallback;
-  const hex = (v: number) => Math.round(v / count).toString(16).padStart(2, "0");
-  return `#${hex(r)}${hex(g)}${hex(b)}`;
-}
-
 const CustomCapeEditor: Component<Props> = (props) => {
   const [name, setName] = createSignal(props.editing?.name ?? "Custom Cape");
   const [bg, setBg] = createSignal<string>(props.editing?.transform.bg ?? DEFAULT_BG);
@@ -123,6 +81,9 @@ const CustomCapeEditor: Component<Props> = (props) => {
   const [res, setRes] = createSignal<number>(clampRes(props.editing?.transform.res));
   const [hasImage, setHasImage] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
+  // Whether the loaded source is an animated GIF / APNG / WebP — drives a live
+  // frame loop instead of a one-shot bake.
+  const [isAnimated, setIsAnimated] = createSignal(false);
 
   // Image position offset within the panel, in panel-texel units.
   let dx = props.editing?.transform.dx ?? 0;
@@ -146,76 +107,18 @@ const CustomCapeEditor: Component<Props> = (props) => {
 
   // ─── Compositing ───
 
-  /** Recompute the contain-fit baseline + centred offset for the loaded image. */
-  const fitImage = () => {
-    if (!sourceImg) return;
-    const ar = sourceImg.naturalWidth / sourceImg.naturalHeight;
-    const panelAr = PANEL.w / PANEL.h;
-    if (ar > panelAr) {
-      baseDw = PANEL.w;
-      baseDh = PANEL.w / ar;
-    } else {
-      baseDh = PANEL.h;
-      baseDw = PANEL.h * ar;
-    }
-  };
-
-  /**
-   * Bake the full cape texture into the reused offscreen canvas at the chosen
-   * resolution (64·res × 32·res). Coordinates stay in texel units
-   * (PANEL/FOOTPRINT) and are multiplied by the resolution here, so the
-   * transform maths and the 2D workspace (which uses DISP) stay identical.
-   * Returns the canvas, or null when no image is loaded yet.
-   */
+  /** Bake the full cape texture into the reused offscreen canvas via the shared
+   *  compositor. Returns the canvas, or null when no image is loaded yet. */
   const bakeCapeCanvas = (): HTMLCanvasElement | null => {
     if (!sourceImg) return null;
-    const S = res();
     const c = bakeCanvas ?? (bakeCanvas = document.createElement("canvas"));
-    c.width = 64 * S;
-    c.height = 32 * S;
-    const ctx = c.getContext("2d");
-    if (!ctx) return null;
-    // Smooth downscale so photos don't look blocky at the cape's texel grid.
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.clearRect(0, 0, c.width, c.height);
-    // Solid background across the whole cape footprint — no transparent edges.
-    ctx.fillStyle = bg();
-    ctx.fillRect(FOOTPRINT.x * S, FOOTPRINT.y * S, FOOTPRINT.w * S, FOOTPRINT.h * S);
-    // Draw the image across the front panel and the thin faces adjacent to it
-    // in the atlas, so that when the image is scaled past the panel edge the
-    // sides/top show its *continuation* (the next slice of the image) rather
-    // than a stretched edge or a duplicate. The atlas lays the left/right side
-    // faces and the top face immediately around the front, so a single draw at
-    // the front's position — clipped to that region — wraps correctly. The
-    // bottom face sits elsewhere in the atlas and gets its own offset. The
-    // inner face is left as solid background (no draw here) so a scaled-up
-    // image never duplicates onto the player's back. Where the image doesn't
-    // reach (not overflowing), these regions simply keep the background fill.
-    const dw = baseDw * scale() * S;
-    const dh = baseDh * scale() * S;
-    const ix = (PANEL.x + dx) * S;
-    const iy = (PANEL.y + dy) * S;
-
-    // Front + left/right side faces (atlas x[0,12], y[1,17]) and the top face
-    // (atlas x[1,11], y[0,1]) — all continuous with the front image position.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, PANEL.y * S, (PANEL.w + 2) * S, PANEL.h * S);
-    ctx.rect(PANEL.x * S, 0, PANEL.w * S, PANEL.y * S);
-    ctx.clip();
-    ctx.drawImage(sourceImg, ix, iy, dw, dh);
-    ctx.restore();
-
-    // Bottom face (atlas x[11,21], y[0,1]) — the continuation just below the
-    // front, so the image is shifted to land panel-(0,16) at atlas-(11,0).
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect((PANEL.x + PANEL.w) * S, 0, PANEL.w * S, PANEL.y * S);
-    ctx.clip();
-    ctx.drawImage(sourceImg, (PANEL.x + PANEL.w + dx) * S, (dy - PANEL.h) * S, dw, dh);
-    ctx.restore();
-
+    bakeCape(c, sourceImg, sourceImg.naturalWidth, sourceImg.naturalHeight, {
+      dx,
+      dy,
+      scale: scale(),
+      bg: bg(),
+      res: res(),
+    });
     return c;
   };
 
@@ -296,21 +199,43 @@ const CustomCapeEditor: Component<Props> = (props) => {
     });
   };
 
+  // Animation loop for animated sources (GIF / APNG / WebP). The source <img>
+  // advances frames natively; we re-bake the current frame and re-draw the
+  // workspace at a capped rate so the editor previews the motion. Throttled to
+  // ~24fps to bound the per-frame HD re-upload.
+  let animRaf = 0;
+  let animLast = 0;
+  const ANIM_FPS = 24;
+  const animTick = (ts: number) => {
+    animRaf = requestAnimationFrame(animTick);
+    if (ts - animLast < 1000 / ANIM_FPS) return;
+    animLast = ts;
+    redrawWorkspace();
+    updatePreview();
+  };
+  const startAnim = () => {
+    if (!animRaf) animRaf = requestAnimationFrame(animTick);
+  };
+  const stopAnim = () => {
+    if (animRaf) {
+      cancelAnimationFrame(animRaf);
+      animRaf = 0;
+    }
+  };
+
   // ─── Upload ───
 
   const handleUploadClick = () => fileInput?.click();
 
-  const loadImageFromDataUrl = (dataUrl: string): Promise<void> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        sourceImg = img;
-        fitImage();
-        resolve();
-      };
-      img.onerror = () => reject(new Error("Image decode failed"));
-      img.src = dataUrl;
-    });
+  const loadImageFromDataUrl = async (dataUrl: string): Promise<void> => {
+    // Use a DOM-attached image so animated formats keep advancing frames.
+    const img = await loadDisplayImage(dataUrl);
+    if (sourceImg) sourceImg.remove(); // detach the previous one
+    sourceImg = img;
+    const fit = computeBaseFit(img.naturalWidth, img.naturalHeight);
+    baseDw = fit.baseDw;
+    baseDh = fit.baseDh;
+  };
 
   const handleFileSelected = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement;
@@ -336,6 +261,11 @@ const CustomCapeEditor: Component<Props> = (props) => {
       // faces blend with the art rather than showing a clashing fixed colour.
       if (sourceImg) setBg(computeAverageColor(sourceImg, DEFAULT_BG));
       setHasImage(true);
+      // Drive a live frame loop for animated sources; a static one bakes once.
+      const animated = detectAnimated(sourceBytes);
+      setIsAnimated(animated);
+      if (animated) startAnim();
+      else stopAnim();
       if (!name().trim() || name() === "Custom Cape") {
         const stem = file.name.replace(/\.[^.]+$/, "");
         if (stem) setName(stem);
@@ -416,7 +346,14 @@ const CustomCapeEditor: Component<Props> = (props) => {
     const baked = cv.toDataURL("image/png");
     setSaving(true);
     try {
-      const transform: CapeTransform = { dx, dy, scale: scale(), bg: bg(), res: res() };
+      const transform: CapeTransform = {
+        dx,
+        dy,
+        scale: scale(),
+        bg: bg(),
+        res: res(),
+        animated: isAnimated(),
+      };
       const cape = await saveCustomCape(
         props.editing?.id ?? null,
         name().trim() || "Custom Cape",
@@ -459,10 +396,13 @@ const CustomCapeEditor: Component<Props> = (props) => {
       try {
         const sourceUrl = await readCustomCapeSource(props.editing.id);
         await loadImageFromDataUrl(sourceUrl);
-        // fitImage() recomputed baseDw/baseDh; the stored dx/dy/scale are in
-        // the same panel-texel space so they reapply directly.
+        // computeBaseFit set baseDw/baseDh; the stored dx/dy/scale are in the
+        // same panel-texel space so they reapply directly.
         sourceBytes = dataUrlToBytes(sourceUrl);
         sourceMime = sourceUrl.slice(5, sourceUrl.indexOf(";"));
+        const animated = detectAnimated(sourceBytes);
+        setIsAnimated(animated);
+        if (animated) startAnim();
         setHasImage(true);
       } catch (e) {
         console.error("Failed to load cape for editing:", e);
@@ -476,6 +416,8 @@ const CustomCapeEditor: Component<Props> = (props) => {
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
     if (previewRaf) cancelAnimationFrame(previewRaf);
+    stopAnim();
+    sourceImg?.remove();
     viewer?.dispose();
     viewer = undefined;
   });

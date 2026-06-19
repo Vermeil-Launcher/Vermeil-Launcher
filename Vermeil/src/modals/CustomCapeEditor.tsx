@@ -1,6 +1,5 @@
 import { Component, createSignal, onMount, onCleanup, Show } from "solid-js";
 import { SkinViewer } from "skinview3d";
-import { LinearFilter } from "three";
 import { saveCustomCape, readCustomCapeSource, CustomCape, CapeTransform } from "../ipc/commands";
 import { showToast } from "../App";
 import Dropdown from "../components/Dropdown";
@@ -217,18 +216,24 @@ const CustomCapeEditor: Component<Props> = (props) => {
     return c;
   };
 
-  /** Switch the cape texture to linear filtering so the HD image renders
-   *  smooth rather than nearest-neighbour blocky. skinview3d recreates the
-   *  texture (with NearestFilter) on every loadCape, so this runs after. */
-  const applySmoothCape = () => {
-    const tex = (viewer as unknown as { capeTexture?: { magFilter: number; minFilter: number; needsUpdate: boolean } })?.capeTexture;
-    if (!tex) return;
-    tex.magFilter = LinearFilter;
-    tex.minFilter = LinearFilter;
-    tex.needsUpdate = true;
+  /** Push the freshly-baked cape into the 3D preview. Passing the canvas
+   *  (not a data URL) keeps loadCape synchronous, so dragging stays smooth.
+   *  Rendered with skinview3d's default nearest filtering so each cape texel
+   *  is a crisp block — the chosen resolution then directly controls how
+   *  pixelated the cape looks, matching how the game draws cape textures. */
+  const updatePreview = () => {
+    if (!viewer) return;
+    const cv = bakeCapeCanvas();
+    if (!cv) {
+      viewer.resetCape();
+      return;
+    }
+    try {
+      viewer.loadCape(cv, { backEquipment: "cape" });
+    } catch (e) {
+      console.error("Cape preview failed:", e);
+    }
   };
-
-  /** Redraw the 2D editing workspace (grid + background + positioned image). */
   const redrawWorkspace = () => {
     const cv = workspaceCanvas;
     if (!cv) return;
@@ -268,23 +273,6 @@ const CustomCapeEditor: Component<Props> = (props) => {
       ctx.moveTo(0, gy * DISP + 0.5);
       ctx.lineTo(W, gy * DISP + 0.5);
       ctx.stroke();
-    }
-  };
-
-  /** Push the freshly-baked cape into the 3D preview. Passing the canvas
-   *  (not a data URL) keeps loadCape synchronous, so dragging stays smooth. */
-  const updatePreview = () => {
-    if (!viewer) return;
-    const cv = bakeCapeCanvas();
-    if (!cv) {
-      viewer.resetCape();
-      return;
-    }
-    try {
-      viewer.loadCape(cv, { backEquipment: "cape" });
-      applySmoothCape();
-    } catch (e) {
-      console.error("Cape preview failed:", e);
     }
   };
 

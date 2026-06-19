@@ -1,11 +1,16 @@
 use std::path::PathBuf;
 
 /// Returns the root data directory for the launcher.
-/// Windows: %APPDATA%/Vermeil
-/// macOS: ~/Library/Application Support/Vermeil
-/// Linux: ~/.local/share/Vermeil
+///
+/// This is **local** (non-roaming) app data: the launcher's data is large
+/// (instances, Java runtimes, libraries, the Minecraft asset cache) and
+/// machine-specific, so it must not roam across machines in a domain profile.
+///
+/// - Windows: `%LOCALAPPDATA%/Vermeil`
+/// - macOS: `~/Library/Application Support/Vermeil`
+/// - Linux: `~/.local/share/Vermeil`
 pub fn data_dir() -> PathBuf {
-    let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
+    let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
     base.join("Vermeil")
 }
 

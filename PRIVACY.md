@@ -11,7 +11,7 @@ Vermeil is a local-first Minecraft launcher. It runs entirely on your computer a
 
 ## Data stored on your device
 
-Vermeil keeps everything locally under `%APPDATA%\Vermeil` (Windows) or `~/.local/share/Vermeil` (Linux). This includes:
+Vermeil keeps everything locally under `%LOCALAPPDATA%\Vermeil` (Windows) or `~/.local/share/Vermeil` (Linux). This includes:
 
 - Instance configurations and settings
 - Mod, resource pack, and shader files you install

@@ -4,7 +4,7 @@
 //! pointing at a CDN-hosted PNG. We don't want to re-fetch those every time a
 //! card is rendered, and we don't want the UI to break offline. So whenever we
 //! install something, we fetch the icon once and write it to a content-
-//! addressed file under `%APPDATA%\Vermeil\icons\`.
+//! addressed file under `%LOCALAPPDATA%\Vermeil\icons\`.
 //!
 //! The frontend then uses Tauri's `asset://` protocol to read the cached file
 //! directly off disk — no network hit, no CORS, works offline.

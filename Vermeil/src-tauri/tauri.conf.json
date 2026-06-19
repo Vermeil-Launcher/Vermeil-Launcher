@@ -28,9 +28,9 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/Vermeil/skins/**",
-          "$APPDATA/Vermeil/icons/**",
-          "$APPDATA/Vermeil/instances/**"
+          "$APPLOCALDATA/Vermeil/skins/**",
+          "$APPLOCALDATA/Vermeil/icons/**",
+          "$APPLOCALDATA/Vermeil/instances/**"
         ]
       }
     }

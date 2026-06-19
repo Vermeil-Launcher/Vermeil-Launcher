@@ -40,7 +40,7 @@ Var DeleteUserData
     ; double-confirm — this is destructive and worth the extra click.
     ${If} $DeleteAppDataCheckboxState == "1"
         MessageBox MB_YESNO|MB_ICONEXCLAMATION|MB_DEFBUTTON2 \
-            "This will permanently delete your Vermeil data folder including all instances, accounts, settings, and downloads stored in:$\r$\n$APPDATA\Vermeil$\r$\n$\r$\nAre you sure?" \
+            "This will permanently delete your Vermeil data folder including all instances, accounts, settings, and downloads stored in:$\r$\n$LOCALAPPDATA\Vermeil$\r$\n$\r$\nAre you sure?" \
             /SD IDNO \
             IDNO skip
         StrCpy $DeleteUserData "1"
@@ -50,7 +50,7 @@ Var DeleteUserData
 
 !macro NSIS_HOOK_POSTUNINSTALL
     ${If} $DeleteUserData == "1"
-        DetailPrint "Removing user data folder $APPDATA\Vermeil (this can take a moment)..."
+        DetailPrint "Removing user data folder $LOCALAPPDATA\Vermeil (this can take a moment)..."
         ; The data folder holds the Minecraft asset cache — tens of thousands
         ; of tiny hashed files under assets\objects\. RMDir /r prints every
         ; deleted file to the detail listview by default, and that per-file
@@ -59,6 +59,9 @@ Var DeleteUserData
         ; inherently O(files) but without the UI churn it's far faster and
         ; doesn't flicker.
         SetDetailsPrint none
+        RMDir /r "$LOCALAPPDATA\Vermeil"
+        ; Also remove the pre-0.6 roaming location in case data was never
+        ; migrated (e.g. user never relaunched after updating).
         RMDir /r "$APPDATA\Vermeil"
         SetDetailsPrint both
         DetailPrint "User data removed."

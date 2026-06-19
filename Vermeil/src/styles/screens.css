@@ -1042,7 +1042,6 @@
   display: flex;
 }
 .skins-cape-chip-equip:disabled { opacity: 0.5; cursor: not-allowed; }
-.skins-cape-chip-ingame,
 .skins-cape-chip-edit,
 .skins-cape-chip-remove {
   position: absolute;
@@ -1059,16 +1058,12 @@
   padding: 0;
   transition: background 0.12s, color 0.12s;
 }
-.skins-cape-chip-ingame { right: 42px; }
 .skins-cape-chip-edit { right: 22px; }
 .skins-cape-chip-remove { right: 2px; }
-.skins-cape-chip--custom:hover .skins-cape-chip-ingame,
 .skins-cape-chip--custom:hover .skins-cape-chip-edit,
 .skins-cape-chip--custom:hover .skins-cape-chip-remove { display: flex; }
-.skins-cape-chip-ingame:hover { background: var(--surface-sunken); color: var(--accent); }
 .skins-cape-chip-edit:hover { background: var(--surface-sunken); color: var(--accent); }
 .skins-cape-chip-remove:hover { background: var(--danger-soft); color: var(--danger); }
-.skins-cape-chip-ingame svg,
 .skins-cape-chip-edit svg,
 .skins-cape-chip-remove svg { width: 11px; height: 11px; }
 
@@ -1175,56 +1170,28 @@
   margin-left: auto;
 }
 
-/* In-game cape modal — apply a custom cape to instances (companion mod). */
-.ingame-cape-note {
-  margin: 0 0 12px;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-.ingame-cape-empty {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-.ingame-cape-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 320px;
-  overflow-y: auto;
-}
-.ingame-cape-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
-  background: var(--surface-panel);
-  border: 1px solid var(--border-soft);
-}
-.ingame-cape-row-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.ingame-cape-row-name {
-  font-size: 13px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ingame-cape-row-meta {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.ingame-cape-toggle {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.ingame-cape-toggle--on {
+/* In-game cape toggle — shows the selected custom cape in-game (companion mod).
+   Sits at the bottom of the cape dock; wider than the square cape chips. */
+.skins-ingame-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
+.skins-ingame-toggle svg { width: 13px; height: 13px; }
+.skins-ingame-toggle:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.skins-ingame-toggle.on {
+  background: var(--accent-soft, rgba(139, 92, 246, 0.15));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.skins-ingame-toggle:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -12,6 +12,10 @@ import {
   listCustomCapes,
   removeCustomCape,
   readCustomCapeSource,
+  setIngameCape,
+  setIngameCapeEnabled,
+  clearIngameCape,
+  getIngameCape,
   PlayerProfile,
   LocalSkin,
   CustomCape,
@@ -22,8 +26,7 @@ import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
 import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit, IconMonitor } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
-import InGameCapeModal from "../modals/InGameCapeModal";
-import { CapeAnimator, clampRes } from "../lib/cape";
+import { CapeAnimator, FrameSource, bakeModCapeStrip, clampRes } from "../lib/cape";
 
 /**
  * Idle animation with a subtle elytra breath.
@@ -127,8 +130,11 @@ const Skins: Component = () => {
   const [activeCustomCapeId, setActiveCustomCapeId] = createSignal<string | null>(null);
   const [showCapeEditor, setShowCapeEditor] = createSignal(false);
   const [editingCape, setEditingCape] = createSignal<CustomCape | null>(null);
-  // Cape being applied to instances for in-game display (companion mod).
-  const [inGameCape, setInGameCape] = createSignal<CustomCape | null>(null);
+  // In-game cape (companion mod): one global toggle. `ingameCapeId` is the cape
+  // currently set for in-game display; `ingameEnabled` is the on/off state.
+  const [ingameCapeId, setIngameCapeId] = createSignal<string | null>(null);
+  const [ingameEnabled, setIngameEnabled] = createSignal(false);
+  const [ingameBusy, setIngameBusy] = createSignal(false);
 
   // Active skin texture, handed to the cape editor so its 3D preview shows the
   // user's own body instead of an empty stand.
@@ -570,11 +576,81 @@ const Skins: Component = () => {
     try {
       await removeCustomCape(id);
       if (activeCustomCapeId() === id) setActiveCustomCapeId(null);
+      // If this cape was the in-game one, clear that too so it doesn't linger.
+      if (ingameCapeId() === id) {
+        try {
+          await clearIngameCape();
+        } catch {
+          // best-effort
+        }
+        setIngameCapeId(null);
+        setIngameEnabled(false);
+      }
       await refetchCustomCapes();
     } catch (e) {
       showToast({ title: "Remove failed", message: String(e), type: "error" });
     } finally {
       setBusy(null);
+    }
+  };
+
+  // ─── In-game cape (companion mod) ───
+
+  // Load the current in-game cape state once.
+  onMount(async () => {
+    try {
+      const st = await getIngameCape();
+      setIngameCapeId(st?.cape_id ?? null);
+      setIngameEnabled(st?.enabled ?? false);
+    } catch {
+      // No state yet — leave the toggle off.
+    }
+  });
+
+  /** Whether in-game display is on for the currently selected custom cape. */
+  const ingameOnForActive = () =>
+    ingameEnabled() && !!activeCustomCapeId() && ingameCapeId() === activeCustomCapeId();
+
+  /** Bake a custom cape into the mod's frame-strip layout and return IPC-ready bytes. */
+  const bakeForIngame = async (cape: CustomCape) => {
+    const sourceUrl = await readCustomCapeSource(cape.id);
+    const src = await FrameSource.load(sourceUrl);
+    try {
+      const t = cape.transform;
+      // Cap animated strips so a high-res GIF doesn't make a huge multi-frame PNG.
+      const res = src.frameCount > 1 ? Math.min(clampRes(t.res), 8) : clampRes(t.res);
+      const bake = bakeModCapeStrip(src, { dx: t.dx, dy: t.dy, scale: t.scale, bg: t.bg, res });
+      return { png: Array.from(bake.png), frameTimeMs: bake.frames > 1 ? bake.frameTimeMs : null };
+    } finally {
+      src.dispose();
+    }
+  };
+
+  const toggleIngameCape = async () => {
+    const id = activeCustomCapeId();
+    if (!id) return;
+    setIngameBusy(true);
+    try {
+      if (ingameOnForActive()) {
+        await setIngameCapeEnabled(false);
+        setIngameEnabled(false);
+      } else {
+        const cape = (customCapes() ?? []).find((c) => c.id === id);
+        if (!cape) return;
+        const { png, frameTimeMs } = await bakeForIngame(cape);
+        await setIngameCape(id, png, frameTimeMs);
+        setIngameCapeId(id);
+        setIngameEnabled(true);
+        showToast({
+          title: "Cape set for in-game",
+          message: "Applies on launch to supported instances (Fabric/Quilt, MC 26.1+).",
+          type: "success",
+        });
+      }
+    } catch (e) {
+      showToast({ title: "In-game cape failed", message: String(e), type: "error" });
+    } finally {
+      setIngameBusy(false);
     }
   };
 
@@ -794,14 +870,6 @@ const Skins: Component = () => {
                       />
                     </button>
                     <button
-                      class="skins-cape-chip-ingame"
-                      onClick={() => setInGameCape(cape)}
-                      disabled={busy() !== null}
-                      title="Show in-game"
-                    >
-                      <IconMonitor />
-                    </button>
-                    <button
                       class="skins-cape-chip-edit"
                       onClick={() => openEditCape(cape)}
                       disabled={busy() !== null}
@@ -830,6 +898,24 @@ const Skins: Component = () => {
               >
                 <IconPlus />
               </button>
+
+              {/* In-game cape toggle — shows the selected custom cape in-game on
+                  supported instances (companion mod). One global on/off. */}
+              <Show when={(customCapes() ?? []).length > 0}>
+                <button
+                  class={`skins-ingame-toggle ${ingameOnForActive() ? "on" : ""}`}
+                  onClick={toggleIngameCape}
+                  disabled={!activeCustomCapeId() || ingameBusy()}
+                  title={
+                    activeCustomCapeId()
+                      ? "Show the selected cape in-game (Fabric/Quilt, MC 26.1+; needs the Vermeil mod)"
+                      : "Select a custom cape first"
+                  }
+                >
+                  <IconMonitor />
+                  <span>{ingameOnForActive() ? "In-game: on" : "Show in-game"}</span>
+                </button>
+              </Show>
             </div>
           </div>
         </div>
@@ -840,13 +926,6 @@ const Skins: Component = () => {
             skinTexture={activeSkinTexture()}
             onClose={() => setShowCapeEditor(false)}
             onSaved={handleCapeSaved}
-          />
-        </Show>
-
-        <Show when={inGameCape()}>
-          <InGameCapeModal
-            cape={inGameCape()!}
-            onClose={() => setInGameCape(null)}
           />
         </Show>
       </Show>

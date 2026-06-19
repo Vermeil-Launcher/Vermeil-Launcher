@@ -260,39 +260,46 @@ setting, not part of the mod.)
 strip + `cape.json`, write them into the instance's `vermeil/` dir, toggle
 `enabled` from the launcher UI, and install the mod jar (download-on-demand).
 
-## Stage 5 — launcher integration: apply a cape to instances (done, builds)
+## Stage 5 — launcher integration: one in-game cape toggle (done, builds)
 
 Status: **implemented; backend `cargo check` and frontend `pnpm build` both
-clean. In-app visual/flow test pending (needs a running launcher build).**
+clean. In-app flow test in progress.**
 
-The launcher can now write a custom cape into an instance for the mod to render,
-from the Skins screen:
+A single global on/off toggle on the Skins screen, applied automatically to the
+instances the mod actually supports — no per-instance picking (the first cut had
+a per-cape "in-game" button + an instance-picker modal; the decision was a single
+toggle instead, so that was removed).
 
 - **Format bridge.** The editor bakes a 64×32 atlas, but the in-game mod uses a
   **64×64** cape texture — feeding it the 64×32 PNG would sample the wrong UV
-  region. New `bakeModCapeStrip()` in `lib/cape.ts` re-lays the art into the mod's
+  region. `bakeModCapeStrip()` in `lib/cape.ts` re-lays the art into the mod's
   layout: it reuses `bakeCape` and drops each frame into the top of a square
   `64·res` slot, stacking animation frames into a vertical strip (the mod's strip
-  format). `FrameSource` now exposes its frames/durations. Animated strips are
-  capped to 8× resolution so a high-res GIF doesn't produce a huge multi-frame PNG.
-- **Backend.** `services/instance_cape.rs` writes `cape.png` + `cape.json` into
-  `instances/<id>/.minecraft/vermeil/` (the mod's read path — the game CWD).
-  `cape.json` is the single source of truth for the toggle (`enabled`,
-  `frameTimeMs`, launcher-only `capeId`), so no `Instance` model migration. PNG
-  validated as a square frame or square-frame strip, size/frame-count bounded,
-  instance id guarded against path traversal. Commands `set_instance_cape` /
-  `set_instance_cape_enabled` / `clear_instance_cape` / `get_instance_cape`,
-  registered in `lib.rs`, wrapped in `ipc/commands.ts`.
-- **UI.** Per the decision to keep cape management on the Skins screen, each
-  custom-cape chip gets an "in-game" (monitor) action opening `InGameCapeModal`,
-  which lists the user's instances with a per-instance on/off toggle. The cape is
-  baked once and reused across instances. The modal notes that in-game capes need
-  the companion mod and apply per instance (unlike a universal Mojang cape).
+  format). Animated strips are capped to 8× resolution so a high-res GIF doesn't
+  produce a huge multi-frame PNG.
+- **Global store.** `services/instance_cape.rs` stores the chosen baked cape once
+  at `<data>/ingame_cape/` (`cape.png` + `cape.json` = `enabled`, `frameTimeMs`,
+  launcher-only `capeId`). Commands `set_ingame_cape` / `set_ingame_cape_enabled`
+  / `clear_ingame_cape` / `get_ingame_cape`, registered in `lib.rs`, wrapped in
+  `ipc/commands.ts`.
+- **Supported-only, auto-applied.** A cape only goes onto instances the mod runs
+  on: loader Fabric/Quilt and MC version `26.1.x` (tracks the mod's
+  `gradle.properties`; widen as the mod adds versions). `sync_to_instance` writes
+  `cape.png` + `cape.json` into `instances/<id>/.minecraft/vermeil/` when the
+  toggle is on and the instance is supported, or removes a stale copy otherwise.
+- **Applies both ways.** `sync_to_instance` runs at **launch** (in `launch.rs`,
+  best-effort — never blocks a launch), so every instance is covered uniformly
+  regardless of how/when it was created (custom, modpack, imported, pre-existing,
+  new). On top of that, toggling on/off calls `sync_all_instances`, which applies
+  to every already-prepared instance **immediately** (a running supported instance
+  live-reloads it via the mod), so the effect is visible without waiting for a
+  launch. Instances not yet prepared get it at their first launch.
+- **UI.** One "Show in-game" toggle at the bottom of the Skins cape dock, enabled
+  when a custom cape is selected; reflects/operates on the global state.
 
 **Still next:** install the mod jar on demand (download-on-demand from a GitHub
 release into the instance's `mods/`) — currently the user must have the companion
-mod present themselves. Blocked on publishing the mod jar. Then an end-to-end
-in-app test of the apply flow.
+mod present themselves. Blocked on publishing the mod jar.
 
 ## Process & tooling — mod standards captured (before Stage 2 impl)
 

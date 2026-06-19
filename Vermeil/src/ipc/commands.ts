@@ -511,41 +511,31 @@ export const removeCustomCape = (id: string) =>
 export const readCustomCapeSource = (id: string) =>
   invoke<string>("read_custom_cape_source", { id });
 
-/** Per-instance in-game cape state (companion mod). */
-export interface InstanceCapeState {
+/** Global in-game cape state (companion mod). */
+export interface IngameCapeState {
   enabled: boolean;
   cape_id: string | null;
   frame_time_ms: number | null;
 }
 
-/** Write a baked cape (square frame, or vertical strip of square frames) into an
- *  instance for the companion mod to render, and set its on/off toggle. */
-export const setInstanceCape = (
-  id: string,
+/** Set the in-game cape: store the baked cape (square frame, or vertical strip of
+ *  square frames) and turn it on. The launcher applies it to supported instances
+ *  automatically at launch — no per-instance selection. */
+export const setIngameCape = (
   capeId: string | null,
   stripPng: number[],
   frameTimeMs: number | null,
-  enabled: boolean,
-) =>
-  invoke<void>("set_instance_cape", {
-    id,
-    capeId,
-    stripPng,
-    frameTimeMs,
-    enabled,
-  });
+) => invoke<void>("set_ingame_cape", { capeId, stripPng, frameTimeMs });
 
-/** Toggle an instance's in-game cape on/off without re-baking (mod live-reloads). */
-export const setInstanceCapeEnabled = (id: string, enabled: boolean) =>
-  invoke<void>("set_instance_cape_enabled", { id, enabled });
+/** Toggle the in-game cape on/off without re-baking. */
+export const setIngameCapeEnabled = (enabled: boolean) =>
+  invoke<void>("set_ingame_cape_enabled", { enabled });
 
-/** Remove an instance's in-game cape entirely. */
-export const clearInstanceCape = (id: string) =>
-  invoke<void>("clear_instance_cape", { id });
+/** Remove the in-game cape entirely. */
+export const clearIngameCape = () => invoke<void>("clear_ingame_cape");
 
-/** Read an instance's current in-game cape state, or null if none is set. */
-export const getInstanceCape = (id: string) =>
-  invoke<InstanceCapeState | null>("get_instance_cape", { id });
+/** Read the current in-game cape state, or null if none is set. */
+export const getIngameCape = () => invoke<IngameCapeState | null>("get_ingame_cape");
 
 /**
  * Fetch a single account's current skin head (data URL) without changing

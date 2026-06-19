@@ -1,6 +1,6 @@
 use crate::models::instance::{Instance, CreateInstanceConfig};
 use crate::services::instance_service;
-use crate::services::instance_cape::{self, InstanceCapeState};
+use crate::services::instance_cape::{self, IngameCapeState};
 
 #[tauri::command]
 pub async fn list_instances() -> Result<Vec<Instance>, String> {
@@ -257,36 +257,40 @@ pub async fn prepare_instance(id: String, window: tauri::WebviewWindow) -> Resul
 
 // ───────────────────────── In-game cape ─────────────────────────────────
 
-/// Write a baked cape (a square frame, or a vertical strip of square frames for
-/// an animation) into an instance for the Vermeil companion mod to render, and
-/// set its toggle. `cape_id` records which library cape this came from (UI only).
-/// `frame_time_ms` is the per-frame duration for animated strips.
+/// Set the in-game custom cape: store the baked cape (a square frame, or a
+/// vertical strip of square frames for an animation) and turn it on. The
+/// launcher applies it automatically to supported instances at launch — no
+/// per-instance selection. `cape_id` records which library cape this is (UI
+/// only); `frame_time_ms` is the per-frame duration for animated strips.
 #[tauri::command]
-pub async fn set_instance_cape(
-    id: String,
+pub async fn set_ingame_cape(
     cape_id: Option<String>,
     strip_png: Vec<u8>,
     frame_time_ms: Option<u32>,
-    enabled: bool,
 ) -> Result<(), String> {
-    instance_cape::write_instance_cape(&id, cape_id, &strip_png, frame_time_ms, enabled)
+    instance_cape::set_ingame_cape(cape_id, &strip_png, frame_time_ms)?;
+    instance_cape::sync_all_instances().await;
+    Ok(())
 }
 
-/// Toggle an instance's in-game cape on/off without re-baking it. The mod
-/// live-reloads the change within about a second.
+/// Toggle the in-game cape on/off without re-baking it.
 #[tauri::command]
-pub async fn set_instance_cape_enabled(id: String, enabled: bool) -> Result<(), String> {
-    instance_cape::set_instance_cape_enabled(&id, enabled)
+pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
+    instance_cape::set_ingame_cape_enabled(enabled)?;
+    instance_cape::sync_all_instances().await;
+    Ok(())
 }
 
-/// Remove an instance's in-game cape entirely.
+/// Remove the in-game cape entirely.
 #[tauri::command]
-pub async fn clear_instance_cape(id: String) -> Result<(), String> {
-    instance_cape::clear_instance_cape(&id)
+pub async fn clear_ingame_cape() -> Result<(), String> {
+    instance_cape::clear_ingame_cape()?;
+    instance_cape::sync_all_instances().await;
+    Ok(())
 }
 
-/// Read an instance's current in-game cape state, or `None` if none is set.
+/// Read the current in-game cape state, or `None` if none is set.
 #[tauri::command]
-pub async fn get_instance_cape(id: String) -> Result<Option<InstanceCapeState>, String> {
-    Ok(instance_cape::get_instance_cape(&id))
+pub async fn get_ingame_cape() -> Result<Option<IngameCapeState>, String> {
+    Ok(instance_cape::get_ingame_cape())
 }

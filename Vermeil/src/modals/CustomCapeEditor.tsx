@@ -185,17 +185,18 @@ const CustomCapeEditor: Component<Props> = (props) => {
     ctx.drawImage(sourceImg, (PANEL.x + dx) * S, (PANEL.y + dy) * S, dw, dh);
     ctx.restore();
 
-    // Auto-derive the surrounding cape faces from the baked front panel so the
-    // thin side / top / bottom strips and the inner face blend with the art
-    // instead of showing a flat band. The strips are edge-clamps (the panel's
-    // 1-texel border stretched outward); the inner face is a full copy. All
-    // sampled from the canvas we just drew — 1:1 copies, so disable smoothing
-    // to keep them crisp.
+    // Auto-derive the thin surrounding strips from the baked front panel so
+    // the cape's side / top / bottom edges blend with the art instead of
+    // showing a flat band. Each is an edge-clamp: the panel's 1-texel border
+    // stretched outward. The inner / back face is intentionally left as the
+    // solid background fill (set above) — copying the panel there produced a
+    // visible duplicate of the image when scaled up. All 1:1 copies, so
+    // disable smoothing to keep them crisp.
     const px = PANEL.x * S;
     const py = PANEL.y * S;
     const pw = PANEL.w * S;
     const ph = PANEL.h * S;
-    const rightX = (PANEL.x + PANEL.w) * S; // start of the right-side / inner column
+    const rightX = (PANEL.x + PANEL.w) * S; // start of the right-side strip
     ctx.imageSmoothingEnabled = false;
     // Left side strip (texel 0)  ← panel's left edge column.
     ctx.drawImage(c, px, py, S, ph, 0, py, S, ph);
@@ -205,8 +206,6 @@ const CustomCapeEditor: Component<Props> = (props) => {
     ctx.drawImage(c, px, py, pw, S, px, 0, pw, S);
     // Bottom strip (texels 11..21, row 0) ← panel's bottom edge row.
     ctx.drawImage(c, px, py + ph - S, pw, S, rightX, 0, pw, S);
-    // Inner / back face (texels 12..22) ← full copy of the front panel.
-    ctx.drawImage(c, px, py, pw, ph, rightX, py, pw, ph);
     return c;
   };
 

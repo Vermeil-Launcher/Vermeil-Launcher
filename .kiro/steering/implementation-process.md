@@ -58,6 +58,7 @@ Check:
 - Similar implementations elsewhere in the project.
 - The IPC contract: if you change a Rust command signature, the TypeScript wrapper in `src/ipc/commands.ts` must match.
 - Tauri event names: if you rename or add events, all `listen()` subscribers must be updated.
+- Dependency and environment footprint: if the change adds, removes, or version-bumps a dependency or a required tool (Rust crate, npm package, Gradle/Java mod dep, JDK, Build Tools, system lib), the manifests **and** the docs that list prerequisites must move with it — `docs/DEVELOPMENT.md` Prerequisites and the relevant skill. A stale "what to install" list is a bug. See the `dependencies` skill.
 - Cross-platform impact: will this behave the same on both Windows and Linux? Watch for platform-specific code (`#[cfg(...)]`, Win32/DWM calls, `navigator.userAgent` branches) and for behavior that relies on the OS/WM/webview to enforce something (window sizing, focus, z-order, TLS, file locking). See **Cross-Platform Parity** in `coding-standards.md`. If you can't run the Linux build, reason about its path explicitly and flag what needs a Linux smoke-test.
 
 Do not patch one instance if the same problem exists in siblings. Surface all affected areas.
@@ -121,6 +122,7 @@ Before concluding, verify:
 - Edge cases are handled.
 - Implementation is consistent with the rest of the codebase.
 - No duplicate logic, conflicting implementations, or redundant abstractions were introduced.
+- Dependency and prerequisite docs match reality — any added, removed, or version-bumped dependency or tool is reflected in the manifests/lockfiles **and** in `docs/DEVELOPMENT.md` (and the relevant skill).
 - The Rust code compiles: `cargo check` from `Vermeil/src-tauri/`.
 - The frontend builds: `pnpm run build` from `Vermeil/`.
 - IPC types match between Rust and TypeScript.

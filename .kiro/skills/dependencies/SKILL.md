@@ -1,11 +1,12 @@
 ---
 name: dependencies
-description: Add, update, or remove Rust crates or npm packages safely. Use when installing a new library, bumping dependency versions, evaluating a crate, or removing unused packages.
+description: Add, update, or remove dependencies and toolchain/system prerequisites safely — Rust crates, npm packages, Gradle/Java mod deps, and required tools like JDK or Build Tools. Use when installing a library, bumping versions, adding a build tool, evaluating a crate, or removing unused packages. Always ripples the change into the docs that list dependencies.
 ---
 
 # Dependency Management
 
-Guidelines for adding, updating, or removing dependencies.
+Guidelines for adding, updating, or removing dependencies — including the
+**system prerequisites/toolchain** that don't live in a manifest file.
 
 ## Before Adding
 
@@ -51,6 +52,37 @@ pnpm update && pnpm build
 3. Replace functionality
 4. Build both sides
 5. Verify zero warnings
+
+## System Prerequisites & Toolchain
+
+Some dependencies aren't a line in `Cargo.toml`/`package.json`/`gradle.properties`
+— they're a tool the contributor must install (a JDK, a Build Tools workload, a
+package-manager system lib). These are the easiest to forget because no manifest
+forces them.
+
+- **Mod deps** (`vermeil-mod/`) live in `gradle.properties` (MC, Fabric loader,
+  Fabric API, Loom) and `build.gradle`. Pin exact versions from the official
+  Fabric "Develop" page. See the `minecraft-mod` skill.
+- **System tools** (JDK version, Gradle, MSVC Build Tools, WebKitGTK/system libs)
+  aren't in any manifest. When a change starts requiring one — or bumps the
+  required version — it is **not done** until the prerequisite is documented.
+
+## Keep Dependency Docs in Sync (required, not optional)
+
+Adding, removing, or version-bumping any dependency or tool **must** ripple into
+the places that tell a contributor what to install. Treat this as part of the
+change, in the same commit — a stale prerequisite list is a bug. Check and update:
+
+- `docs/DEVELOPMENT.md` → **Prerequisites** (per-OS) and the relevant build
+  section. This is the canonical "what you need installed" list.
+- The matching **skill** if the tool has one (e.g. `minecraft-mod` for the mod
+  toolchain) so its pinned versions match reality.
+- Any setup script or CI workflow that installs the tool.
+- The manifest/lockfile itself (`Cargo.toml` + `Cargo.lock`, `package.json` +
+  `pnpm-lock.yaml`, `gradle.properties`).
+
+If you bump a required *version* (e.g. JDK 21 → 25), update every place that
+names the old version, not just the manifest.
 
 ## Rules
 

@@ -1,7 +1,7 @@
 import { Component, createSignal, onMount, onCleanup, Show } from "solid-js";
 import { SkinViewer } from "skinview3d";
 import { LinearFilter } from "three";
-import { saveCustomCape, CustomCape, CapeTransform } from "../ipc/commands";
+import { saveCustomCape, readCustomCapeSource, CustomCape, CapeTransform } from "../ipc/commands";
 import { showToast } from "../App";
 import Dropdown from "../components/Dropdown";
 import { IconImage, IconX } from "../components/Icons";
@@ -55,6 +55,14 @@ const RES_OPTIONS = [
 ];
 const DEFAULT_RES = 16;
 const DEFAULT_BG = "#2b2740";
+const ALLOWED_RES = [1, 2, 4, 8, 16, 32];
+
+/** Clamp a resolution to the supported set. Guards the re-edit path against a
+ *  tampered or stale `capes.json` carrying a wild value that would size the
+ *  bake canvas to 64·res and blow up memory. */
+function clampRes(r: number | undefined): number {
+  return r !== undefined && ALLOWED_RES.includes(r) ? r : DEFAULT_RES;
+}
 
 interface Props {
   /** Existing cape to re-edit, or null/undefined to create a new one. */
@@ -113,7 +121,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   const [name, setName] = createSignal(props.editing?.name ?? "Custom Cape");
   const [bg, setBg] = createSignal<string>(props.editing?.transform.bg ?? DEFAULT_BG);
   const [scale, setScale] = createSignal<number>(props.editing?.transform.scale ?? 1);
-  const [res, setRes] = createSignal<number>(props.editing?.transform.res ?? DEFAULT_RES);
+  const [res, setRes] = createSignal<number>(clampRes(props.editing?.transform.res));
   const [hasImage, setHasImage] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
 
@@ -281,8 +289,20 @@ const CustomCapeEditor: Component<Props> = (props) => {
   };
 
   const refresh = () => {
-    redrawWorkspace();
-    updatePreview();
+    redrawWorkspace(); // cheap (220×352) — keep immediate so dragging feels live
+    schedulePreview(); // expensive (HD bake + GPU upload) — coalesce to one/frame
+  };
+
+  // The 3D preview re-bakes an HD texture and re-uploads it to the GPU, which
+  // is too heavy to run on every pointermove/slider tick (a 32× cape is a
+  // 2048×1024 texture). Coalesce updates to at most one per animation frame.
+  let previewRaf = 0;
+  const schedulePreview = () => {
+    if (previewRaf) return;
+    previewRaf = requestAnimationFrame(() => {
+      previewRaf = 0;
+      updatePreview();
+    });
   };
 
   // ─── Upload ───
@@ -442,17 +462,20 @@ const CustomCapeEditor: Component<Props> = (props) => {
       }
     }
 
-    // Re-editing: load the stored source image and reapply its transform.
+    // Re-editing: pull the stored source image on demand (it isn't inlined in
+    // the cape list) and reapply the saved transform.
     if (props.editing) {
       try {
-        await loadImageFromDataUrl(props.editing.source);
+        const sourceUrl = await readCustomCapeSource(props.editing.id);
+        await loadImageFromDataUrl(sourceUrl);
         // fitImage() recomputed baseDw/baseDh; the stored dx/dy/scale are in
         // the same panel-texel space so they reapply directly.
-        sourceBytes = dataUrlToBytes(props.editing.source);
-        sourceMime = props.editing.source.slice(5, props.editing.source.indexOf(";"));
+        sourceBytes = dataUrlToBytes(sourceUrl);
+        sourceMime = sourceUrl.slice(5, sourceUrl.indexOf(";"));
         setHasImage(true);
       } catch (e) {
         console.error("Failed to load cape for editing:", e);
+        showToast({ title: "Couldn't load cape for editing", message: String(e), type: "error" });
       }
     }
     refresh();
@@ -461,6 +484,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   onCleanup(() => {
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
+    if (previewRaf) cancelAnimationFrame(previewRaf);
     viewer?.dispose();
     viewer = undefined;
   });

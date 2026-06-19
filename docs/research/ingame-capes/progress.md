@@ -226,6 +226,40 @@ without a restart, and the launcher side — bake the editor's animation to a fr
 strip + `cape.json`, write them into the instance, and install the mod jar
 (download-on-demand).
 
+## Stage 4 — toggle + live-reload (done, verified in-game)
+
+Status: **implemented and verified in-game via the mod log.**
+
+The cape is no longer always-on or load-once. The launcher controls it through
+the files in `<gameDir>/vermeil/`, and the mod applies changes live:
+
+- **Toggle.** `cape.json` gains an `"enabled"` boolean (default true when absent).
+  When disabled — or when `cape.png` is missing/unreadable — the mod registers no
+  cape and the mixin doesn't override, so the player is capeless (vanilla). The
+  PoC red placeholder is gone; "off" means off.
+- **Live-reload.** `VermeilCape` polls the cape files about once a second while a
+  local player exists (in `ClientTickEvents.END_CLIENT_TICK`), keyed on a cheap
+  size+mtime signature, and reloads only when they change. Reload runs on the
+  render thread (where GPU work is legal), re-decodes the PNG, and re-registers
+  the texture under `vermeil:cape` (replacing/closing the old one) or releases it.
+  Enabling/disabling, swapping the image, or changing the frame time all apply
+  without a restart.
+- **`AvatarRendererMixin`** now gates on `VermeilCape.isActive()` instead of
+  registering the texture itself; registration and lifetime are owned by the
+  manager.
+
+**Verified here:** `gradlew build` → `BUILD SUCCESSFUL`. In-game with the watcher
+running: writing `{"enabled": false}` logged `Custom cape removed (disabled).`
+within a second; writing `{"enabled": true, "frameTimeMs": 120}` logged
+`Loaded custom cape texture (256x256, 16 frames @ 120ms).` — both the toggle and
+the new frame time applied live, no restart. (To test this while the dev window is
+unfocused, `pauseOnLostFocus` is set false in the dev `run/` options — a dev-run
+setting, not part of the mod.)
+
+**Still next:** the launcher side — bake the cape editor's animation to a frame
+strip + `cape.json`, write them into the instance's `vermeil/` dir, toggle
+`enabled` from the launcher UI, and install the mod jar (download-on-demand).
+
 ## Process & tooling — mod standards captured (before Stage 2 impl)
 
 - Added a `minecraft-mod` skill (`.kiro/skills/minecraft-mod/SKILL.md`) capturing

@@ -29,7 +29,7 @@ public class AvatarRendererMixin {
 		at = @At("TAIL")
 	)
 	private void vermeil$applyCustomCape(final Avatar entity, final AvatarRenderState state, final float partialTicks, final CallbackInfo ci) {
-		if (entity != Minecraft.getInstance().player) {
+		if (entity != Minecraft.getInstance().player || !VermeilCape.isActive()) {
 			return;
 		}
 		PlayerSkin skin = state.skin;
@@ -37,7 +37,6 @@ public class AvatarRendererMixin {
 			// Account already has a cape (Mojang-granted) — leave it untouched.
 			return;
 		}
-		VermeilCape.ensureRegistered();
 		state.showCape = true;
 		state.skin = new PlayerSkin(skin.body(), VermeilCape.capeTexture(), skin.elytra(), skin.model(), skin.secure());
 	}

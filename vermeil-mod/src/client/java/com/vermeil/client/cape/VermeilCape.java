@@ -17,48 +17,50 @@ import net.minecraft.core.ClientAsset;
 import net.minecraft.resources.Identifier;
 
 /**
- * Owns the launcher's in-game custom cape texture on the client.
+ * Manages the launcher's in-game custom cape on the client.
  *
- * <p>The cape is read from a PNG the launcher writes to a fixed path inside the
- * game directory ({@code <gameDir>/vermeil/cape.png}) and registered with the
- * game's texture manager under our own {@code vermeil:cape} identifier. The
- * render hook ({@code AvatarRendererMixin}) points the local player's skin at
- * this texture when the account has no Mojang cape.
+ * <p>The launcher controls the cape through two files in the game directory,
+ * which the launcher writes into the instance:
+ * <ul>
+ *   <li>{@code vermeil/cape.png} — the cape texture (see {@link VermeilCapeTexture}
+ *       for the static-vs-animated frame-strip format), and</li>
+ *   <li>{@code vermeil/cape.json} (optional) — {@code {"enabled": bool,
+ *       "frameTimeMs": int}}. {@code enabled} is the on/off toggle (default true
+ *       when absent); {@code frameTimeMs} is the animation speed.</li>
+ * </ul>
  *
- * <p><b>Format.</b> The cape texture is square (Minecraft's cape layout is 64×64,
- * scaled up for HD). A square PNG is a static cape. A vertical strip whose height
- * is a whole multiple of its width is an animation: each {@code width × width}
- * block is one frame, top to bottom. Optional {@code <gameDir>/vermeil/cape.json}
- * carries {@code {"frameTimeMs": N}} for playback speed (default 100 ms).
- *
- * <p>If the file is missing or unreadable we fall back to a generated solid
- * placeholder so the feature still proves out instead of failing silently.
+ * <p>The render hook ({@code AvatarRendererMixin}) asks {@link #isActive()} and,
+ * when active, points the local player's skin at {@link #capeTexture()}. We poll
+ * the files once a second while in a world and reload only when they change, so
+ * the launcher can turn the cape on/off or swap the image and have it apply
+ * without a game restart (live reload). When disabled or absent, no cape is shown
+ * (vanilla behaviour) — there is no placeholder.
  */
 public final class VermeilCape {
 	/** Identifier the cape texture is registered under and that the cape layer binds. */
 	public static final Identifier CAPE_ID = Identifier.fromNamespaceAndPath("vermeil", "cape");
 
-	/** Cape PNG location, relative to the game directory. The launcher writes here. */
+	/** Cape texture and metadata locations, relative to the game directory. */
 	private static final String CAPE_FILE = "vermeil/cape.png";
-	/** Optional animation metadata, relative to the game directory. */
 	private static final String CAPE_META = "vermeil/cape.json";
 
-	/** Placeholder dimensions (Minecraft's cape texture is 64×64). */
-	private static final int PLACEHOLDER_SIZE = 64;
-	/** Default per-frame duration when no metadata is supplied. */
 	private static final long DEFAULT_FRAME_TIME_MS = 100L;
 	/** Upper bound on decoded animation memory, so a pathological strip can't exhaust the heap. */
 	private static final long MAX_TEXTURE_BYTES = 64L * 1024L * 1024L;
+	/** How often to re-check the cape files for changes (client ticks; 20 ≈ 1 s). */
+	private static final int RELOAD_INTERVAL_TICKS = 20;
 
 	/**
 	 * The cape handle the render state points at. Its {@code texturePath()} must
 	 * equal {@link #CAPE_ID} so {@code CapeLayer} binds the texture we register.
-	 * The vanilla {@link ClientAsset.ResourceTexture} record's canonical
-	 * (two-argument) constructor returns the path unchanged.
 	 */
 	private static final ClientAsset.Texture CAPE_TEXTURE = new ClientAsset.ResourceTexture(CAPE_ID, CAPE_ID);
 
-	private static boolean registered;
+	/** Whether a cape texture is currently registered and should be applied. Render thread only. */
+	private static boolean active;
+	/** Signature of the cape files at the last reload, to detect changes. Render thread only. */
+	private static String lastSignature = "";
+	private static int tickCounter;
 
 	private VermeilCape() {
 	}
@@ -68,41 +70,58 @@ public final class VermeilCape {
 		return CAPE_TEXTURE;
 	}
 
-	/**
-	 * Registers the cape texture with the texture manager the first time it's
-	 * needed. Creating the texture talks to the GPU device, so this must run on
-	 * the render thread; the render-state extraction that calls it already does.
-	 */
-	public static void ensureRegistered() {
-		if (registered) {
-			return;
-		}
-		Minecraft minecraft = Minecraft.getInstance();
-		if (minecraft == null) {
-			return;
-		}
-		minecraft.getTextureManager().register(CAPE_ID, loadCapeTexture());
-		registered = true;
+	/** Whether the custom cape is enabled and loaded. */
+	public static boolean isActive() {
+		return active;
 	}
 
 	/**
-	 * Reads the launcher-written cape PNG into a (possibly animated) texture, or
-	 * returns the placeholder if it's absent or unreadable. The PNG is external
-	 * input, so a malformed file is caught and logged rather than allowed to crash
-	 * rendering.
+	 * Polls the cape files for changes and reloads when they differ. Called once
+	 * per client tick (render thread, where GPU work is legal); throttled to about
+	 * once a second, and only while a local player exists.
 	 */
-	private static VermeilCapeTexture loadCapeTexture() {
-		Path capeFile = FabricLoader.getInstance().getGameDir().resolve(CAPE_FILE);
-		if (Files.isRegularFile(capeFile)) {
-			try (InputStream in = Files.newInputStream(capeFile)) {
-				return buildTexture(NativeImage.read(in));
-			} catch (IOException e) {
-				VermeilMod.LOGGER.error("Failed to read custom cape texture from {}; using placeholder.", capeFile, e);
-			}
-		} else {
-			VermeilMod.LOGGER.info("No custom cape file at {}; using placeholder.", capeFile);
+	public static void tickReload(final Minecraft minecraft) {
+		if (minecraft.player == null) {
+			return;
 		}
-		return placeholderTexture();
+		if (tickCounter++ % RELOAD_INTERVAL_TICKS != 0) {
+			return;
+		}
+		String signature = currentSignature();
+		if (signature.equals(lastSignature)) {
+			return;
+		}
+		lastSignature = signature;
+		reload(minecraft);
+	}
+
+	/** Loads or releases the cape texture based on the current files and toggle. */
+	private static void reload(final Minecraft minecraft) {
+		Path capeFile = FabricLoader.getInstance().getGameDir().resolve(CAPE_FILE);
+		CapeSettings settings = readSettings();
+
+		if (!settings.enabled() || !Files.isRegularFile(capeFile)) {
+			deactivate(minecraft, settings.enabled() ? "no cape file" : "disabled");
+			return;
+		}
+
+		try (InputStream in = Files.newInputStream(capeFile)) {
+			VermeilCapeTexture texture = buildTexture(NativeImage.read(in), settings.frameTimeMs());
+			// register() replaces and closes any previously registered cape texture.
+			minecraft.getTextureManager().register(CAPE_ID, texture);
+			active = true;
+		} catch (IOException e) {
+			VermeilMod.LOGGER.error("Failed to read custom cape texture from {}; not showing a cape.", capeFile, e);
+			deactivate(minecraft, "unreadable cape file");
+		}
+	}
+
+	private static void deactivate(final Minecraft minecraft, final String reason) {
+		if (active) {
+			minecraft.getTextureManager().release(CAPE_ID);
+			active = false;
+			VermeilMod.LOGGER.info("Custom cape removed ({}).", reason);
+		}
 	}
 
 	/**
@@ -110,14 +129,14 @@ public final class VermeilCape {
 	 * builds the texture. Takes ownership of {@code sheet}: it is split into frame
 	 * copies and closed, or kept as the static frame.
 	 */
-	private static VermeilCapeTexture buildTexture(final NativeImage sheet) {
+	private static VermeilCapeTexture buildTexture(final NativeImage sheet, final long frameTimeMs) {
 		int width = sheet.getWidth();
 		int height = sheet.getHeight();
 		int frameCount = (width > 0 && height > width && height % width == 0) ? height / width : 1;
 
 		if (frameCount <= 1) {
 			VermeilMod.LOGGER.info("Loaded custom cape texture ({}x{}, static).", width, height);
-			return new VermeilCapeTexture(sheet, List.of(), DEFAULT_FRAME_TIME_MS);
+			return new VermeilCapeTexture(sheet, List.of(), frameTimeMs);
 		}
 
 		// Bound decoded memory: cap the frame count to what fits the budget.
@@ -130,12 +149,11 @@ public final class VermeilCape {
 
 		List<NativeImage> frames = splitFrames(sheet, frameCount, width);
 		sheet.close();
-		NativeImage active = new NativeImage(width, width, false);
-		active.copyFrom(frames.get(0));
+		NativeImage activeFrame = new NativeImage(width, width, false);
+		activeFrame.copyFrom(frames.get(0));
 
-		long frameTimeMs = readFrameTimeMs();
 		VermeilMod.LOGGER.info("Loaded custom cape texture ({}x{}, {} frames @ {}ms).", width, width, frameCount, frameTimeMs);
-		return new VermeilCapeTexture(active, frames, frameTimeMs);
+		return new VermeilCapeTexture(activeFrame, frames, frameTimeMs);
 	}
 
 	/** Splits a vertical strip into {@code frameCount} square frames of {@code frameSize}. */
@@ -154,35 +172,45 @@ public final class VermeilCape {
 		return frames;
 	}
 
-	/** Reads the optional animation frame time, defaulting when absent or invalid. */
-	private static long readFrameTimeMs() {
+	/** Reads the toggle and animation speed from the optional metadata file. */
+	private static CapeSettings readSettings() {
 		Path meta = FabricLoader.getInstance().getGameDir().resolve(CAPE_META);
+		boolean enabled = true;
+		long frameTimeMs = DEFAULT_FRAME_TIME_MS;
 		if (Files.isRegularFile(meta)) {
 			try (Reader reader = Files.newBufferedReader(meta)) {
 				JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
+				if (obj.has("enabled")) {
+					enabled = obj.get("enabled").getAsBoolean();
+				}
 				if (obj.has("frameTimeMs")) {
 					long value = obj.get("frameTimeMs").getAsLong();
 					if (value > 0L) {
-						return value;
+						frameTimeMs = value;
 					}
 				}
 			} catch (Exception e) {
-				VermeilMod.LOGGER.warn("Failed to read cape metadata {}; using default frame time.", meta, e);
+				VermeilMod.LOGGER.warn("Failed to read cape metadata {}; using defaults.", meta, e);
 			}
 		}
-		return DEFAULT_FRAME_TIME_MS;
+		return new CapeSettings(enabled, frameTimeMs);
 	}
 
-	/** A solid Vermeil-red cape used when no cape file is available. */
-	private static VermeilCapeTexture placeholderTexture() {
-		NativeImage image = new NativeImage(PLACEHOLDER_SIZE, PLACEHOLDER_SIZE, true);
-		int color = packAbgr(255, 198, 40, 51);
-		for (int y = 0; y < PLACEHOLDER_SIZE; y++) {
-			for (int x = 0; x < PLACEHOLDER_SIZE; x++) {
-				image.setPixelABGR(x, y, color);
-			}
+	/** A short signature of the cape files (path presence + size + mtime) to detect changes. */
+	private static String currentSignature() {
+		Path dir = FabricLoader.getInstance().getGameDir();
+		return fileSignature(dir.resolve(CAPE_FILE)) + "|" + fileSignature(dir.resolve(CAPE_META));
+	}
+
+	private static String fileSignature(final Path path) {
+		if (!Files.isRegularFile(path)) {
+			return "-";
 		}
-		return new VermeilCapeTexture(image, List.of(), DEFAULT_FRAME_TIME_MS);
+		try {
+			return Files.size(path) + ":" + Files.getLastModifiedTime(path).toMillis();
+		} catch (IOException e) {
+			return "?";
+		}
 	}
 
 	/** Converts an ARGB pixel (as returned by {@code NativeImage.getPixel}) to ABGR. */
@@ -191,11 +219,10 @@ public final class VermeilCape {
 		int r = (argb >> 16) & 0xFF;
 		int g = (argb >> 8) & 0xFF;
 		int b = argb & 0xFF;
-		return packAbgr(a, r, g, b);
+		return (a << 24) | (b << 16) | (g << 8) | r;
 	}
 
-	/** Packs RGBA components into the ABGR integer {@link NativeImage} expects. */
-	private static int packAbgr(final int a, final int r, final int g, final int b) {
-		return (a << 24) | (b << 16) | (g << 8) | r;
+	/** Cape toggle and animation speed, parsed from {@code cape.json}. */
+	private record CapeSettings(boolean enabled, long frameTimeMs) {
 	}
 }

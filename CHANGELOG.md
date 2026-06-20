@@ -1,10 +1,10 @@
-## 0.6.2
+## 0.6.3
 
-### Added
+### Changed
 
-- In-game custom capes now work on Minecraft 1.21.1 (Fabric), alongside 26.x.
+- Selecting a custom cape now enables it in-game directly (no separate toggle), and the selection stays in sync when you reopen Skins.
 
 ### Fixed
 
-- In-game cape renders in full instead of only the top half.
-- Animated in-game capes no longer fail to load at high resolutions or long loops.
+- In-game custom cape renders crisp instead of blurry.
+- Custom cape now shows in-game even when the account has a Mojang cape.

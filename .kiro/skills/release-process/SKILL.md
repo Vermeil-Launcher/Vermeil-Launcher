@@ -168,3 +168,23 @@ Replace file contents on each release. Don't prepend.
 - Always `v` prefix: `v0.2.3`
 - Never bump/tag without explicit user approval (the `release:` commit requires confirmation)
 - Tags are immutable — never reuse a tag once pushed
+
+## Experimental / Build-Test Releases
+
+Pushing a tag just to verify the CI build is **not** shipping. A normal
+(non-prerelease) `v*` release becomes "latest", and the launcher's auto-updater
+serves that release's `latest.json` to every user — so an unvetted build would
+ship itself.
+
+For a build-test or not-yet-final tag, mark the release **pre-release** and title
+it `vX.Y.Z EXPERIMENTAL`:
+
+- `gh release edit vX.Y.Z --prerelease --title "vX.Y.Z EXPERIMENTAL" --repo <repo>`
+- Pre-release is excluded from `releases/latest`, so the updater skips it.
+- Do this right after the tag push, before users can update.
+- Promote to a real release only once verified:
+  `gh release edit vX.Y.Z --prerelease=false --latest --title "Vermeil vX.Y.Z"`
+
+Mod releases (`mod-v*`): the launcher fetches the latest **non-draft** `mod-v*`
+release (it does not skip prereleases), so an experimental mod build must be a
+**draft** until verified — `gh release edit mod-vX.Y.Z --draft`.

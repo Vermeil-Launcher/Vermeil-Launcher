@@ -4,10 +4,13 @@
 [![Release](https://img.shields.io/badge/Release-v0.5.7-blue?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest)
 [![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/actions)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-informational?style=flat-square)]()
+[![Status](https://img.shields.io/badge/Status-Alpha-orange?style=flat-square)]()
 
 A lightweight Minecraft: Java Edition launcher for Windows and Linux.
 
 Built with [Tauri 2](https://tauri.app/) (Rust backend) and [SolidJS](https://www.solidjs.com/) (TypeScript frontend).
+
+> **Alpha software.** Vermeil is in early, active development. Features are still changing, things may break between versions, and not everything described here is final. Expect rough edges.
 
 > **This is an AI-generated codebase.** It may contain bugs, incomplete features, or unexpected behavior. See [DISCLAIMER.md](DISCLAIMER.md) for details. Use at your own risk.
 

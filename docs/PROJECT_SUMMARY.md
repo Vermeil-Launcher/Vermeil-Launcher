@@ -8,6 +8,7 @@ Vermeil is a custom Minecraft: Java Edition launcher built with **Rust (Tauri 2)
 **Author:** davekb1976-beep
 **License:** MIT
 **Current Version:** 0.5.9
+**Status:** Alpha — early, active development; features are still changing and may break between versions.
 
 ---
 

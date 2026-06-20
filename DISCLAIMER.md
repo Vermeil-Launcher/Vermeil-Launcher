@@ -2,6 +2,10 @@
 
 This software is provided **as-is**, without warranty of any kind.
 
+## Alpha Software
+
+Vermeil is in **alpha** — early, active development. Features are incomplete or still changing, behavior may change between versions, and breaking changes can land without notice. Treat it as experimental and don't rely on it for anything you can't afford to lose.
+
 ## AI-Generated Codebase
 
 The entire Vermeil codebase was generated with the assistance of AI tools (Claude via Kiro IDE). This means:

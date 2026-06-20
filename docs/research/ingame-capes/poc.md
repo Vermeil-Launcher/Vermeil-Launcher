@@ -87,11 +87,12 @@ out of the launcher's `pnpm`/`cargo` pipelines.
 
 ## After the PoC
 
-The PoC (static → animated cape on 26.x Fabric) is done and the launcher
-integration (download-on-demand, global cape dir, toggle) is in place. Remaining,
-in rough order: **1.21.x Fabric** build (closest reuse of the render-state hook) →
-**1.8.x Forge** build (legacy `LayerCape`, separate Java-8 ForgeGradle project) →
-widen the launcher's `(version, loader)` support table and manifest accordingly.
+The PoC (static → animated cape on 26.x Fabric) is done, the launcher
+integration (download-on-demand, global cape dir, toggle) is in place, and the
+**1.21.1 Fabric** build now exists too (`vermeil-fabric-1.21/`, feature-renderer
+`CapeLayer` hook). Remaining: the **1.8.x Forge** build (legacy `LayerCape`,
+separate Java-8 ForgeGradle project), and widening the launcher's
+`(version, loader)` support table + CI to publish each jar.
 
 Build system: **separate standalone Gradle projects per era/loader** — Stonecutter
 was tried and dropped (see `research.md`). The matrix is Fabric for 26.x and

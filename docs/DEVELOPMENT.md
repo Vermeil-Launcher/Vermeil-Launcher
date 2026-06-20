@@ -107,20 +107,21 @@ single-source preprocessor tree:
 
 | Project | Minecraft | Loader | Java | Cape hook era |
 |---------|-----------|--------|------|---------------|
-| `vermeil-fabric-26/` (current) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
-| Fabric 1.21.x (planned) | 1.21.x | Fabric | 21 | render-state (`Player*`) / feature-renderer |
+| `vermeil-fabric-26/` (built) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
+| `vermeil-fabric-1.21/` (built) | 1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
 | Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`) |
 
-The build that exists today is the **Fabric 26.x** project at `vermeil-fabric-26/`. It
-uses **official Mojang mappings** and has **no Fabric API dependency** (loader +
-Mixins only). Minecraft / loader / Java pins live in `vermeil-fabric-26/gradle.properties`.
-The full matrix and per-era hook details are in
-`docs/research/ingame-capes/research.md`.
+The two built projects are the **Fabric 26.x** (`vermeil-fabric-26/`) and **Fabric
+1.21.1** (`vermeil-fabric-1.21/`) mods. Both use **official Mojang mappings** and
+have **no Fabric API dependency** (loader + Mixins only). Each is a standalone
+Gradle project with its own wrapper and pinned toolchain; Minecraft / loader / Java
+pins live in each project's `gradle.properties`.
 
 ### Building & running the mod
 
 ```powershell
-# from repo root, on Windows
+# from repo root, on Windows. Each project builds the same way under its own
+# directory; substitute vermeil-fabric-1.21 for the 1.21.1 build.
 vermeil-fabric-26\gradlew.bat build           # build the mod jar -> build/libs/vermeil-<modVersion>+<mc>.jar
 vermeil-fabric-26\gradlew.bat runClient       # launch a dev client
 vermeil-fabric-26\gradlew.bat genSources      # decompiled Mojang-mapped sources (research)

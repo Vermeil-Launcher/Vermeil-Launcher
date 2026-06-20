@@ -1,0 +1,77 @@
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = "${project.mod_version}+${project.minecraft_version}"
+group = project.maven_group
+
+// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar, matching
+// the modern project's scheme so the launcher manifest can list them together.
+base {
+	archivesName = 'vermeil'
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"vermeil" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// Official Mojang (deobfuscated) mappings. Unlike the 26.x-era Loom, the
+	// 1.21.1-era Loom does not default to these, so declare them explicitly.
+	mappings loom.officialMojangMappings()
+	// modImplementation (not plain implementation) so Loom processes the loader
+	// and puts its transitive deps — notably Sponge Mixin — on the classpath.
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	// No Fabric API: the mod uses only the loader plus Mixins (a client-tick
+	// Mixin drives the cape watcher), keeping the build simple across eras.
+}
+
+processResources {
+	def props = [
+		"version": project.version,
+		"minecraft_version": project.minecraft_version,
+		"java_version": project.java_version
+	]
+	inputs.properties props
+	filesMatching("fabric.mod.json") {
+		expand props
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = project.java_version.toInteger()
+}
+
+java {
+	withSourcesJar()
+	def jv = JavaVersion.toVersion(project.java_version)
+	sourceCompatibility = jv
+	targetCompatibility = jv
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+	repositories {
+	}
+}

@@ -767,3 +767,66 @@ paths in CI/docs needed updating. Source untouched.
 (The untracked `vermeil-fabric-1.21/` scaffold is intentionally left for the next
 stage when the 1.21 project is actually built out; it now carries its own
 `.gitignore` so its Gradle cache can't be accidentally committed.)
+
+
+## Stage 16 — Fabric 1.21.1 project (feature-renderer cape hook) (done, builds + loads)
+
+Status: **second project built; `gradlew build` clean, mod loads in `runClient`,
+cape texture registers in-world with no mixin/render errors. Visual third-person
+confirmation is the one remaining manual check.**
+
+The first sibling project under the separate-projects layout:
+`vermeil-fabric-1.21/` — a standalone Fabric mod for **Minecraft 1.21.1**, its own
+Gradle wrapper (Gradle 8.8), Loom 1.7.4, JDK 21 (pinned via `org.gradle.java.home`
+since the dev shell defaults to 25), official Mojang mappings, **no Fabric API**
+(loader + Mixins only), mod id `vermeil`.
+
+**Different render era — verified against 1.21.1's own genSources, not assumed:**
+1.21.1 predates the render-state refactor (that landed in 1.21.2), so it uses the
+**feature-renderer** pipeline. Confirmed from the decompiled Mojang-mapped sources:
+
+- `CapeLayer.render(...)` draws the cape when `!isInvisible()`,
+  `isModelPartShown(PlayerModelPart.CAPE)`, and `getSkin().capeTexture() != null`.
+  There is **no `isCapeLoaded()` guard** in 1.21.1 (older versions had one).
+- `PlayerSkin` is the record `(ResourceLocation texture, String textureUrl,
+  ResourceLocation capeTexture, ResourceLocation elytraTexture, Model model,
+  boolean secure)` — the cape is a bare `ResourceLocation`, not a `ClientAsset`/
+  render-state field like 26.x.
+- `ResourceLocation` (not 26.x's renamed `Identifier`); `ResourceLocation.fromNamespaceAndPath`.
+- `NativeImage.getPixelRGBA/setPixelRGBA` (same packing both sides → raw copy, no
+  ARGB↔ABGR conversion the 26.x build needed); `DynamicTexture(NativeImage)`
+  single-arg ctor; the tick interface is `Tickable` (26.x: `TickableTexture`), and
+  `TextureManager` ticks registered `Tickable`s.
+
+**Chosen hook:** `@Redirect` the single `getSkin()` call inside `CapeLayer.render`
+(`CapeLayerMixin`). For the local player, when our cape is active and the account
+has no cape, return a `PlayerSkin` copy whose `capeTexture()` is `vermeil:cape`;
+vanilla then renders our texture through its normal path. Narrowest seam — scoped
+to the cape layer only, mirrors how 26.x scoped its swap to the renderer. (Minor
+parity note vs 26.x: 1.21.1 respects the player's cape model-part toggle — it's
+checked before our redirect — whereas 26.x force-shows. Default toggle is on, so
+this only differs for users who hid their own cape in skin settings.)
+
+**Ported (version-agnostic) code:** `VermeilCape` (file watcher, frame-strip
+decode, 2:1 crop) and `VermeilCapeTexture` (Tickable animation) carried over from
+26.x with the 1.21.1 class/method names above; `MinecraftClientMixin` (tick-tail →
+`tickReload`) is identical.
+
+**Toolchain gotcha fixed:** the 1.21.1-era Loom does **not** auto-provide Sponge
+Mixin the way the 26.x-era Loom does — fabric-loader must be declared
+`modImplementation` (not plain `implementation`) so Loom processes it and puts
+Mixin/ASM on the classpath. With plain `implementation` the mixin package didn't
+exist at compile time.
+
+**Verified here:** `gradlew build` → `BUILD SUCCESSFUL`, jar
+`build/libs/vermeil-0.1.0+1.21.1.jar`. `runClient` → `Loading Minecraft 1.21.1
+with Fabric Loader 0.16.10`, both init lines fire, and with a test cape in
+`run/vermeil/` the log shows `Loaded custom cape texture (256x128, 16 frames @
+120ms).` after joining a world — no mixin/apply errors, no crash. `CapeLayerMixin`
+is a required mixin and the game rendered the player without crashing, so its
+`@Redirect` bound to `CapeLayer.render`. **Pending:** eyes-on third-person check
+that the cape draws correctly.
+
+**Still next:** widen the launcher's support gate to `1.21.1` + Fabric and have CI
+build/publish the 1.21.1 jar (the `mod-release.yml` build + manifest grow a second
+project and a `loader` axis), then the Forge 1.8.x project.

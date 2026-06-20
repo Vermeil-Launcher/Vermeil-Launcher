@@ -59,7 +59,7 @@ The locked matrix:
 | Project | Minecraft | Loader | Java | Cape hook |
 |---------|-----------|--------|------|-----------|
 | `vermeil-fabric-26/` (built) | 26.x | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
-| Fabric 1.21.x (planned) | 1.21.x | Fabric | 21 | render-state (`Player*`) or feature-renderer (sub-version dependent) |
+| `vermeil-fabric-1.21/` (built) | 1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 | Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`, 64×32 texture) |
 
 The build that exists today is the **Fabric 26.x** project at `vermeil-fabric-26/`:

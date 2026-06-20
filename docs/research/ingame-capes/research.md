@@ -151,9 +151,9 @@ not adopted there.)
 
 ### Build order (easiest-reusing-first)
 
-1. **26.x Fabric** — render-state family. ✓ built (the current `vermeil-fabric-26/`).
-2. **1.21.x Fabric** — render-state if a 1.21.2+ sub-version is pinned (reuse the
-   hook with `Player*` names), or feature-renderer if 1.21.0–1.21.1 is pinned.
+1. **26.x Fabric** — render-state family. ✓ built (`vermeil-fabric-26/`).
+2. **1.21.1 Fabric** — feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`).
+   ✓ built (`vermeil-fabric-1.21/`). Pinned 1.21.1, which is pre-render-state.
 3. **1.8.x Forge** — legacy `LayerCape`, separate Java-8 ForgeGradle project.
 
 Build system: **separate standalone Gradle projects per era/loader** — Stonecutter
@@ -222,7 +222,7 @@ as their own projects):
 | Project | MC | Loader | Java | Toolchain | Cape hook |
 |---------|----|--------|------|-----------|-----------|
 | Fabric 26.x (built) | 26.x | Fabric | 25 | Loom 1.16, Mojang mappings | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `AvatarRenderState`) |
-| Fabric 1.21.x | 1.21.x | Fabric | 21 | Loom, Mojang/Yarn | render-state (`PlayerRenderer`/`PlayerRenderState`) if 1.21.2+ pinned; `CapeFeatureRenderer` if 1.21.0–1.21.1 |
+| Fabric 1.21.1 (built) | 1.21.1 | Fabric | 21 | Loom 1.7.4, Mojang mappings | feature-renderer: `@Redirect` `AbstractClientPlayer.getSkin()` inside `CapeLayer.render` |
 | Forge 1.8.x | 1.8.x | Forge | 8 | ForgeGradle, MCP/SRG | legacy `LayerCape` + `AbstractClientPlayer.getLocationCape()`, 64×32 texture |
 
 Each project's cape-render hook is verified against **that version's own**
@@ -231,7 +231,7 @@ what's true on one era is never assumed on another. The shared *concept* (load a
 local cape PNG → register a texture → force the local player's cape to use it) is
 re-implemented per era against that era's API, not shared as code.
 
-**Build order:** 26.x Fabric (done) → 1.21.x Fabric (closest reuse) → 1.8.x Forge
+**Build order:** 26.x Fabric (done) → 1.21.1 Fabric (done) → 1.8.x Forge
 (heaviest lift, new toolchain). Each ships its `vermeil-<modVersion>+<mc>.jar` to
 the same `mod-v*` GitHub release; the manifest tags each jar with its loader, and
 the launcher picks by `(version, loader)`.

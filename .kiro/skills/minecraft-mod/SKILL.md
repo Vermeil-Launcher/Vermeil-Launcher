@@ -39,13 +39,18 @@ JDK 25 is on PATH in the dev shell, so the mod CAN be built and smoke-tested her
 (unlike the launcher's runtime, which needs a real install). Use it — treat mod
 code as **unverified until built and run in-game**.
 
-- Build: `companion-mod\fabric\26.1-26.2\gradlew.bat build` → builds the mod jar at
+Gradle resolves the project from the **current working directory**, not from where
+`gradlew` lives — so always pass `-p <project-dir>`. Running the wrapper by path
+alone from the repo root fails with "does not contain a Gradle build".
+
+- Build: `.\companion-mod\fabric\26.1-26.2\gradlew.bat -p companion-mod\fabric\26.1-26.2 build`
+  → builds the mod jar at
   `companion-mod/fabric/26.1-26.2/build/libs/vermeil-<modVersion>+<low>.jar`. Expect `BUILD SUCCESSFUL`.
-- Run in-game: `companion-mod\fabric\26.1-26.2\gradlew.bat runClient` → launches a dev client;
-  confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
-  client initialized.`) and the feature renders, then exit cleanly with no crash.
-  (Swap `26.1-26.2` for another project folder, e.g. `1.21-1.21.1`, as needed.)
-- Use `git -C` for git; run `gradlew` directly. PowerShell shell — chain with
+- Run in-game: `.\companion-mod\fabric\26.1-26.2\gradlew.bat -p companion-mod\fabric\26.1-26.2 runClient`
+  → launches a dev client; confirm the init log lines fire (`Vermeil mod initialized.` /
+  `Vermeil client initialized.`) and the feature renders, then exit cleanly with no crash.
+  (Swap `26.1-26.2` for another project folder, e.g. `1.21-1.21.1`, in both places.)
+- Use `git -C` for git; run `gradlew` with `-p`. PowerShell shell — chain with
   `;`, never `&&`.
 
 ## Multi-version (separate projects per era/loader)

@@ -119,25 +119,31 @@ single-source preprocessor tree:
 
 Each project ships **one jar covering a range** of Minecraft versions (a Fabric
 jar is intermediary-remapped, so it runs on every version where its Mixin targets
-are unchanged); the folder is named for the lowest version it supports. Both use
-**official Mojang mappings** and have **no Fabric API dependency** (loader + Mixins
-only). Minecraft / loader / Java pins, plus the `mc_range` (jar-name label) and
-`mc_versions` (exact supported list) live in each project's `gradle.properties`.
+are unchanged); the folder is named for the full version range it supports (the
+jar filename uses only the lowest version). Both use **official Mojang mappings**
+and have **no Fabric API dependency** (loader + Mixins only). Minecraft / loader /
+Java pins, plus the `mc_range` (version span) and `mc_versions` (exact supported
+list) live in each project's `gradle.properties`.
 
 ### Building & running the mod
 
+Gradle resolves the project from the **current working directory**, not from where
+`gradlew` lives — so pass `-p <project-dir>` (or `cd` into it first). Running the
+wrapper by path alone from the repo root fails with "does not contain a Gradle build".
+
 ```powershell
-# from repo root, on Windows. Each project builds the same way under its own
-# directory; substitute another project folder (e.g. 1.21-1.21.1) for the 26.1-26.2 build.
-companion-mod\fabric\26.1-26.2\gradlew.bat build      # build the mod jar -> build/libs/vermeil-<modVersion>+<low>.jar
-companion-mod\fabric\26.1-26.2\gradlew.bat runClient  # launch a dev client
-companion-mod\fabric\26.1-26.2\gradlew.bat genSources # decompiled Mojang-mapped sources (research)
+# from repo root, on Windows. Swap the project folder (e.g. 1.21-1.21.1) as needed.
+$p = "companion-mod\fabric\26.1-26.2"
+.\$p\gradlew.bat -p $p build      # build the mod jar -> build/libs/vermeil-<modVersion>+<low>.jar
+.\$p\gradlew.bat -p $p runClient  # launch a dev client
+.\$p\gradlew.bat -p $p genSources # decompiled Mojang-mapped sources (research)
 ```
 
 ```bash
-# on Linux
-./companion-mod/fabric/26.1-26.2/gradlew build
-./companion-mod/fabric/26.1-26.2/gradlew runClient
+# on Linux, from repo root
+p=companion-mod/fabric/26.1-26.2
+./$p/gradlew -p $p build
+./$p/gradlew -p $p runClient
 ```
 
 ### Publishing the mod jars (download-on-demand)

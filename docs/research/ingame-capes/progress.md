@@ -538,3 +538,38 @@ first feature). Renamed to be general:
 names/signatures unchanged, so the frontend is untouched. Same in-app smoke test
 as Stage 9 applies (now confirm `-Dvermeil.dataDir=…\companion` in the resolved
 JVM args).
+
+
+## Stage 10 — mod jar publishing pipeline (Phase 1 of download-on-demand)
+
+Status: **CI workflow + manifest added; jar naming fixed. Launcher fetch (Phase
+2) is next. Not yet published (no `mod-v*` tag pushed).**
+
+The blocker behind the "experimental" cape label is distribution: the mod jar
+isn't shipped anywhere. Phase 1 sets up publishing — jars go to **GitHub release
+assets**, never committed to the repo (binaries would bloat git history and the
+mod build is deliberately outside the pnpm/cargo pipeline).
+
+- **Jar naming.** `build.gradle` now sets `base.archivesName = 'vermeil'` and
+  `version = "${mod_version}+${minecraft_version}"`, so each node emits a
+  self-describing, unique `vermeil-0.1.0+26.2.jar` / `vermeil-0.1.0+26.1.2.jar`
+  (was the ambiguous `26.2-0.1.0.jar`). Uses the per-node `minecraft_version`
+  property — no extra Stonecutter API. Verified: `chiseledBuild` →
+  `BUILD SUCCESSFUL`, both new names produced.
+- **Workflow.** `.github/workflows/mod-release.yml` (trigger: `mod-v*` tag or
+  manual dispatch with a tag input) sets up JDK 25, runs `chiseledBuild`, then
+  stages the per-node jars and generates `companion-manifest.json` — `modVersion`
+  plus an entry per jar (`minecraftVersion`, `loaders: [fabric, quilt]`, `file`,
+  `url`, `sha1`, `size`). It creates the release if absent and uploads jars +
+  manifest with `--clobber` so re-runs are idempotent.
+- **Independent versioning.** The mod keeps its own `mod_version`
+  (`gradle.properties`), decoupled from the launcher version.
+- **Safety.** Served over HTTPS from GitHub's release CDN; the launcher will
+  SHA-1-verify each jar against the manifest before installing. Same transport
+  trust as the auto-updater; minisign signing is a possible later upgrade.
+
+**Still next (Phase 2):** launcher `services/companion_mod.rs` — fetch the
+manifest, pick the entry for the instance's MC version + loader, download the jar
+(SHA-1-verified, `.part`→rename, shared client) into `mods/` at launch for
+supported instances with the cape on, and remove the managed jar when off /
+unsupported. That's the change that graduates the cape out of experimental (0.7.0).

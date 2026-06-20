@@ -113,9 +113,16 @@ platforms; verify that part per the launcher's Cross-Platform Parity rule.
 
 ## Distribution
 
-The jar does NOT ship inside the launcher exe. Model is **download-on-demand**:
-publish per-version/per-loader jars to GitHub releases; the launcher fetches the
-matching one into the instance's `mods/`, like it already does for loaders/Java/mods.
+The jar does NOT ship inside the launcher exe or get committed to the repo. Model
+is **download-on-demand**: `.github/workflows/mod-release.yml` (triggered by a
+`mod-v*` tag or manual dispatch) builds every node and uploads each
+`vermeil-<modVersion>+<mcVersion>.jar` plus a generated `companion-manifest.json`
+to a GitHub release. The mod is versioned independently of the launcher
+(`mod_version` in `vermeil-mod/gradle.properties`). The launcher reads the
+manifest and fetches the matching jar (SHA-1-verified) into the instance's
+`mods/`, like it does for loaders/Java/mods — see `services/companion_mod.rs`.
+The jar filename is set by `base.archivesName = 'vermeil'` + `version =
+"<modVersion>+<minecraft_version>"` in `build.gradle`.
 
 ## Keep the research docs current
 

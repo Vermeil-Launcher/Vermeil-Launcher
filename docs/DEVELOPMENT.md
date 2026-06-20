@@ -128,6 +128,25 @@ release (26.x → 25, 1.21.x → 21, 1.20.1 → 17).
 ./vermeil-mod/gradlew runClient
 ```
 
+### Publishing the mod jars (download-on-demand)
+
+The jars are **not** bundled in the launcher and **not** committed to the repo —
+they're published as **GitHub release assets** and fetched on demand by the
+launcher. Publishing is automated by `.github/workflows/mod-release.yml`:
+
+- Trigger it by pushing a `mod-v*` tag (e.g. `mod-v0.1.0`), or run it manually
+  via the Actions tab with a tag input.
+- It builds every node (`chiseledBuild`), then uploads each
+  `vermeil-<modVersion>+<mcVersion>.jar` plus a generated `companion-manifest.json`
+  (lists each jar's Minecraft version, loaders, URL, SHA-1, and size) to a release
+  on that tag.
+- The mod is versioned independently of the launcher via `mod_version` in
+  `vermeil-mod/gradle.properties`.
+
+The launcher reads the manifest, picks the jar matching an instance's Minecraft
+version + loader, downloads and SHA-1-verifies it into the instance's `mods/`
+(see `services/companion_mod.rs`).
+
 Treat mod code as **unverified until built and run in-game**. Background,
 research notes, and the proof-of-concept plan live in
 [`docs/research/ingame-capes/`](research/ingame-capes/). Contributor conventions

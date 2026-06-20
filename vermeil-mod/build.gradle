@@ -3,8 +3,12 @@ plugins {
 	id 'maven-publish'
 }
 
-version = project.mod_version
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
+
+// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar, unique
+// per Stonecutter node. minecraft_version is a per-node gradle.properties value.
+base.archivesName = 'vermeil'
 
 repositories {
 	// Add repositories to retrieve artifacts from in here.

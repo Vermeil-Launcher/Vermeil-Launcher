@@ -1,0 +1,99 @@
+name: Mod Release
+run-name: Mod Release ${{ github.event.inputs.tag || github.ref_name }}
+
+# Publishes the Vermeil companion mod jars (one per Stonecutter version node) and
+# a manifest the launcher fetches for download-on-demand install. The jars are
+# release assets — never committed to the repo. Triggered by a `mod-v*` tag, or
+# manually via workflow_dispatch with a tag input.
+#
+# The mod is versioned independently of the launcher (its `mod_version` lives in
+# vermeil-mod/gradle.properties). The launcher reads companion-manifest.json to
+# find the jar matching an instance's Minecraft version + loader, then downloads
+# and SHA-1-verifies it. See services/companion_mod.rs.
+
+on:
+  push:
+    tags:
+      - 'mod-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish the mod release under (e.g. mod-v0.1.0)'
+        required: true
+
+jobs:
+  mod-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # The companion mod targets the latest Minecraft, which needs JDK 25.
+      - name: Setup JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Build all version nodes
+        working-directory: vermeil-mod
+        run: |
+          chmod +x gradlew
+          ./gradlew chiseledBuild --console=plain
+
+      - name: Stage jars and build manifest
+        id: stage
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          REPO="${{ github.repository }}"
+          MODVER=$(grep -E '^mod_version=' vermeil-mod/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          echo "Publishing companion mod $MODVER under tag $TAG"
+
+          mkdir -p dist
+          entries='[]'
+          shopt -s nullglob
+          for jar in vermeil-mod/versions/*/build/libs/vermeil-*+*.jar; do
+            case "$jar" in *-sources.jar) continue;; esac
+            file=$(basename "$jar")
+            cp "$jar" "dist/$file"
+            mc=${file#vermeil-${MODVER}+}
+            mc=${mc%.jar}
+            sha1=$(sha1sum "$jar" | cut -d' ' -f1)
+            size=$(stat -c%s "$jar")
+            url="https://github.com/${REPO}/releases/download/${TAG}/${file}"
+            entries=$(echo "$entries" | jq \
+              --arg mc "$mc" --arg file "$file" --arg url "$url" --arg sha1 "$sha1" --argjson size "$size" \
+              '. + [{minecraftVersion:$mc, loaders:["fabric","quilt"], file:$file, url:$url, sha1:$sha1, size:$size}]')
+          done
+
+          if [ "$entries" = "[]" ]; then
+            echo "No jars were produced — failing." >&2
+            exit 1
+          fi
+
+          jq -n --arg modVersion "$MODVER" --argjson entries "$entries" \
+            '{modVersion:$modVersion, entries:$entries}' > dist/companion-manifest.json
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "--- companion-manifest.json ---"
+          cat dist/companion-manifest.json
+          echo "--- dist contents ---"
+          ls -l dist
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.stage.outputs.tag }}"
+          # Create the release if it doesn't exist yet, then (re)upload assets.
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "Vermeil companion mod $TAG" \
+              --notes "Companion mod jars for the in-game cape feature. Installed automatically by the launcher; not meant to be downloaded by hand."
+          fi
+          gh release upload "$TAG" dist/* --clobber --repo "${{ github.repository }}"

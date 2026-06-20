@@ -81,7 +81,9 @@ jobs:
             [ -z "$range" ] && range=$(prop "$proj" minecraft_version)
             versions=$(prop "$proj" mc_versions)
             [ -z "$versions" ] && versions=$(prop "$proj" minecraft_version)
-            jar="$proj/build/libs/vermeil-${MODVER}+${range}.jar"
+            # Jar name uses only the lowest version (e.g. 1.21.5), matching build.gradle.
+            label=${range%%-*}
+            jar="$proj/build/libs/vermeil-${MODVER}+${label}.jar"
             if [ ! -f "$jar" ]; then
               echo "Expected jar not found for $proj: $jar" >&2
               exit 1

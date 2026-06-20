@@ -40,7 +40,7 @@ JDK 25 is on PATH in the dev shell, so the mod CAN be built and smoke-tested her
 code as **unverified until built and run in-game**.
 
 - Build: `companion-mod\fabric\26.1\gradlew.bat build` → builds the mod jar at
-  `companion-mod/fabric/26.1/build/libs/vermeil-<modVersion>+<mc_range>.jar`. Expect `BUILD SUCCESSFUL`.
+  `companion-mod/fabric/26.1/build/libs/vermeil-<modVersion>+<low>.jar`. Expect `BUILD SUCCESSFUL`.
 - Run in-game: `companion-mod\fabric\26.1\gradlew.bat runClient` → launches a dev client;
   confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
   client initialized.`) and the feature renders, then exit cleanly with no crash.
@@ -84,10 +84,11 @@ can't share a jar even though both are "1.21.x".
 Each `gradle.properties` carries:
 - `minecraft_version` — the *representative* version the jar compiles against (the
   newest in the range, for the freshest mappings).
-- `mc_range` — the label baked into the jar name: `vermeil-<modVer>+<mc_range>.jar`
-  (e.g. `vermeil-0.1.4+26.1-26.2.jar`). `build.gradle` also derives the
+- `mc_range` — the supported span as `<low>-<high>`; `build.gradle` derives the
   `fabric.mod.json` `depends.minecraft` predicate from it (`26.1-26.2` →
-  `>=26.1 <=26.2`).
+  `>=26.1 <=26.2`). The **jar name uses only the low end** (the lowest supported
+  version): `vermeil-<modVer>+<low>.jar` (e.g. `vermeil-0.1.4+26.1.jar`), so the
+  filename stays short and matches the per-era folder name.
 - `mc_versions` — the exact comma-separated versions the jar supports. CI emits one
   `companion-manifest.json` entry per project with `minecraftVersions: [<list>]`,
   and the launcher matches an instance's exact version against that list.
@@ -154,14 +155,14 @@ platforms; verify that part per the launcher's Cross-Platform Parity rule.
 The jar does NOT ship inside the launcher exe or get committed to the repo. Model
 is **download-on-demand**: `.github/workflows/mod-release.yml` (triggered by a
 `mod-v*` tag or manual dispatch) builds every project and uploads each
-`vermeil-<modVersion>+<mc_range>.jar` plus a generated `companion-manifest.json`
+`vermeil-<modVersion>+<low>.jar` plus a generated `companion-manifest.json`
 to a GitHub release. The mod is versioned independently of the launcher
 (`mod_version` in each project's `gradle.properties`; kept in sync across them).
 manifest and fetches the matching jar (SHA-1-verified) into the instance's
 `mods/`, like it does for loaders/Java/mods — see `services/companion_mod.rs`.
 The jar filename is set by `base.archivesName = 'vermeil'` + `version =
-"<modVersion>+<mc_range>"` in `build.gradle` (where `mc_range` is the project's
-`gradle.properties` range label, e.g. `26.1-26.2`).
+"<modVersion>+<low>"` in `build.gradle` (where `<low>` is the lowest supported
+version, split from the `mc_range` property).
 
 ## Keep the research docs current
 

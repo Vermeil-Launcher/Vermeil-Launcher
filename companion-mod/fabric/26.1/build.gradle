@@ -3,7 +3,7 @@ plugins {
 	id 'maven-publish'
 }
 
-version = "${project.mod_version}+${vermeilMcRange()}"
+version = "${project.mod_version}+${vermeilMcRange().toString().split('-')[0]}"
 group = project.maven_group
 
 // Distribution-friendly jar name: vermeil-<modVersion>+<mcRange>.jar, where

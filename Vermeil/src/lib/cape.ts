@@ -140,12 +140,6 @@ function dataUrlToPngBytes(dataUrl: string): Uint8Array {
  *  WebView2 (Windows) and WebKitGTK (Linux). */
 const MAX_CANVAS_DIM = 16384;
 
-/** The next-smaller supported resolution, or the same value when already lowest. */
-function lowerRes(r: number): number {
-  const i = ALLOWED_RES.indexOf(r);
-  return i > 0 ? ALLOWED_RES[i - 1] : ALLOWED_RES[0];
-}
-
 /**
  * Bake a cape for the Vermeil companion mod.
  *
@@ -157,24 +151,24 @@ function lowerRes(r: number): number {
  * become a vertical strip of those square frames (height = width × frames), which
  * is exactly the strip format the mod decodes. Static capes are a single frame.
  *
- * A long animation's strip can exceed the browser's max canvas height, so we fit
- * it within {@link MAX_CANVAS_DIM}: first by lowering the resolution, then — only
- * if it's still too tall — by evenly subsampling frames, stretching the per-frame
- * duration so the loop keeps roughly its original wall-clock length.
+ * A long animation's strip can exceed the browser's max canvas height. We keep
+ * the chosen resolution and evenly **subsample frames** to fit within
+ * {@link MAX_CANVAS_DIM}, stretching the per-frame duration so the loop keeps
+ * roughly its original wall-clock length. Resolution is the cape's visible
+ * detail; frame count only affects animation smoothness — so resolution is never
+ * traded away (an HD cape stays HD in game, just with fewer animation steps when
+ * the source has very many frames).
  */
 export function bakeModCapeStrip(src: FrameSource, t: CapeBakeParams): ModCapeBake {
   const n0 = src.frameCount;
 
-  // Pick the largest resolution whose full strip fits; drop to a lower one
-  // before sacrificing frames.
-  let S = clampRes(t.res);
-  let frame = 64 * S;
-  let maxFrames = Math.max(1, Math.floor(MAX_CANVAS_DIM / frame));
-  while (n0 > maxFrames && S > ALLOWED_RES[0]) {
-    S = lowerRes(S);
-    frame = 64 * S;
-    maxFrames = Math.max(1, Math.floor(MAX_CANVAS_DIM / frame));
-  }
+  // Keep the chosen resolution; subsample frames to whatever fits the strip
+  // height. (The old behaviour collapsed resolution first, which forced a long
+  // animation — e.g. 180 frames — down to 64px frames, rendering an HD cape at
+  // standard resolution in game.)
+  const S = clampRes(t.res);
+  const frame = 64 * S;
+  const maxFrames = Math.max(1, Math.floor(MAX_CANVAS_DIM / frame));
   const n = Math.min(n0, maxFrames);
 
   const strip = document.createElement("canvas");

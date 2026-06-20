@@ -84,3 +84,11 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Repo root was cluttered with `vermeil-fabric-26/` + `vermeil-fabric-1.21/`. Moved both under `companion-mod/fabric/`, leaf named by the **lowest MC version** it supports: `companion-mod/fabric/26.1/` (26.1–26.2), `companion-mod/fabric/1.21/` (1.21–1.21.1). Future: `companion-mod/forge/1.8.9/`.
 - Range + render-era detail stays in each `gradle.properties` (`mc_range`, `mc_versions`); folder name never churns when a range extends.
 - Updated all references: `mod-release.yml` (build paths + `companion-mod/fabric/*/` glob), `minecraft-mod`/`dependencies` skills, `coding-standards`, `DEVELOPMENT.md`, research docs, launcher comments.
+
+
+## Animated capes were always standard-res (root cause + fix)
+- Symptom: in-game cape stuck at ×1 res regardless of the chosen resolution; launcher preview looked HD. Only animated capes affected (static were already HD).
+- Measured the on-disk `cape.png`: `64 × 11520` = 180 frames at 64px (res ×1). The launcher had baked it at ×1.
+- Root cause (`lib/cape.ts` `bakeModCapeStrip`): frames pack into one vertical PNG capped at 16384px. When they didn't fit, it **lowered resolution first** (`lowerRes` loop) before dropping frames. 180 frames at res 8 (512px) need 92160px → collapsed S to 1 (64px). Preview renders frames individually (no strip), so it stayed HD — hence the mismatch.
+- Fix: keep the chosen resolution; **subsample frames** to fit the strip instead (the even-sampling + duration-stretch path already existed). Deleted the dead `lowerRes` collapse. Frontend-only; no mod change. User must re-equip the cape to re-bake `cape.png`.
+- Vertical-strip ceiling at res 8 is 32 frames (16384/512). A 2D **grid atlas** (cols×rows) would keep all frames at HD — noted as the no-compromise follow-up if frame smoothness needs it.

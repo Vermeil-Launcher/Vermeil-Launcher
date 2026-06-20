@@ -23,7 +23,7 @@ import {
 } from "../ipc/commands";
 import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
 import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
-import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit, IconMonitor } from "../components/Icons";
+import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
 import { CapeAnimator, FrameSource, bakeModCapeStrip, clampRes } from "../lib/cape";
@@ -524,8 +524,18 @@ const Skins: Component = () => {
 
   const handleEquipCape = async (capeId: string | null) => {
     // Selecting a Mojang cape (or "No cape") clears any local custom cape
-    // override so the model reflects the real account state.
+    // override and turns the in-game custom cape off, so the launcher selection
+    // and what shows in-game stay in sync.
+    if (ingameBusy()) return;
     setActiveCustomCapeId(null);
+    if (ingameEnabled()) {
+      try {
+        await setIngameCapeEnabled(false);
+        setIngameEnabled(false);
+      } catch {
+        // best-effort
+      }
+    }
     if (isCapeOnCooldown()) {
       showToast({
         title: "Slow down",
@@ -566,9 +576,42 @@ const Skins: Component = () => {
     setActiveCustomCapeId(cape.id);
   };
 
-  const handleEquipCustomCape = (id: string) => {
-    // Toggle: clicking the active custom cape again removes the override.
-    setActiveCustomCapeId(activeCustomCapeId() === id ? null : id);
+  const handleEquipCustomCape = async (id: string) => {
+    if (ingameBusy()) return;
+    // Clicking the active cape again unequips it (viewer + in-game), like
+    // clicking an equipped cape to take it off.
+    if (activeCustomCapeId() === id) {
+      setActiveCustomCapeId(null);
+      if (ingameEnabled()) {
+        setIngameBusy(true);
+        try {
+          await setIngameCapeEnabled(false);
+          setIngameEnabled(false);
+        } catch (e) {
+          showToast({ title: "Couldn't remove in-game cape", message: String(e), type: "error" });
+        } finally {
+          setIngameBusy(false);
+        }
+      }
+      return;
+    }
+    // Equip: show in the viewer immediately, then apply it in-game (bake +
+    // store). On supported instances the cape appears in-game on next launch
+    // (or live, if one is running).
+    setActiveCustomCapeId(id);
+    const cape = (customCapes() ?? []).find((c) => c.id === id);
+    if (!cape) return;
+    setIngameBusy(true);
+    try {
+      const { png, frameTimeMs } = await bakeForIngame(cape);
+      await setIngameCape(id, png, frameTimeMs);
+      setIngameCapeId(id);
+      setIngameEnabled(true);
+    } catch (e) {
+      showToast({ title: "In-game cape failed", message: String(e), type: "error" });
+    } finally {
+      setIngameBusy(false);
+    }
   };
 
   const handleRemoveCustomCape = async (id: string) => {
@@ -596,20 +639,19 @@ const Skins: Component = () => {
 
   // ─── In-game cape (companion mod) ───
 
-  // Load the current in-game cape state once.
+  // Load the current in-game cape state once, and reflect it in the selection
+  // so the dock shows the enabled cape as active (no "nothing selected but still
+  // on" desync when re-entering the screen).
   onMount(async () => {
     try {
       const st = await getIngameCape();
       setIngameCapeId(st?.cape_id ?? null);
       setIngameEnabled(st?.enabled ?? false);
+      if (st?.enabled && st.cape_id) setActiveCustomCapeId(st.cape_id);
     } catch {
-      // No state yet — leave the toggle off.
+      // No state yet — leave it off.
     }
   });
-
-  /** Whether in-game display is on for the currently selected custom cape. */
-  const ingameOnForActive = () =>
-    ingameEnabled() && !!activeCustomCapeId() && ingameCapeId() === activeCustomCapeId();
 
   /** Bake a custom cape into the mod's frame-strip layout and return IPC-ready bytes. */
   const bakeForIngame = async (cape: CustomCape) => {
@@ -623,34 +665,6 @@ const Skins: Component = () => {
       return { png: Array.from(bake.png), frameTimeMs: bake.frames > 1 ? bake.frameTimeMs : null };
     } finally {
       src.dispose();
-    }
-  };
-
-  const toggleIngameCape = async () => {
-    const id = activeCustomCapeId();
-    if (!id) return;
-    setIngameBusy(true);
-    try {
-      if (ingameOnForActive()) {
-        await setIngameCapeEnabled(false);
-        setIngameEnabled(false);
-      } else {
-        const cape = (customCapes() ?? []).find((c) => c.id === id);
-        if (!cape) return;
-        const { png, frameTimeMs } = await bakeForIngame(cape);
-        await setIngameCape(id, png, frameTimeMs);
-        setIngameCapeId(id);
-        setIngameEnabled(true);
-        showToast({
-          title: "Cape set for in-game",
-          message: "Applies on launch to supported instances (Fabric/Quilt, MC 26.1+).",
-          type: "success",
-        });
-      }
-    } catch (e) {
-      showToast({ title: "In-game cape failed", message: String(e), type: "error" });
-    } finally {
-      setIngameBusy(false);
     }
   };
 
@@ -862,7 +876,7 @@ const Skins: Component = () => {
                     <button
                       class="skins-cape-chip-equip"
                       onClick={() => handleEquipCustomCape(cape.id)}
-                      disabled={busy() !== null}
+                      disabled={busy() !== null || ingameBusy()}
                     >
                       <div
                         class="skins-cape-chip-thumb"
@@ -898,24 +912,6 @@ const Skins: Component = () => {
               >
                 <IconPlus />
               </button>
-
-              {/* In-game cape toggle — shows the selected custom cape in-game on
-                  supported instances (companion mod). One global on/off. */}
-              <Show when={(customCapes() ?? []).length > 0}>
-                <button
-                  class={`skins-ingame-toggle ${ingameOnForActive() ? "on" : ""}`}
-                  onClick={toggleIngameCape}
-                  disabled={!activeCustomCapeId() || ingameBusy()}
-                  title={
-                    activeCustomCapeId()
-                      ? "Show the selected cape in-game (Fabric/Quilt, MC 26.1+; needs the Vermeil mod)"
-                      : "Select a custom cape first"
-                  }
-                >
-                  <IconMonitor />
-                  <span>{ingameOnForActive() ? "In-game: on" : "Show in-game"}</span>
-                </button>
-              </Show>
             </div>
           </div>
         </div>

@@ -1,6 +1,9 @@
 package com.vermeil.client.cape;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.AddressMode;
+import com.mojang.blaze3d.textures.FilterMode;
 import java.util.List;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TickableTexture;
@@ -28,6 +31,11 @@ public class VermeilCapeTexture extends DynamicTexture implements TickableTextur
 	 */
 	public VermeilCapeTexture(final NativeImage active, final List<NativeImage> frames, final long frameTimeMs) {
 		super(() -> "Vermeil custom cape", active);
+		// Crisp cape: the default texture sampler magnifies with LINEAR (blurry).
+		// Use NEAREST for both min and mag so the cape renders as a sharp pixel
+		// grid at the chosen resolution, matching the launcher's editor preview.
+		this.sampler = RenderSystem.getSamplerCache()
+			.getSampler(AddressMode.REPEAT, AddressMode.REPEAT, FilterMode.NEAREST, FilterMode.NEAREST, false);
 		this.frames = frames;
 		this.frameTimeMs = Math.max(1L, frameTimeMs);
 	}

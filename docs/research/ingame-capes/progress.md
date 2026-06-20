@@ -26,3 +26,9 @@ Terse journal. Exact diffs in git.
 - 1.21.1 API vs 26.x: `ResourceLocation` (not `Identifier`), `getPixelRGBA`/`setPixelRGBA` raw copy, single-arg `DynamicTexture`, `Tickable`.
 - Loom gotcha: fabric-loader must be `modImplementation` (not `implementation`) for Loom to put Mixin on the classpath.
 - Verified: builds; `runClient` loads + registers the animated cape in-world, no errors. Eyes-on third-person check pending.
+
+
+## Cape fixes (post-0.6.2 testing)
+- **Crisp render:** the cape texture defaulted to LINEAR magnification → blurry. Now NEAREST. 26.x: reassign `AbstractTexture.sampler` to NEAREST/NEAREST (`RenderSystem.getSamplerCache().getSampler(...)`); 1.21.1: `setFilter(false, false)` (default mag was GL_LINEAR; `prepareImage` doesn't set it). Verified vs each version's genSources.
+- **Overrides Mojang cape:** the custom cape now wins even when the account has a real cape (both mixins; was an early-return guard). Enabling = "use this".
+- **Click-to-equip + sync (Skins.tsx):** clicking a custom cape equips it (viewer + bakes/sets in-game) like a normal cape; clicking it again or selecting a Mojang/"No cape" turns it off; on entering Skins the selection is restored from the saved in-game state, fixing the "nothing selected but still enabled" desync. Removed the separate "Show in-game" toggle.

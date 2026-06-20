@@ -13,14 +13,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Makes the local player's cape render from the launcher's custom cape texture
- * when the account has no Mojang-granted cape.
+ * when the in-game cape is active.
  *
  * <p>We inject at the tail of the avatar render-state extraction, after vanilla
- * has populated {@code state.skin} and {@code state.showCape}. If the player has
- * no cape we swap in a skin whose {@code cape()} points at our registered texture
- * and force {@code showCape} on; the vanilla {@code CapeLayer} then draws it
- * through the normal path. We never override an account that already has a cape,
- * and we only touch the local player.
+ * has populated {@code state.skin}/{@code state.showCape}, and swap in a skin
+ * whose {@code cape()} points at our registered texture, forcing {@code showCape}
+ * on; the vanilla {@code CapeLayer} then draws it through the normal path. The
+ * custom cape takes precedence even over a Mojang-granted cape (enabling it means
+ * "use this"). Only the local player is touched.
  */
 @Mixin(AvatarRenderer.class)
 public class AvatarRendererMixin {
@@ -32,11 +32,9 @@ public class AvatarRendererMixin {
 		if (entity != Minecraft.getInstance().player || !VermeilCape.isActive()) {
 			return;
 		}
+		// The custom cape takes precedence even when the account has a real
+		// (Mojang-granted) cape — enabling it in the launcher means "use this".
 		PlayerSkin skin = state.skin;
-		if (skin.cape() != null) {
-			// Account already has a cape (Mojang-granted) — leave it untouched.
-			return;
-		}
 		state.showCape = true;
 		state.skin = new PlayerSkin(skin.body(), VermeilCape.capeTexture(), skin.elytra(), skin.model(), skin.secure());
 	}

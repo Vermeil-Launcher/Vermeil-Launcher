@@ -28,6 +28,10 @@ public class VermeilCapeTexture extends DynamicTexture implements Tickable {
 	 */
 	public VermeilCapeTexture(final NativeImage active, final List<NativeImage> frames, final long frameTimeMs) {
 		super(active);
+		// Crisp cape: a DynamicTexture defaults to GL_LINEAR magnification
+		// (blurry). NEAREST (no blur, no mipmap) renders the cape as a sharp
+		// pixel grid at the chosen resolution, matching the editor preview.
+		this.setFilter(false, false);
 		this.frames = frames;
 		this.frameTimeMs = Math.max(1L, frameTimeMs);
 	}

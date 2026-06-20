@@ -149,13 +149,11 @@ fn loader_supported(loader: &LoaderType) -> bool {
     matches!(loader, LoaderType::Fabric | LoaderType::Quilt)
 }
 
-/// Minecraft versions the companion mod currently targets. The mod is built as
-/// separate per-era/loader projects (see `docs/research/ingame-capes/research.md`);
-/// the only one published so far is the Fabric build for `26.x`, so that's the
-/// supported set. Widen this as the Fabric 1.21.x and Forge 1.8.x builds ship
-/// (and add Forge to `loader_supported` then).
+/// Minecraft versions the companion mod currently targets — the published Fabric
+/// builds: `26.x` and `1.21.1`. Widen as more jars ship (and add Forge to
+/// `loader_supported` when a Forge build exists).
 fn version_supported(version: &str) -> bool {
-    version.starts_with("26.2")
+    version.starts_with("26.2") || version == "1.21.1"
 }
 
 /// Whether the companion mod can render a cape on this instance.

@@ -64,3 +64,9 @@ Two bugs the mipmap commit introduced, both now fixed and re-verified on 1.21.1 
 
 ## Reverted mipmaps — they cost detail on a small in-world cape
 User reported in-game far lower-res than the launcher model for the same cape. Root cause: the mipmaps removed shimmer but, because the cape's art is a tiny 10×16-texel panel and the cape renders small in-world, the GPU lands on a heavily-downsampled mip level → the HD image collapses to ~16 px. The launcher model looks crisp only because it renders large with no mipmaps. Reverted both mods to plain NEAREST (no mip), so full baked resolution always reaches the screen (matches the editor preview); shimmer in motion is the accepted trade-off. Inherent ceiling noted in `research.md`: detail is `10·res × 16·res` (res 32 → 320×512); anisotropic filtering — not mipmaps — is the future route if shimmer needs fixing without losing detail. Both projects build clean.
+
+
+## Existing instances update to new mod builds
+- Bug: `ensure_installed` skipped re-download if *any* managed jar matched the MC version, ignoring mod version → an instance holding `vermeil-0.1.3+…` never got `0.1.4+…`.
+- Fix: resolve the manifest every launch (gated to enabled + supported), download only when the *exact* expected filename (embeds latest mod version) is absent; the old managed jar is pruned after. Manifest-fetch failure falls back to the existing jar (offline grace — never fails a launch over an update check).
+- mod_version 0.1.3 → 0.1.4 (both projects) so the mipmap-revert build actually ships and existing installs pull it.

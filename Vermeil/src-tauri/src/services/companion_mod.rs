@@ -102,15 +102,27 @@ pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
         return CompanionStatus::Skipped;
     }
 
-    // Already have a managed jar for this Minecraft version → nothing to do, and
-    // crucially no network call on the common already-installed launch path.
-    if let Some(file) = installed_jar_for_version(&mods, &instance.game_version) {
-        return CompanionStatus::Installed { file };
-    }
-
+    // Resolve against the latest manifest every launch so an already-installed
+    // instance picks up a newer mod build (the expected jar filename embeds the
+    // mod version, so a stale `vermeil-0.1.3+…` no longer counts as "installed"
+    // once `0.1.4+…` is published). The fetch is gated to enabled + supported
+    // instances only, and the download itself is skipped when the exact current
+    // jar is already present (see `resolve_and_install`).
     match resolve_and_install(instance, &mods).await {
         Ok(file) => CompanionStatus::Installed { file },
         Err(e) => {
+            // Couldn't reach/parse the manifest (e.g. offline). Don't fail a
+            // launch over an inability to *check* for updates: if a managed jar
+            // for this Minecraft version is already present, keep using it.
+            if let Some(file) = installed_jar_for_version(&mods, &instance.game_version) {
+                tracing::warn!(
+                    "Companion update check failed for instance {} ({}); keeping existing jar {}",
+                    instance.id,
+                    e,
+                    file
+                );
+                return CompanionStatus::Installed { file };
+            }
             tracing::warn!("Companion mod not installed for instance {}: {}", instance.id, e);
             CompanionStatus::Failed { reason: e }
         }
@@ -119,6 +131,13 @@ pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
 
 /// Fetch the manifest, pick the jar for this instance, download + verify it into
 /// `mods/`, then prune any older managed jars. Returns the installed filename.
+///
+/// Idempotent: if the exact expected jar (whose filename embeds the latest mod
+/// version) is already in `mods/`, it prunes any other managed jars and returns
+/// without re-downloading. A managed jar for the same Minecraft version but a
+/// different (older) mod version does NOT match the expected filename, so it
+/// falls through to the download and is pruned afterwards — that's how existing
+/// instances get updated to a new mod build.
 async fn resolve_and_install(instance: &Instance, mods: &Path) -> Result<String, String> {
     let manifest = fetch_manifest().await?;
     let loader = instance.loader.loader_type.as_str();
@@ -131,8 +150,17 @@ async fn resolve_and_install(instance: &Instance, mods: &Path) -> Result<String,
             format!("no companion build for Minecraft {} ({})", instance.game_version, loader)
         })?;
 
-    fs::create_dir_all(mods).map_err(|e| format!("create mods dir: {}", e))?;
     let dest = mods.join(&entry.file);
+
+    // Already holding exactly the current build → prune any older managed jars
+    // and skip the download. This is the up-to-date fast path (no network spent
+    // on the file itself; the manifest fetch above is the only call).
+    if dest.exists() {
+        remove_managed(mods, Some(&entry.file));
+        return Ok(entry.file);
+    }
+
+    fs::create_dir_all(mods).map_err(|e| format!("create mods dir: {}", e))?;
 
     let task = DownloadTask {
         url: entry.url.clone(),

@@ -1382,8 +1382,13 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // Ensure the companion mod jar matches the in-game cape state: install the
     // version/loader-matched jar into mods/ when the cape is on (download-on-
     // demand, the first time it's needed), or remove our managed jar when off /
-    // unsupported. Best-effort — never blocks the launch.
-    crate::services::companion_mod::ensure_installed(instance).await;
+    // unsupported. Best-effort — never blocks the launch. Surfaces the result
+    // to the frontend so the user sees whether the cape will work this run.
+    let companion_status = crate::services::companion_mod::ensure_installed(instance).await;
+    if let Some(ref win) = window {
+        use tauri::Emitter;
+        let _ = win.emit("companion-mod-status", &companion_status);
+    }
 
     // 8. Spawn process with stdout/stderr capture
     let mut cmd = Command::new(&java);

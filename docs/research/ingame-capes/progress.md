@@ -44,3 +44,12 @@ Terse journal. Exact diffs in git.
 - Single source: `list_instances` attaches a computed `ingame_cape_supported` (flattened, not persisted) from the same `instance_cape::is_supported` gate that controls the launch-time install — so the badge can't disagree with whether the cape actually applies.
 - Derived purely from the instance's stored version + loader, so it appears automatically for custom-created and modpack-installed instances (no creation-flow code), and widens by itself when a future mod build supports more versions.
 - Removed the dead `.skins-ingame-toggle` CSS (its button was dropped with click-to-equip).
+
+
+## Mipmaps + install visibility
+- **Cape mipmaps in both mods.** Generate the full mip chain (level 0 → 1×1, box-downsample 2×2) in `VermeilCapeTexture` and upload every level on construction (and per frame for animations). Sampler picks the right level for the on-screen size, so HD capes (1024×512 etc.) stop shimmering at distance while staying NEAREST-crisp up close.
+  - **1.21.1** (OpenGL): re-allocate via `TextureUtil.prepareImage(format, id, maxLevel, w, h)` and upload each level with `NativeImage.upload(level, …)`; `setFilter(false, true)` → `GL_NEAREST_MIPMAP_LINEAR` min, `GL_NEAREST` mag.
+  - **26.x** (`GpuDevice` abstraction over OpenGL/Vulkan): close DynamicTexture's hardcoded `mipLevels=1` texture and rebuild via `GpuDevice.createTexture(label, usage, RGBA8_UNORM, w, h, 1, mipLevels)`; upload via `CommandEncoder.writeToTexture(tex, image, level, …)`; sampler from `SamplerCache.getRepeat(NEAREST, mipmaps=true)`. Same code path serves both backends.
+- **Launch-time install visibility.** `companion_mod::ensure_installed` now returns a `CompanionStatus` (`Installed{file}` / `Skipped` / `Failed{reason}`); `launch.rs` emits `companion-mod-status` and the frontend toasts `Installed` and `Failed` (skipped = silent so unrelated launches aren't noisy). Closes the silent-failure gap when an instance has the cape on but its `(MC, loader)` doesn't match a published manifest entry.
+- **Click-to-equip toast** added so it's clear the cape was activated and where it'll show up.
+- Verified: `gradlew build` clean both projects; `runClient` on 1.21.1 loads the mipmapped animated cape with no errors. 26.x mipmap path also builds; eyes-on test pending.

@@ -629,6 +629,12 @@ const Skins: Component = () => {
       await setIngameCape(id, png, frameTimeMs);
       setIngameCapeId(id);
       setIngameEnabled(true);
+      showToast({
+        title: "Cape equipped",
+        message: "Applies in-game on launch (Fabric on MC 26.x or 1.21.1).",
+        type: "success",
+        autoCloseMs: 3000,
+      });
     } catch (e) {
       showToast({ title: "In-game cape failed", message: String(e), type: "error" });
     } finally {

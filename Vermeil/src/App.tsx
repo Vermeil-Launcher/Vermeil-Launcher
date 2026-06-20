@@ -360,6 +360,35 @@ const App: Component = () => {
       setGameRunning(false);
     });
 
+    // Companion-mod install status, emitted at launch by services::companion_mod.
+    // Surface what actually happened so an in-game cape that's "on" but didn't
+    // land (no matching build / network blip / unsupported instance) isn't a
+    // silent failure — only show a toast when it's a real outcome the user
+    // would care about (skipped on every unrelated launch is noise).
+    type CompanionStatus =
+      | { kind: "installed"; detail: { file: string } }
+      | { kind: "skipped" }
+      | { kind: "failed"; detail: { reason: string } };
+    listen<CompanionStatus>("companion-mod-status", (event) => {
+      const s = event.payload;
+      if (s.kind === "installed") {
+        showToast({
+          title: "Companion mod ready",
+          message: `In-game cape will render with ${s.detail.file}.`,
+          type: "success",
+          autoCloseMs: 4000,
+        });
+      } else if (s.kind === "failed") {
+        showToast({
+          title: "Companion mod not installed",
+          message: `${s.detail.reason} — the cape won't render this run.`,
+          type: "error",
+          autoCloseMs: 8000,
+        });
+      }
+      // "skipped" = cape off or instance unsupported; no need to toast every launch.
+    });
+
     // Logs detach/reattach: the backend opens the popout window on launch
     // (when enabled) and emits these so the Logs tab can swap between its
     // live viewer and the "bring back" placeholder. logs-reattached fires

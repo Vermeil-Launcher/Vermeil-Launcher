@@ -84,6 +84,18 @@ class IdleElytraAnimation extends IdleAnimation {
  * `textures.minecraft.net`, so there are no CORS or http/https scheme
  * issues — drop the data URL straight into skinview3d.
  */
+
+// In-game cape state + the selected custom cape live at MODULE scope so they
+// survive the screen remounting on navigation (the screen is mounted via
+// `<Show>`, which unmounts it when you leave). Keeping them local caused a
+// flicker: on every remount the selection reset to null, briefly highlighting
+// "No cape" until the async state load resolved. Module scope + a one-time load
+// means re-entering the screen reflects the real state immediately.
+const [activeCustomCapeId, setActiveCustomCapeId] = createSignal<string | null>(null);
+const [ingameCapeId, setIngameCapeId] = createSignal<string | null>(null);
+const [ingameEnabled, setIngameEnabled] = createSignal(false);
+let ingameStateLoaded = false;
+
 const Skins: Component = () => {
   const [profile, { refetch: refetchProfile }] = createResource<PlayerProfile | null>(async () => {
     if (!account() || account()!.is_offline) return null;
@@ -127,13 +139,10 @@ const Skins: Component = () => {
       return [];
     }
   });
-  const [activeCustomCapeId, setActiveCustomCapeId] = createSignal<string | null>(null);
   const [showCapeEditor, setShowCapeEditor] = createSignal(false);
   const [editingCape, setEditingCape] = createSignal<CustomCape | null>(null);
-  // In-game cape (companion mod): one global toggle. `ingameCapeId` is the cape
-  // currently set for in-game display; `ingameEnabled` is the on/off state.
-  const [ingameCapeId, setIngameCapeId] = createSignal<string | null>(null);
-  const [ingameEnabled, setIngameEnabled] = createSignal(false);
+  // In-game cape (companion mod): `ingameCapeId`/`ingameEnabled` are module-scope
+  // (above) so they persist across remounts; `ingameBusy` is transient per-mount.
   const [ingameBusy, setIngameBusy] = createSignal(false);
 
   // Active skin texture, handed to the cape editor so its 3D preview shows the
@@ -572,8 +581,21 @@ const Skins: Component = () => {
 
   const handleCapeSaved = async (cape: CustomCape) => {
     await refetchCustomCapes();
-    // Show the freshly-saved cape on the model immediately.
+    // Saving equips the cape everywhere: show it on the model and (re)apply it
+    // in-game from the just-saved transform, so a resolution / position / bg edit
+    // takes effect in the game too — not only in the viewer.
     setActiveCustomCapeId(cape.id);
+    setIngameBusy(true);
+    try {
+      const { png, frameTimeMs } = await bakeForIngame(cape);
+      await setIngameCape(cape.id, png, frameTimeMs);
+      setIngameCapeId(cape.id);
+      setIngameEnabled(true);
+    } catch (e) {
+      showToast({ title: "Couldn't apply cape in-game", message: String(e), type: "error" });
+    } finally {
+      setIngameBusy(false);
+    }
   };
 
   const handleEquipCustomCape = async (id: string) => {
@@ -643,13 +665,15 @@ const Skins: Component = () => {
   // so the dock shows the enabled cape as active (no "nothing selected but still
   // on" desync when re-entering the screen).
   onMount(async () => {
+    if (ingameStateLoaded) return; // module-scope state persists across remounts
     try {
       const st = await getIngameCape();
       setIngameCapeId(st?.cape_id ?? null);
       setIngameEnabled(st?.enabled ?? false);
       if (st?.enabled && st.cape_id) setActiveCustomCapeId(st.cape_id);
+      ingameStateLoaded = true;
     } catch {
-      // No state yet — leave it off.
+      // Leave it off; retry on the next mount.
     }
   });
 

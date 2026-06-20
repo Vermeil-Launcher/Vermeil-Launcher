@@ -105,3 +105,11 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Texture API drift from 1.21.1: `NativeImage.getPixelRGBA/setPixelRGBA` → `getPixel/setPixel` (both ARGB-symmetric → raw copy still correct).
 - **Endpoint verification proved 1.21.2–1.21.11 is not one jar.** Compile probes: 1.21.2/1.21.3/1.21.4 OK; 1.21.5 breaks (`DynamicTexture` gains a `Supplier<String>` label arg); 1.21.6 same; 1.21.11 fully 26.x-shaped (`PlayerSkin`/`PlayerRenderer` moved, `Tickable` gone). So the render-state 1.21.x line is ~3 sub-eras → this project is scoped to the verified **1.21.2–1.21.4**; 1.21.5+ need their own projects.
 - Wired: launcher `version_supported` += 1.21.2–1.21.4; `mod-release.yml` builds the project (JDK 21); manifest auto-includes it via the `companion-mod/fabric/*/` glob.
+
+
+## 1.21.5–1.21.8 render-state project (Era 2)
+- New `companion-mod/fabric/1.21.5/`: same render-state hook + texture code as the 1.21.2 project; the only difference is `DynamicTexture` now needs a label supplier — `super(() -> "Vermeil custom cape", active)` (1.21.2–1.21.4 took the image alone).
+- Bounds nailed by compile-probing: 1.21.5 ✓, 1.21.8 ✓, 1.21.9 ✗ (PlayerSkin/PlayerRenderer relocated → 26.x-shaped Era 3). So Era 2 = 1.21.5–1.21.8.
+- Era 1 was confirmed in-game (runClient 1.21.2): render-state cape shows + animates.
+- Final 1.21.x render-state split: **1.21.2–1.21.4**, **1.21.5–1.21.8**, **1.21.9–1.21.11** (Era 3, still to build).
+- Wired: launcher `version_supported` += 1.21.5–1.21.8; CI builds the project; manifest auto-includes via the glob.

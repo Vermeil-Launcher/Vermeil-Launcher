@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.vermeil.client.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"MinecraftClientMixin",
+		"PlayerRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

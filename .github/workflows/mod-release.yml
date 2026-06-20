@@ -53,6 +53,8 @@ jobs:
           (cd companion-mod/fabric/1.21 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
           sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.2/gradle.properties
           (cd companion-mod/fabric/1.21.2 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.5/gradle.properties
+          (cd companion-mod/fabric/1.21.5 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
 
       - name: Stage jars and build manifest
         id: stage

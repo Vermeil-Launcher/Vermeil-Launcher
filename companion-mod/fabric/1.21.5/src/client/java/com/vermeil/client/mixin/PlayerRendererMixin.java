@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Makes the local player's cape render from the launcher's custom cape texture
- * when the in-game cape is active (Minecraft 1.21.2–1.21.4 render-state
+ * when the in-game cape is active (Minecraft 1.21.5–1.21.8 render-state
  * pipeline).
  *
  * <p>1.21.2 moved entity rendering to per-frame <em>render states</em>:

@@ -113,6 +113,7 @@ single-source preprocessor tree:
 | `companion-mod/fabric/26.1/` | 26.1–26.2 | Fabric | 25 | render-state (`Avatar*`) |
 | `companion-mod/fabric/1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
 | `companion-mod/fabric/1.21.2/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer`/`PlayerRenderState`) |
+| `companion-mod/fabric/1.21.5/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (`DynamicTexture` label-ctor) |
 
 Each project ships **one jar covering a range** of Minecraft versions (a Fabric
 jar is intermediary-remapped, so it runs on every version where its Mixin targets

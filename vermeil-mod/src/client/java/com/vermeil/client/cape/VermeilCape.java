@@ -28,10 +28,11 @@ import net.minecraft.resources.Identifier;
  *       when absent); {@code frameTimeMs} is the animation speed.</li>
  * </ul>
  *
- * <p>The cape directory is resolved from the {@code vermeil.capeDir} system
- * property when set (the launcher points every instance at one shared, global
- * cape dir so the cape isn't duplicated per instance). When the property is
- * absent — e.g. a manual install with no launcher — it falls back to
+ * <p>The cape directory is resolved from the {@code vermeil.dataDir} system
+ * property when set — the launcher's data directory for this mod, shared across
+ * every instance so the cape (and any future mod data) isn't duplicated per
+ * instance; the cape files live directly inside it. When the property is absent
+ * — e.g. a manual install with no launcher — it falls back to
  * {@code <gameDir>/vermeil/}, keeping the mod usable on its own.
  *
  * <p>The render hook ({@code AvatarRendererMixin}) asks {@link #isActive()} and,
@@ -45,8 +46,8 @@ public final class VermeilCape {
 	/** Identifier the cape texture is registered under and that the cape layer binds. */
 	public static final Identifier CAPE_ID = Identifier.fromNamespaceAndPath("vermeil", "cape");
 
-	/** System property the launcher sets to a shared, global cape directory. */
-	private static final String CAPE_DIR_PROPERTY = "vermeil.capeDir";
+	/** System property the launcher sets to its data directory for this mod. */
+	private static final String DATA_DIR_PROPERTY = "vermeil.dataDir";
 	/** Cape texture and metadata file names, resolved under {@link #capeDir()}. */
 	private static final String CAPE_FILE = "cape.png";
 	private static final String CAPE_META = "cape.json";
@@ -73,12 +74,12 @@ public final class VermeilCape {
 	}
 
 	/**
-	 * The directory the cape files live in. Prefers the launcher-supplied global
-	 * dir ({@code -Dvermeil.capeDir}); falls back to {@code <gameDir>/vermeil/} so
+	 * The directory the cape files live in. Prefers the launcher-supplied data
+	 * dir ({@code -Dvermeil.dataDir}); falls back to {@code <gameDir>/vermeil/} so
 	 * a manual install with no launcher still works.
 	 */
 	private static Path capeDir() {
-		String override = System.getProperty(CAPE_DIR_PROPERTY);
+		String override = System.getProperty(DATA_DIR_PROPERTY);
 		if (override != null && !override.isBlank()) {
 			return Path.of(override);
 		}

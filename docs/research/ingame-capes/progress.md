@@ -507,3 +507,32 @@ fine on Windows and `data_dir()` isn't `\\?\`-prefixed.
 **Still next:** the still-open mod-jar publish + download-on-demand auto-install,
 and continuing the version matrix (1.21 render-state node, then 1.20.1
 feature-renderer).
+
+
+## Stage 9b — rename the global dir/property to be mod-general (done, builds)
+
+Status: **renamed; mod + launcher build clean. In-app smoke test still pending.**
+
+Naming follow-up to Stage 9. `ingame-cape` / `vermeil.capeDir` baked one feature
+into the name of what's really the companion mod's data home (capes are just the
+first feature). Renamed to be general:
+
+- **Launcher dir:** `<data>/ingame-cape/` → `<data>/mod-data/`. It already sits
+  under `…/Vermeil/`, so a "vermeil" prefix would be redundant, and "mod-data"
+  doesn't collide with the launcher's own `config.json`. Cape files stay
+  feature-scoped *inside* it (`cape.png`, `cape.json`); future mod features add
+  their own files there.
+- **JVM property:** `vermeil.capeDir` → `vermeil.dataDir` (the mod's data dir; the
+  mod resolves `cape.png`/`cape.json` within it). Standalone fallback stays
+  `<gameDir>/vermeil/`.
+- **Migration:** `migrate_legacy_dir` renames an existing `<data>/ingame-cape/` →
+  `mod-data/` (idempotent, best-effort) at launch and on set/toggle, so a cape set
+  before the rename keeps working without re-toggling. The older single-file
+  `<data>/ingame-cape.png` and stale per-instance `vermeil/` folders are still
+  swept by `cleanup_legacy_instance_capes`.
+
+**Verified here:** mod `gradlew 26.2:compileClientJava --rerun-tasks` →
+`BUILD SUCCESSFUL`; launcher `cargo check` → clean, zero warnings. IPC
+names/signatures unchanged, so the frontend is untouched. Same in-app smoke test
+as Stage 9 applies (now confirm `-Dvermeil.dataDir=…\mod-data` in the resolved
+JVM args).

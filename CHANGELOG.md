@@ -1,5 +1,10 @@
-## 0.6.1
+## 0.6.2
 
-### Changed
+### Added
 
-- In-game custom capes now install the companion mod automatically for supported Fabric and Quilt instances on Minecraft 26.1.x / 26.2 — the launcher downloads the matching, hash-verified mod jar into the instance on launch, so there's no more placing a jar by hand. Toggling the cape off removes it again. Still experimental while it matures.
+- In-game custom capes now work on Minecraft 1.21.1 (Fabric), alongside 26.x.
+
+### Fixed
+
+- In-game cape renders in full instead of only the top half.
+- Animated in-game capes no longer fail to load at high resolutions or long loops.

@@ -125,6 +125,9 @@ While in pre-1.0 development, anything goes — use MINOR for any meaningful cha
 5. Push: `git push`
 6. Tag: `git tag vX.Y.Z`
 7. Push tag: `git push origin vX.Y.Z`
+8. Mark the release **pre-release + EXPERIMENTAL** — this is the current standing
+   default (see below). Don't make it a full "latest" release unless the user
+   explicitly says to.
 
 ### Changelog Generation Rules
 
@@ -171,19 +174,25 @@ Replace file contents on each release. Don't prepend.
 
 ## Experimental / Build-Test Releases
 
-Pushing a tag just to verify the CI build is **not** shipping. A normal
-(non-prerelease) `v*` release becomes "latest", and the launcher's auto-updater
-serves that release's `latest.json` to every user — so an unvetted build would
-ship itself.
+## Experimental Releases — current standing policy
 
-For a build-test or not-yet-final tag, mark the release **pre-release** and title
-it `vX.Y.Z EXPERIMENTAL`:
+**Until the user explicitly says to fully release (their words: "fully release as
+is"), EVERY `v*` release ships as a pre-release titled `vX.Y.Z EXPERIMENTAL`.**
+This holds through the `0.7.0` run and beyond until lifted — it is the default for
+every tag, not a special case.
+
+Why: a normal (non-prerelease) release becomes "latest", and the launcher's
+auto-updater serves that release's `latest.json` to every user — so a full release
+ships itself to everyone. Pre-release is excluded from `releases/latest`, so the
+updater skips it.
+
+Right after pushing the tag (before any user can update):
 
 - `gh release edit vX.Y.Z --prerelease --title "vX.Y.Z EXPERIMENTAL" --repo <repo>`
-- Pre-release is excluded from `releases/latest`, so the updater skips it.
-- Do this right after the tag push, before users can update.
-- Promote to a real release only once verified:
-  `gh release edit vX.Y.Z --prerelease=false --latest --title "Vermeil vX.Y.Z"`
+
+When the user says to fully release a given version, promote that one:
+
+- `gh release edit vX.Y.Z --prerelease=false --latest --title "Vermeil vX.Y.Z"`
 
 Mod releases (`mod-v*`): the launcher fetches the latest **non-draft** `mod-v*`
 release (it does not skip prereleases), so an experimental mod build must be a

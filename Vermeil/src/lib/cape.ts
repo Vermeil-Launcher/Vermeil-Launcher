@@ -134,6 +134,18 @@ function dataUrlToPngBytes(dataUrl: string): Uint8Array {
   return arr;
 }
 
+/** Max 2D-canvas edge we'll create. A tall animation strip can otherwise exceed
+ *  the browser's canvas limit, which makes `toDataURL()` return an empty data
+ *  URL (surfacing downstream as "isn't a valid PNG"). 16384 is safe on both
+ *  WebView2 (Windows) and WebKitGTK (Linux). */
+const MAX_CANVAS_DIM = 16384;
+
+/** The next-smaller supported resolution, or the same value when already lowest. */
+function lowerRes(r: number): number {
+  const i = ALLOWED_RES.indexOf(r);
+  return i > 0 ? ALLOWED_RES[i - 1] : ALLOWED_RES[0];
+}
+
 /**
  * Bake a cape for the Vermeil companion mod.
  *
@@ -144,11 +156,26 @@ function dataUrlToPngBytes(dataUrl: string): Uint8Array {
  * each baked frame into the **top** of a square `64·res` frame slot. Animations
  * become a vertical strip of those square frames (height = width × frames), which
  * is exactly the strip format the mod decodes. Static capes are a single frame.
+ *
+ * A long animation's strip can exceed the browser's max canvas height, so we fit
+ * it within {@link MAX_CANVAS_DIM}: first by lowering the resolution, then — only
+ * if it's still too tall — by evenly subsampling frames, stretching the per-frame
+ * duration so the loop keeps roughly its original wall-clock length.
  */
 export function bakeModCapeStrip(src: FrameSource, t: CapeBakeParams): ModCapeBake {
-  const S = t.res;
-  const frame = 64 * S; // square frame edge
-  const n = src.frameCount;
+  const n0 = src.frameCount;
+
+  // Pick the largest resolution whose full strip fits; drop to a lower one
+  // before sacrificing frames.
+  let S = clampRes(t.res);
+  let frame = 64 * S;
+  let maxFrames = Math.max(1, Math.floor(MAX_CANVAS_DIM / frame));
+  while (n0 > maxFrames && S > ALLOWED_RES[0]) {
+    S = lowerRes(S);
+    frame = 64 * S;
+    maxFrames = Math.max(1, Math.floor(MAX_CANVAS_DIM / frame));
+  }
+  const n = Math.min(n0, maxFrames);
 
   const strip = document.createElement("canvas");
   strip.width = frame;
@@ -157,15 +184,22 @@ export function bakeModCapeStrip(src: FrameSource, t: CapeBakeParams): ModCapeBa
   if (!ctx) throw new Error("Canvas 2D context unavailable");
 
   // Per-frame 64×32 bake, reused across frames, composited into each slot's top.
+  const params: CapeBakeParams = { ...t, res: S };
   const tmp = document.createElement("canvas");
   for (let i = 0; i < n; i++) {
-    bakeCape(tmp, src.frameAt(i), src.width, src.height, t);
+    // Evenly sample source frames when some had to be dropped to fit.
+    const srcIdx = n === n0 ? i : Math.min(n0 - 1, Math.round((i * (n0 - 1)) / Math.max(1, n - 1)));
+    bakeCape(tmp, src.frameAt(srcIdx), src.width, src.height, params);
     ctx.drawImage(tmp, 0, i * frame);
   }
 
+  // Preserve the loop's wall-clock length: dropped frames each last longer.
+  const avg = src.averageDurationMs;
+  const frameTimeMs = Math.max(1, Math.round(n === n0 ? avg : (avg * n0) / n));
+
   return {
     png: dataUrlToPngBytes(strip.toDataURL("image/png")),
-    frameTimeMs: Math.max(1, Math.round(src.averageDurationMs)),
+    frameTimeMs,
     frames: n,
   };
 }

@@ -736,3 +736,34 @@ render-state hook — pin a sub-version first to decide render-state vs
 feature-renderer), then the **Forge 1.8.x** project (new Java-8 ForgeGradle
 toolchain, `LayerCape`), wiring each into CI + the launcher's `(version, loader)`
 support table. Plus the still-open mod-jar publish (`mod-v0.1.0`).
+
+
+## Stage 15 — rename `vermeil-mod/` → `vermeil-fabric-26/` (done, builds)
+
+Status: **renamed; `gradlew build` clean under the new path.**
+
+Naming follow-up to Stage 14. With the multi-version strategy now being **separate
+projects per era/loader**, the generic `vermeil-mod/` name no longer fit — the
+next sibling was scaffolded as `vermeil-fabric-1.21/`, so the 26.x project is
+renamed to match the `vermeil-fabric-<series>` convention.
+
+- `git mv vermeil-mod vermeil-fabric-26` — all tracked files renamed (history
+  preserved); the ignored `build/`/`.gradle/`/`run/` moved with the directory and
+  stay ignored (the project's `.gitignore` moved too).
+- Updated every **current** reference: CI `mod-release.yml` (`working-directory`,
+  the `build/libs` glob, the `gradle.properties` grep), `docs/DEVELOPMENT.md`,
+  `research.md`, `poc.md`, the `minecraft-mod` and `dependencies` skills, and
+  `coding-standards.md` (Companion-Mod section + project-structure tree). Historical
+  `progress.md` entries (Stages 1–14) keep the old name — the folder genuinely was
+  `vermeil-mod` then.
+- Also fixed the `vermeil-fabric-1.21/` (untracked) `gradle.properties` comment that
+  named the old `vermeil-mod`.
+
+**Verified:** `vermeil-fabric-26\gradlew.bat build` → `BUILD SUCCESSFUL`, jar
+`build/libs/vermeil-0.1.0+26.2.jar`. The mod id stays `vermeil` and
+`rootProject.name = 'vermeil'`, so the folder name is cosmetic to the build — only
+paths in CI/docs needed updating. Source untouched.
+
+(The untracked `vermeil-fabric-1.21/` scaffold is intentionally left for the next
+stage when the 1.21 project is actually built out; it now carries its own
+`.gitignore` so its Gradle cache can't be accidentally committed.)

@@ -60,7 +60,7 @@ Some dependencies aren't a line in `Cargo.toml`/`package.json`/`gradle.propertie
 package-manager system lib). These are the easiest to forget because no manifest
 forces them.
 
-- **Mod deps** (`vermeil-mod/`) live in `gradle.properties` (MC, Fabric loader,
+- **Mod deps** (`vermeil-fabric-26/`) live in `gradle.properties` (MC, Fabric loader,
   Fabric API, Loom) and `build.gradle`. Pin exact versions from the official
   Fabric "Develop" page. See the `minecraft-mod` skill.
 - **System tools** (JDK version, Gradle, MSVC Build Tools, WebKitGTK/system libs)

@@ -151,7 +151,7 @@ not adopted there.)
 
 ### Build order (easiest-reusing-first)
 
-1. **26.x Fabric** — render-state family. ✓ built (the current `vermeil-mod/`).
+1. **26.x Fabric** — render-state family. ✓ built (the current `vermeil-fabric-26/`).
 2. **1.21.x Fabric** — render-state if a 1.21.2+ sub-version is pinned (reuse the
    hook with `Player*` names), or feature-renderer if 1.21.0–1.21.1 is pinned.
 3. **1.8.x Forge** — legacy `LayerCape`, separate Java-8 ForgeGradle project.
@@ -216,7 +216,7 @@ Why separate projects is the right call here (not a step back):
 - Each project stays a plain, conventional Fabric/Forge mod — easy to read, build,
   and verify against its own genSources, with no preprocessor layer in between.
 
-Planned layout (the 26.x project exists today as `vermeil-mod/`; siblings are added
+Planned layout (the 26.x project exists today as `vermeil-fabric-26/`; siblings are added
 as their own projects):
 
 | Project | MC | Loader | Java | Toolchain | Cape hook |

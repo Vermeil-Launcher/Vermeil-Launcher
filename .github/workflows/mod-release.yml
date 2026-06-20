@@ -7,7 +7,7 @@ run-name: Mod Release ${{ github.event.inputs.tag || github.ref_name }}
 # manually via workflow_dispatch with a tag input.
 #
 # The mod is versioned independently of the launcher (its `mod_version` lives in
-# vermeil-mod/gradle.properties). The launcher reads companion-manifest.json to
+# vermeil-fabric-26/gradle.properties). The launcher reads companion-manifest.json to
 # find the jar matching an instance's Minecraft version + loader, then downloads
 # and SHA-1-verifies it. See services/companion_mod.rs.
 
@@ -39,7 +39,7 @@ jobs:
           java-version: '25'
 
       - name: Build the mod
-        working-directory: vermeil-mod
+        working-directory: vermeil-fabric-26
         run: |
           chmod +x gradlew
           ./gradlew build --console=plain
@@ -50,13 +50,13 @@ jobs:
           set -euo pipefail
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           REPO="${{ github.repository }}"
-          MODVER=$(grep -E '^mod_version=' vermeil-mod/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          MODVER=$(grep -E '^mod_version=' vermeil-fabric-26/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           echo "Publishing companion mod $MODVER under tag $TAG"
 
           mkdir -p dist
           entries='[]'
           shopt -s nullglob
-          for jar in vermeil-mod/build/libs/vermeil-*+*.jar; do
+          for jar in vermeil-fabric-26/build/libs/vermeil-*+*.jar; do
             case "$jar" in *-sources.jar) continue;; esac
             file=$(basename "$jar")
             cp "$jar" "dist/$file"

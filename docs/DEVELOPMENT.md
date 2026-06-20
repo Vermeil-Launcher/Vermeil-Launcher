@@ -5,7 +5,7 @@
 ## Prerequisites
 
 The lists below are for building the **launcher**. The companion mod
-(`vermeil-mod/`) needs one extra tool — see [Companion mod](#companion-mod-all-platforms).
+(`vermeil-fabric-26/`) needs one extra tool — see [Companion mod](#companion-mod-all-platforms).
 
 ### Windows
 
@@ -32,13 +32,13 @@ Then install Node 24 and pnpm via [fnm](https://github.com/Schniz/fnm) or [nvm](
 
 ### Companion mod (all platforms)
 
-Only needed if you build the mod in `vermeil-mod/`:
+Only needed if you build the mod in `vermeil-fabric-26/`:
 
 - **JDK 25** — [Temurin/Adoptium](https://adoptium.net/) 25. The latest
   Minecraft (26.1.x) requires Java 25. Confirm with `java -version`.
 
 No separate Gradle install is required — the mod ships a Gradle wrapper
-(`gradlew` / `gradlew.bat`). See [Companion Mod](#companion-mod-vermeil-mod) below
+(`gradlew` / `gradlew.bat`). See [Companion Mod](#companion-mod-vermeil-fabric-26) below
 for build commands.
 
 ## Running in Development
@@ -83,9 +83,9 @@ Outputs:
 | `cargo check` | `Vermeil/src-tauri/` | Type-check Rust backend |
 | `cargo build --release` | `Vermeil/src-tauri/` | Build Rust backend only |
 
-## Companion Mod (`vermeil-mod/`)
+## Companion Mod (`vermeil-fabric-26/`)
 
-The repo includes the **Vermeil companion Minecraft mod** at `vermeil-mod/` — a
+The repo includes the **Vermeil companion Minecraft mod** at `vermeil-fabric-26/` — a
 separate Java/Fabric Gradle project (the general Vermeil client mod; in-game
 custom capes are its first feature). It is **not** part of the launcher's
 Tauri/SolidJS build and is excluded from the `pnpm` and `cargo` pipelines; it is
@@ -107,13 +107,13 @@ single-source preprocessor tree:
 
 | Project | Minecraft | Loader | Java | Cape hook era |
 |---------|-----------|--------|------|---------------|
-| `vermeil-mod/` (current) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
+| `vermeil-fabric-26/` (current) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
 | Fabric 1.21.x (planned) | 1.21.x | Fabric | 21 | render-state (`Player*`) / feature-renderer |
 | Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`) |
 
-The build that exists today is the **Fabric 26.x** project at `vermeil-mod/`. It
+The build that exists today is the **Fabric 26.x** project at `vermeil-fabric-26/`. It
 uses **official Mojang mappings** and has **no Fabric API dependency** (loader +
-Mixins only). Minecraft / loader / Java pins live in `vermeil-mod/gradle.properties`.
+Mixins only). Minecraft / loader / Java pins live in `vermeil-fabric-26/gradle.properties`.
 The full matrix and per-era hook details are in
 `docs/research/ingame-capes/research.md`.
 
@@ -121,15 +121,15 @@ The full matrix and per-era hook details are in
 
 ```powershell
 # from repo root, on Windows
-vermeil-mod\gradlew.bat build           # build the mod jar -> build/libs/vermeil-<modVersion>+<mc>.jar
-vermeil-mod\gradlew.bat runClient       # launch a dev client
-vermeil-mod\gradlew.bat genSources      # decompiled Mojang-mapped sources (research)
+vermeil-fabric-26\gradlew.bat build           # build the mod jar -> build/libs/vermeil-<modVersion>+<mc>.jar
+vermeil-fabric-26\gradlew.bat runClient       # launch a dev client
+vermeil-fabric-26\gradlew.bat genSources      # decompiled Mojang-mapped sources (research)
 ```
 
 ```bash
 # on Linux
-./vermeil-mod/gradlew build
-./vermeil-mod/gradlew runClient
+./vermeil-fabric-26/gradlew build
+./vermeil-fabric-26/gradlew runClient
 ```
 
 ### Publishing the mod jars (download-on-demand)
@@ -145,7 +145,7 @@ launcher. Publishing is automated by `.github/workflows/mod-release.yml`:
   (lists each jar's Minecraft version, loaders, URL, SHA-1, and size) to a release
   on that tag. As the per-era/loader projects land, each is built and staged here.
 - The mod is versioned independently of the launcher via `mod_version` in
-  `vermeil-mod/gradle.properties`.
+  `vermeil-fabric-26/gradle.properties`.
 
 The launcher reads the manifest, picks the jar matching an instance's Minecraft
 version + loader, downloads and SHA-1-verifies it into the instance's `mods/`
@@ -175,6 +175,6 @@ Vermeil-Launcher/             # repo root
 │   │   └── tauri.conf.json   # Tauri config (version, window, plugins)
 │   ├── package.json
 │   └── vite.config.ts
-├── vermeil-mod/              # companion Minecraft mod (Java/Fabric, separate build)
+├── vermeil-fabric-26/              # companion Minecraft mod (Java/Fabric, separate build)
 └── docs/                     # project docs + docs/research/ notes
 ```

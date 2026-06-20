@@ -29,9 +29,9 @@ Vermeil/
 │       └── main.rs               # Entry point
 ```
 
-## Companion Mod (`vermeil-mod/`)
+## Companion Mod (`vermeil-fabric-26/`)
 
-The repo also contains the **Vermeil companion Minecraft mod** at `vermeil-mod/`
+The repo also contains the **Vermeil companion Minecraft mod** at `vermeil-fabric-26/`
 (repo root) — a separate Java/Fabric Gradle project, the general-purpose Vermeil
 client mod (capes first). It is **not** part of the launcher's Tauri/SolidJS
 build and must stay out of the `pnpm` and `cargo` pipelines. For its toolchain

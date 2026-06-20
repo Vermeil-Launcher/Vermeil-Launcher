@@ -27,7 +27,7 @@ auto-install) is an extension of a proven core.
 
 ## Naming & scope
 
-The mod id is **`vermeil`**; the project folder is **`vermeil-mod/`**. It's the
+The mod id is **`vermeil`**; the project folder is **`vermeil-fabric-26/`**. It's the
 general-purpose Vermeil client mod — capes are its first feature, but it's named
 and structured so later features slot in without a rename.
 
@@ -49,7 +49,7 @@ updates to launcher releases.)
 - A Fabric dev client (`gradlew runClient`) to launch and inspect the result.
 
 Exact pins (MC, Fabric loader, Fabric API, Loom, mod version) live in
-`vermeil-mod/gradle.properties`, taken from the official Fabric "Develop" page
+`vermeil-fabric-26/gradle.properties`, taken from the official Fabric "Develop" page
 for the target MC version. The project uses **official Mojang mappings**, not
 Yarn.
 
@@ -81,7 +81,7 @@ built and run in-game** — a clean compile is not proof the feature renders.
 
 ## Where it lives
 
-A separate Gradle project at **`vermeil-mod/`** (repo root) — the general
+A separate Gradle project at **`vermeil-fabric-26/`** (repo root) — the general
 Vermeil client mod. It is **not** part of the Tauri/SolidJS build and must stay
 out of the launcher's `pnpm`/`cargo` pipelines.
 

@@ -54,21 +54,19 @@ Java version, and cape-render API differ too much to share a toolchain (Java 25
 Fabric vs Java 8 Forge can't even share a Gradle). So each `(era, loader)` is its
 **own standalone Gradle project** with its own wrapper and pinned toolchain.
 
-The locked matrix:
+Built projects:
 
 | Project | Minecraft | Loader | Java | Cape hook |
 |---------|-----------|--------|------|-----------|
-| `vermeil-fabric-26/` (built) | 26.x | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
-| `vermeil-fabric-1.21/` (built) | 1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
-| Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`, 64×32 texture) |
+| `vermeil-fabric-26/` | 26.x | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
+| `vermeil-fabric-1.21/` | 1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 
-The build that exists today is the **Fabric 26.x** project at `vermeil-fabric-26/`:
-plain single-version Fabric, MC/loader/Java pins in `gradle.properties`, official
-Mojang mappings, **no Fabric API** (loader + Mixins only). No preprocessor
-comments, no `versions/` nodes — each project carries plain source for its own
-render era. Verify every project against **its own** genSources — what's true on
-one version is not assumed on another. See `docs/research/ingame-capes/research.md`
-for the full matrix and per-era hook details.
+Each is plain single-version Fabric, MC/loader/Java pins in `gradle.properties`,
+official Mojang mappings, **no Fabric API** (loader + Mixins only) — no preprocessor
+comments, no `versions/` nodes. Verify every project against **its own** genSources;
+what's true on one version is not assumed on another. Note: the 1.21.1-era Loom
+needs fabric-loader as `modImplementation` (not `implementation`) to put Mixin on
+the classpath; the 26.x-era Loom doesn't.
 
 ## Research before hooking: verify mappings, never guess
 
@@ -136,10 +134,11 @@ The jar filename is set by `base.archivesName = 'vermeil'` + `version =
 
 ## Keep the research docs current
 
-This feature is tracked in `docs/research/ingame-capes/` (`research.md`, `poc.md`,
-`progress.md`). They are **living** documents: when a decision, toolchain fact, or
-hook target changes, update them in the same change, and add a `progress.md` entry
-per milestone. See the research-docs rule in `implementation-process.md`.
+Tracked in `docs/research/ingame-capes/` (`research.md`, `poc.md`, `progress.md`) —
+living docs. Update in the same change that makes a decision/toolchain/hook real;
+add a terse `progress.md` milestone bullet. **Keep them token-cheap: bullets not
+prose, what IS not what's planned.** See the research-docs rule in
+`implementation-process.md`.
 
 ## Originality (strict)
 

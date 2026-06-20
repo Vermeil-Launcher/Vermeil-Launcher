@@ -109,7 +109,6 @@ single-source preprocessor tree:
 |---------|-----------|--------|------|---------------|
 | `vermeil-fabric-26/` (built) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
 | `vermeil-fabric-1.21/` (built) | 1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
-| Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`) |
 
 The two built projects are the **Fabric 26.x** (`vermeil-fabric-26/`) and **Fabric
 1.21.1** (`vermeil-fabric-1.21/`) mods. Both use **official Mojang mappings** and

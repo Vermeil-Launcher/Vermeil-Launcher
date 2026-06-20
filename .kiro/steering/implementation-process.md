@@ -184,21 +184,23 @@ half-finished change the user has to catch.
 
 ## Research Docs Are Living
 
-Some features are researched and prototyped before they're built, with notes
-kept in `docs/research/<feature>/` (typically `research.md`, `poc.md`,
-`progress.md`). These are committed for transparency — they are part of the
-project, not scratch paper. Treat them as **living documents**, not write-once:
+Feature notes live in `docs/research/<feature>/` (`research.md`, `poc.md`,
+`progress.md`). Committed for transparency — living, not write-once.
 
-- When a decision, toolchain fact, target version, hook, or plan changes, update
-  the affected note **in the same change** that makes the change real. A stale
-  research note (e.g. one still naming the old JDK/mappings/version) is a bug.
-- `research.md` = findings and the why; `poc.md` = the proof-of-concept plan and
-  its current shape; `progress.md` = a chronological journal — add an entry per
-  milestone describing what was done, the key decisions, and how it was verified.
-- Don't let the docs drift behind the code. If you notice a note contradicts the
-  current reality while working, fix it then, not "later".
-- Originality applies here too: describe only what we found and what our code
-  does; never reference another launcher's/client's/mod's source.
+Write them to be **token-cheap**. This is mandatory, not a preference:
+
+- Bullet points, not prose. Short fragments, not full sentences. No restating the
+  same fact across files or bullets.
+- Record only what **IS** — decisions made, what was built, how it was verified.
+- **No roadmaps, no "still next", no "planned" lists.** Plans change; stale plans
+  are worse than none. A one-line pointer to the immediate next step is the max.
+- Split of concern: `research.md` = findings + the why; `poc.md` = what the proof
+  established; `progress.md` = terse dated journal, a few bullets per milestone
+  (what changed · key decision · how verified). Exact diffs live in git, not here.
+- Update the affected note in the **same change** that makes it real; a stale note
+  (old JDK/mappings/version) is a bug. Fix drift when you see it, not "later".
+- Originality: describe only what we found and what our code does; never reference
+  another launcher's/client's/mod's source.
 
 ## Shell Commands
 

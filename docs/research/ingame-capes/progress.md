@@ -92,3 +92,8 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Root cause (`lib/cape.ts` `bakeModCapeStrip`): frames pack into one vertical PNG capped at 16384px. When they didn't fit, it **lowered resolution first** (`lowerRes` loop) before dropping frames. 180 frames at res 8 (512px) need 92160px → collapsed S to 1 (64px). Preview renders frames individually (no strip), so it stayed HD — hence the mismatch.
 - Fix: keep the chosen resolution; **subsample frames** to fit the strip instead (the even-sampling + duration-stretch path already existed). Deleted the dead `lowerRes` collapse. Frontend-only; no mod change. User must re-equip the cape to re-bake `cape.png`.
 - Vertical-strip ceiling at res 8 is 32 frames (16384/512). A 2D **grid atlas** (cols×rows) would keep all frames at HD — noted as the no-compromise follow-up if frame smoothness needs it.
+
+
+## Animated cape resolution capped at ×8 in the editor (no preview/game mismatch)
+- Confirmed via the `scripts/test-cape.ps1` harness + `runClient`: the mod renders every resolution correctly (×1 blocky → ×8 crisp; log shows the real texture size, e.g. ×8 → 512×256). So the prior in-game low-res was purely the frontend bake collapse, now fixed.
+- `bakeForIngame` already capped animated capes at ×8 (memory), but the editor still *offered* ×16/×32 for animated → preview looked sharper than the game would deliver (silent mismatch). Fixed: shared `ANIMATED_MAX_RES = 8` in `lib/cape.ts`; the editor hides higher options for animated sources and clamps a higher saved/selected value down. Static capes still go up to ×32 (small, safe).

@@ -34,6 +34,14 @@ export const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };
 export const ALLOWED_RES = [1, 2, 4, 8, 16, 32];
 export const DEFAULT_RES = 16;
 
+/** Max bake resolution for ANIMATED capes. A long animation decodes to a large
+ *  texture (frame size × frame count), so animated capes are capped here to keep
+ *  memory sane on low-RAM machines; static capes may go up to {@link ALLOWED_RES}'s
+ *  max. The cape editor hides higher options for animated sources and
+ *  {@link bakeModCapeStrip}'s caller clamps to this, so the preview always matches
+ *  what the game gets. */
+export const ANIMATED_MAX_RES = 8;
+
 export interface CapeBakeParams {
   /** Image offset within the panel, in panel-texel units. */
   dx: number;

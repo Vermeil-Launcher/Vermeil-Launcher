@@ -1,4 +1,4 @@
-import { Component, createSignal, onMount, onCleanup, Show } from "solid-js";
+import { Component, createSignal, createEffect, onMount, onCleanup, Show } from "solid-js";
 import { SkinViewer } from "skinview3d";
 import { saveCustomCape, readCustomCapeSource, CustomCape, CapeTransform } from "../ipc/commands";
 import { showToast } from "../App";
@@ -10,6 +10,7 @@ import {
   computeBaseFit,
   bakeCape,
   FrameSource,
+  ANIMATED_MAX_RES,
 } from "../lib/cape";
 
 /**
@@ -85,6 +86,19 @@ const CustomCapeEditor: Component<Props> = (props) => {
   // Whether the loaded source is an animated GIF / APNG / WebP — drives a live
   // frame loop instead of a one-shot bake.
   const [isAnimated, setIsAnimated] = createSignal(false);
+
+  // Animated capes are capped at ANIMATED_MAX_RES to bound the decoded texture
+  // size (memory). Only offer the allowed multipliers for animated sources, and
+  // clamp a higher saved/selected value down — so the preview never shows a
+  // resolution the game won't actually use.
+  const resChoices = () =>
+    isAnimated() ? RES_OPTIONS.filter((o) => parseInt(o.value, 10) <= ANIMATED_MAX_RES) : RES_OPTIONS;
+  createEffect(() => {
+    if (isAnimated() && res() > ANIMATED_MAX_RES) {
+      setRes(ANIMATED_MAX_RES);
+      refresh();
+    }
+  });
 
   // Image position offset within the panel, in panel-texel units.
   let dx = props.editing?.transform.dx ?? 0;
@@ -530,7 +544,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
               <span class="cape-control-label">Resolution</span>
               <Dropdown
                 value={String(res())}
-                options={RES_OPTIONS}
+                options={resChoices()}
                 onChange={handleRes}
                 width="150px"
                 openUp

@@ -26,7 +26,7 @@ import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
 import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
-import { CapeAnimator, FrameSource, bakeModCapeStrip, clampRes } from "../lib/cape";
+import { CapeAnimator, FrameSource, bakeModCapeStrip, clampRes, ANIMATED_MAX_RES } from "../lib/cape";
 
 /**
  * Idle animation with a subtle elytra breath.
@@ -689,8 +689,9 @@ const Skins: Component = () => {
     const src = await FrameSource.load(sourceUrl);
     try {
       const t = cape.transform;
-      // Cap animated strips so a high-res GIF doesn't make a huge multi-frame PNG.
-      const res = src.frameCount > 1 ? Math.min(clampRes(t.res), 8) : clampRes(t.res);
+      // Cap animated strips so a high-res, many-frame GIF doesn't decode to a
+      // huge texture (OOM risk). Matches the editor's animated res ceiling.
+      const res = src.frameCount > 1 ? Math.min(clampRes(t.res), ANIMATED_MAX_RES) : clampRes(t.res);
       const bake = bakeModCapeStrip(src, { dx: t.dx, dy: t.dy, scale: t.scale, bg: t.bg, res });
       return { png: Array.from(bake.png), frameTimeMs: bake.frames > 1 ? bake.frameTimeMs : null };
     } finally {

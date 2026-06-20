@@ -1,14 +1,6 @@
-## 0.6.4
-
-### Added
-
-- Instance cards show a badge when the Vermeil companion mod (in-game capes) supports that instance.
-
-### Changed
-
-- Selecting a custom cape applies it in-game right away and confirms it, and a launch notice tells you whether the companion mod installed.
+## 0.6.5
 
 ### Fixed
 
-- In-game HD capes no longer shimmer at a distance.
-- Custom cape selection stays in sync when reopening Skins, and resolution edits now apply in-game.
+- In-game capes render at full resolution again, matching the launcher preview.
+- Instances that already have the companion mod now update to newer mod builds automatically.

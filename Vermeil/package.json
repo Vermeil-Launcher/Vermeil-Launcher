@@ -1,6 +1,6 @@
 {
   "name": "vermeil",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "packageManager": "pnpm@11.5.1",
   "description": "A lightweight Minecraft launcher for Windows and Linux",
   "type": "module",

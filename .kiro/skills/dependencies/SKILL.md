@@ -60,12 +60,14 @@ Some dependencies aren't a line in `Cargo.toml`/`package.json`/`gradle.propertie
 package-manager system lib). These are the easiest to forget because no manifest
 forces them.
 
-- **Mod deps** (`companion-mod/fabric/`) live in each project's `gradle.properties`
-  (MC, Fabric loader, Loom) and `build.gradle`. Pin exact versions from the official
-  Fabric "Develop" page. See the `minecraft-mod` skill.
+- **Mod deps** (`companion-mod/`) live in each project's `gradle.properties`
+  (MC, loader, Loom/ForgeGradle) and `build.gradle`. Fabric projects pin exact
+  versions from the official Fabric "Develop" page; the Forge 1.8.9 project pins
+  classic ForgeGradle 2 / MCP mappings / Forge. See the `minecraft-mod` skill.
 - **System tools** (JDK version, Gradle, MSVC Build Tools, WebKitGTK/system libs)
   aren't in any manifest. When a change starts requiring one — or bumps the
-  required version — it is **not done** until the prerequisite is documented.
+  required version — it is **not done** until the prerequisite is documented. The
+  mod needs **JDK 25** (26.x), **JDK 21** (1.21.x), and **JDK 8** (Forge 1.8.9).
 
 ## Keep Dependency Docs in Sync (required, not optional)
 

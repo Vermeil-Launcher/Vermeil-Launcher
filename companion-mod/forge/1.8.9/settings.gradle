@@ -1,0 +1,6 @@
+// Standalone Forge project for Minecraft 1.8.9 (legacy PvP era). The 1.8.9
+// audience runs Forge for the OptiFine/performance-mod ecosystem, so the
+// companion mod targets Forge here rather than Legacy Fabric. Other eras/loaders
+// (Fabric 1.21.x, Fabric 26.x) are separate sibling projects, not an in-tree
+// preprocessor — see docs/research/ingame-capes/research.md for the matrix.
+rootProject.name = 'vermeil'

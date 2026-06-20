@@ -1,0 +1,74 @@
+buildscript {
+	repositories {
+		maven { url = 'https://maven.minecraftforge.net' }
+		mavenCentral()
+	}
+	dependencies {
+		// Classic ForgeGradle 2.x — the toolchain for 1.8.9 (MCP mappings,
+		// setupDecompWorkspace, reobf-on-build). Newer ForgeGradle only targets
+		// modern Minecraft.
+		classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-SNAPSHOT'
+	}
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar, matching
+// the Fabric projects' naming so the launcher manifest builder treats every
+// project uniformly. 1.8.9 is a single version, so the "+<low>" label is 1.8.9.
+version = "${project.mod_version}+${project.minecraft_version}"
+group = project.maven_group
+archivesBaseName = 'vermeil'
+
+sourceCompatibility = targetCompatibility = '1.8'
+compileJava.options.encoding = 'UTF-8'
+
+minecraft {
+	version = project.forge_version
+	runDir = 'run'
+	// MCP mappings give the deobfuscated names used in source; reobf restores the
+	// obfuscated/SRG names for the shipped jar.
+	mappings = project.mappings_version
+	makeObfSourceJar = false
+}
+
+repositories {
+}
+
+dependencies {
+}
+
+processResources {
+	// Re-run when the versions change so the substituted mcmod.info stays current.
+	inputs.property 'version', project.version
+	inputs.property 'mcversion', project.minecraft.version
+
+	// Substitute ${version}/${mcversion} into mcmod.info.
+	from(sourceSets.main.resources.srcDirs) {
+		include 'mcmod.info'
+		expand 'version': project.version, 'mcversion': project.minecraft.version
+	}
+	// Copy everything else verbatim.
+	from(sourceSets.main.resources.srcDirs) {
+		exclude 'mcmod.info'
+	}
+}
+
+// The cape render hook is an FML core plugin (coremod) — see com.vermeil.asm.
+// FMLCorePluginContainsFMLMod tells FML the same jar also holds the @Mod, so it
+// loads both. This manifest is what FML reads for the shipped jar.
+jar {
+	manifest {
+		attributes(
+			'FMLCorePlugin': 'com.vermeil.asm.VermeilLoadingPlugin',
+			'FMLCorePluginContainsFMLMod': 'true'
+		)
+	}
+}
+
+// In a dev run (runClient/runServer) FML doesn't read the jar manifest, so point
+// it at the core plugin explicitly. Harmless in production where the manifest is
+// authoritative.
+tasks.withType(JavaExec) {
+	systemProperty 'fml.coreMods.load', 'com.vermeil.asm.VermeilLoadingPlugin'
+}

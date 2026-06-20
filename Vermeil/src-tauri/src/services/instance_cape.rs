@@ -144,18 +144,12 @@ pub async fn get_ingame_cape() -> Option<IngameCapeSettings> {
 
 // ───────────────────────── Support gate + launch wiring ──────────────────
 
-/// Loaders the companion mod runs on. It's a Fabric mod; Quilt runs Fabric mods.
-fn loader_supported(loader: &LoaderType) -> bool {
-    matches!(loader, LoaderType::Fabric | LoaderType::Quilt)
-}
-
-/// Minecraft versions the companion mod currently targets — every version the
-/// published Fabric jars support. Each render-era jar covers a range:
+/// Minecraft versions the **Fabric/Quilt** companion jars target — every version
+/// the published Fabric jars support. Each render-era jar covers a range:
 /// `companion-mod/fabric/26.1-26.2` → 26.x; `companion-mod/fabric/1.21-1.21.1` → 1.21–1.21.1
 /// (feature-renderer). Keep this in lockstep with the jars CI publishes (the
-/// `mc_versions` lists in each project's `gradle.properties`). Add Forge to
-/// `loader_supported` when a Forge build exists.
-fn version_supported(version: &str) -> bool {
+/// `mc_versions` lists in each Fabric project's `gradle.properties`).
+fn fabric_version_supported(version: &str) -> bool {
     const SUPPORTED: &[&str] = &[
         // 26.x render-state era (companion-mod/fabric/26.1-26.2).
         "26.1", "26.1.1", "26.1.2", "26.2",
@@ -167,9 +161,25 @@ fn version_supported(version: &str) -> bool {
     SUPPORTED.contains(&version)
 }
 
-/// Whether the companion mod can render a cape on this instance.
+/// Minecraft versions the **Forge** companion jar targets. 1.8.9 only — the
+/// legacy PvP audience runs Forge there for the OptiFine/performance-mod
+/// ecosystem (companion-mod/forge/1.8.9). Keep in lockstep with that project's
+/// `mc_versions` in `gradle.properties`.
+fn forge_version_supported(version: &str) -> bool {
+    version == "1.8.9"
+}
+
+/// Whether the companion mod can render a cape on this instance. Support is
+/// loader-aware: the Fabric mod runs on Fabric (and Quilt, which runs Fabric
+/// mods) for the modern versions; the separate Forge build runs on 1.8.9.
 pub fn is_supported(instance: &Instance) -> bool {
-    loader_supported(&instance.loader.loader_type) && version_supported(&instance.game_version)
+    match instance.loader.loader_type {
+        LoaderType::Fabric | LoaderType::Quilt => {
+            fabric_version_supported(&instance.game_version)
+        }
+        LoaderType::Forge => forge_version_supported(&instance.game_version),
+        _ => false,
+    }
 }
 
 /// The `-Dvermeil.dataDir=…` JVM argument to inject at launch, or `None` when the

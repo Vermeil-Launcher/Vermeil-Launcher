@@ -1,16 +1,18 @@
 ---
 name: minecraft-mod
-description: Work on the Vermeil companion Minecraft mod (Java/Fabric/Mixin) under companion-mod/fabric/. Use when writing or changing mod code, adding a cape/render feature, hooking the game with a Mixin, resolving mappings, or building/running the mod with Gradle. Relevant terms include fabric, mixin, java, gradle, loom, cape, render, companion-mod, genSources, runClient.
+description: Work on the Vermeil companion Minecraft mod (Java/Fabric/Forge/Mixin) under companion-mod/. Use when writing or changing mod code, adding a cape/render feature, hooking the game with a Mixin or coremod, resolving mappings, or building/running the mod with Gradle. Relevant terms include fabric, forge, mixin, coremod, java, gradle, loom, forgegradle, cape, render, companion-mod, genSources, setupDecompWorkspace, runClient.
 ---
 
 # Working on the Vermeil Companion Mod
 
 The Vermeil companion mod is a set of **separate Gradle/Java projects** under
-`companion-mod/fabric/` (repo root) — one per render-era (see the table below).
-They are NOT part of the launcher's Tauri/SolidJS build and must stay out of the
-`pnpm` and `cargo` pipelines. It's the general-purpose Vermeil client mod — capes
-are its first feature, but it's named/structured so later features slot in
-without a rename. Mod id is `vermeil`, package root `com.vermeil`.
+`companion-mod/` (repo root) — one per render-era/loader (see the table below).
+Most are Fabric (`companion-mod/fabric/`); the legacy 1.8.9 PvP era is Forge
+(`companion-mod/forge/`). They are NOT part of the launcher's Tauri/SolidJS build
+and must stay out of the `pnpm` and `cargo` pipelines. It's the general-purpose
+Vermeil client mod — capes are its first feature, but it's named/structured so
+later features slot in without a rename. Mod id is `vermeil`, package root
+`com.vermeil`.
 
 ## Toolchain (exact, pinned)
 
@@ -68,6 +70,11 @@ Built projects:
 | `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
 | `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source: `Identifier` + sampler) |
+| `companion-mod/forge/1.8.9/` | 1.8.9 | Forge | 8 | coremod ASM redirect of `AbstractClientPlayer.getLocationCape` |
+
+The Forge 1.8.9 project is the legacy-PvP variant (that audience runs Forge for
+the OptiFine/performance-mod ecosystem). Its toolchain and hook mechanism differ
+from the Fabric projects — see **Forge 1.8.9 (legacy toolchain)** below.
 
 Three intermediate 1.21.x render-state eras — **1.21.2–1.21.4**, **1.21.5–1.21.8**,
 **1.21.9–1.21.10** — are built and compile-verified but **archived** under
@@ -108,8 +115,50 @@ Each `gradle.properties` carries:
 **Confirm a range is really one jar by compiling against both endpoints** (low and
 high) — if both build, the targeted members exist across the span. If an endpoint
 fails, the era isn't uniform and must be split into a new project. The launcher's
-`instance_cape::version_supported` allow-list must stay in lockstep with the union
-of every project's `mc_versions`.
+`instance_cape` support gate (`fabric_version_supported` / `forge_version_supported`,
+selected per loader in `is_supported`) must stay in lockstep with the union of
+every project's `mc_versions`.
+
+## Forge 1.8.9 (legacy toolchain)
+
+`companion-mod/forge/1.8.9/` is the odd one out — everything below about Loom,
+JDK 25/21, Mojang mappings, and Mixins is **Fabric-only**. Forge 1.8.9 uses:
+
+- **Classic ForgeGradle 2** (`net.minecraftforge.gradle:ForgeGradle:2.1-SNAPSHOT`
+  from `https://maven.minecraftforge.net`) on **Gradle 3.1** (pinned in the
+  wrapper), running on **JDK 8**. Newer Gradle/JDK can't run this toolchain.
+- **MCP mappings** (`mappings = stable_22`), not Mojang official. `gradlew
+  setupDecompWorkspace` (not `genSources`) generates the MCP-mapped sources; the
+  CSV/SRG maps live under `~/.gradle/caches/minecraft/de/oceanlabs/mcp/`.
+- **A coremod, not a Mixin.** 1.8.9 predates the Mixin toolchain. The cape hook is
+  an FML core plugin (`com.vermeil.asm.VermeilLoadingPlugin`) registering an
+  `IClassTransformer` (`VermeilCapeTransformer`) that injects a redirect at the
+  head of `AbstractClientPlayer.getLocationCape()` — when the local player has an
+  active custom cape, it returns our `vermeil:cape` location so vanilla
+  `LayerCape` draws our texture; otherwise vanilla logic runs unchanged. The jar
+  manifest carries `FMLCorePlugin` + `FMLCorePluginContainsFMLMod`.
+- **Dev-vs-prod method names.** The transformer runs after FML's deobf remapper
+  (`SortingIndex(1001)`), so it targets the MCP name in dev (`getLocationCape`)
+  and the SRG name in production (`func_110303_q`), chosen via the
+  `fml.deobfuscatedEnvironment` blackboard flag. Class/field *class* names
+  (`net.minecraft.*`) are stable across both. ASM frames: read `EXPAND_FRAMES`,
+  write `COMPUTE_MAXS`, and supply the one branch-target frame by hand (don't
+  recompute the whole class — it forces classloading mid-transform).
+
+Build/run with JDK 8 (the launcher JVM that boots Gradle 3.1 must be Java 8, so
+set `JAVA_HOME`, not just `org.gradle.java.home`), and `--no-daemon`:
+
+```powershell
+$env:JAVA_HOME = "<path-to-jdk8>"
+$p = "companion-mod\forge\1.8.9"
+.\$p\gradlew.bat -p $p setupDecompWorkspace --no-daemon   # one-time bootstrap + MCP sources
+.\$p\gradlew.bat -p $p build --no-daemon                  # -> build/libs/vermeil-<modVer>+1.8.9.jar
+.\$p\gradlew.bat -p $p runClient --no-daemon              # dev client (coremod loaded via fml.coreMods.load)
+```
+
+The decompile step (`:decompileMc`) is memory-hungry — `gradle.properties` sets
+`-Xmx3G` (it OOMs at 1G). CI strips the `org.gradle.java.home` pin and supplies
+JDK 8 via `JAVA_HOME_8_X64` (see `.github/workflows/mod-release.yml`).
 
 ## Research before hooking: verify mappings, never guess
 

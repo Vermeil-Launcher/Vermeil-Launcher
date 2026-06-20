@@ -5,7 +5,7 @@
 ## Prerequisites
 
 The lists below are for building the **launcher**. The companion mod
-(under `companion-mod/fabric/`) needs one extra tool — see [Companion mod](#companion-mod-all-platforms).
+(under `companion-mod/`) needs extra JDKs — see [Companion mod](#companion-mod-all-platforms).
 
 ### Windows
 
@@ -32,12 +32,16 @@ Then install Node 24 and pnpm via [fnm](https://github.com/Schniz/fnm) or [nvm](
 
 ### Companion mod (all platforms)
 
-Only needed if you build the mod under `companion-mod/fabric/`:
+Only needed if you build the mod under `companion-mod/`:
 
 - **JDK 25** — [Temurin/Adoptium](https://adoptium.net/) 25, for the 26.x
   project. The latest Minecraft (26.x) requires Java 25. Confirm with `java -version`.
 - **JDK 21** — [Temurin/Adoptium](https://adoptium.net/) 21, for the 1.21.x
   projects (their era's Loom/Gradle doesn't run on 25).
+- **JDK 8** — [Temurin/Adoptium](https://adoptium.net/) 8, for the Forge 1.8.9
+  project. Classic ForgeGradle 2 and its Gradle 3.1 only run on Java 8. A portable
+  (non-system) JDK 8 is fine — pin it via `org.gradle.java.home` in that project's
+  `gradle.properties`.
 
 No separate Gradle install is required — each project ships a Gradle wrapper
 (`gradlew` / `gradlew.bat`). See [Companion Mod](#companion-mod) below
@@ -87,18 +91,21 @@ Outputs:
 
 ## Companion Mod
 
-The repo includes the **Vermeil companion Minecraft mod** under `companion-mod/fabric/` — a
-set of separate Java/Fabric Gradle projects (the general Vermeil client mod; in-game
-custom capes are its first feature). They are **not** part of the launcher's
-Tauri/SolidJS build and are excluded from the `pnpm` and `cargo` pipelines; they are
-built and distributed (download-on-demand) on their own.
+The repo includes the **Vermeil companion Minecraft mod** under `companion-mod/` — a
+set of separate Java Gradle projects (the general Vermeil client mod; in-game
+custom capes are its first feature). Most target Fabric (`companion-mod/fabric/`);
+the legacy 1.8.9 PvP era targets Forge (`companion-mod/forge/`). They are **not**
+part of the launcher's Tauri/SolidJS build and are excluded from the `pnpm` and
+`cargo` pipelines; they are built and distributed (download-on-demand) on their own.
 
 ### Prerequisites
 
-- **JDK 25** (26.x project) and **JDK 21** (1.21.x projects) — see
-  [Companion mod](#companion-mod-all-platforms) under Prerequisites.
+- **JDK 25** (26.x project), **JDK 21** (1.21.x projects), and **JDK 8** (Forge
+  1.8.9 project) — see [Companion mod](#companion-mod-all-platforms) under
+  Prerequisites.
 - No system Gradle needed — each project ships a Gradle **wrapper**
-  (`gradlew` / `gradlew.bat`). Fabric Loom drives the Gradle/Loom versions.
+  (`gradlew` / `gradlew.bat`). Fabric Loom (Fabric projects) or ForgeGradle
+  (Forge project) drives the Gradle version.
 
 ### Multi-version (separate projects per era/loader)
 
@@ -113,6 +120,7 @@ single-source preprocessor tree:
 | `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`Avatar*`) |
 | `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source) |
+| `companion-mod/forge/1.8.9/` | 1.8.9 | Forge | 8 | coremod redirect (`getLocationCape`) |
 
 The intermediate 1.21.x render-state eras (1.21.2–1.21.4, 1.21.5–1.21.8,
 1.21.9–1.21.10) are built and compile-verified but **archived** under
@@ -122,10 +130,13 @@ maintenance surface small. See that folder's README to restore one.
 Each project ships **one jar covering a range** of Minecraft versions (a Fabric
 jar is intermediary-remapped, so it runs on every version where its Mixin targets
 are unchanged); the folder is named for the full version range it supports (the
-jar filename uses only the lowest version). Both use **official Mojang mappings**
-and have **no Fabric API dependency** (loader + Mixins only). Minecraft / loader /
-Java pins, plus the `mc_range` (version span) and `mc_versions` (exact supported
-list) live in each project's `gradle.properties`.
+jar filename uses only the lowest version). The Fabric projects use **official
+Mojang mappings** with **no Fabric API dependency** (loader + Mixins only). The
+Forge 1.8.9 project uses classic **ForgeGradle 2** (Gradle 3.1, MCP mappings) and
+hooks the cape via an FML **coremod** bytecode transformer rather than a Mixin —
+1.8.9 predates the Mixin toolchain used elsewhere. Minecraft / loader / Java pins,
+plus the `mc_range` (version span) and `mc_versions` (exact supported list) live
+in each project's `gradle.properties`.
 
 ### Building & running the mod
 
@@ -147,6 +158,13 @@ p=companion-mod/fabric/26.1-26.2
 ./$p/gradlew -p $p build
 ./$p/gradlew -p $p runClient
 ```
+
+The **Forge 1.8.9** project (`companion-mod/forge/1.8.9`) builds the same way but
+needs Java 8: pin it via `org.gradle.java.home` in its `gradle.properties` and run
+the wrapper with `JAVA_HOME` set to that JDK 8 (the launcher JVM that boots the old
+Gradle must be Java 8 too). Use `--no-daemon`, and `setupDecompWorkspace` instead of
+`genSources` to generate the MCP-mapped sources for research. `build` pulls the
+decomp workspace in automatically.
 
 ### Publishing the mod jars (download-on-demand)
 
@@ -191,7 +209,8 @@ Vermeil-Launcher/             # repo root
 │   │   └── tauri.conf.json   # Tauri config (version, window, plugins)
 │   ├── package.json
 │   └── vite.config.ts
-├── companion-mod/            # companion Minecraft mod (Java/Fabric, separate builds)
-│   └── fabric/               #   per-render-era projects: 26.1-26.2/, 1.21-1.21.1/, …
+├── companion-mod/            # companion Minecraft mod (Java, separate builds)
+│   ├── fabric/               #   per-render-era Fabric projects: 26.1-26.2/, 1.21-1.21.1/, 1.21.11/
+│   └── forge/                #   legacy Forge project: 1.8.9/
 └── docs/                     # project docs + docs/research/ notes
 ```

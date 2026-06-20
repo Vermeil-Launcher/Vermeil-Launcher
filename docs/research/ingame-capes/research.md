@@ -18,13 +18,14 @@ Goal: render a user's local custom cape **in-game**, not just in the launcher's 
 
 ## Build structure
 - **One standalone Gradle project per (era, loader)** — eras can't share a toolchain (Java 25 Fabric vs Java 8 Forge can't even share a Gradle). Stonecutter (single-source multi-version) was tried and dropped.
-- Built & active (folder = full MC range it covers): `companion-mod/fabric/26.1-26.2/`, `1.21-1.21.1/` (feature-renderer), `1.21.11/` (render-state, = 26.x source). The intermediate 1.21.x render-state eras (`1.21.2-1.21.4`, `1.21.5-1.21.8`, `1.21.9-1.21.10`) are compile-verified but **archived** under `companion-mod/archive/fabric/` to keep the maintenance surface small. Each: official Mojang mappings, no Fabric API (loader + Mixins only). One jar per project covering its version range.
-- Fabric covers Quilt for free. No classic Forge exists for 26.x → Fabric-only there.
+- Built & active (folder = full MC range it covers): `companion-mod/fabric/26.1-26.2/`, `1.21-1.21.1/` (feature-renderer), `1.21.11/` (render-state, = 26.x source), and `companion-mod/forge/1.8.9/` (Forge, legacy PvP). The intermediate 1.21.x render-state eras (`1.21.2-1.21.4`, `1.21.5-1.21.8`, `1.21.9-1.21.10`) are compile-verified but **archived** under `companion-mod/archive/fabric/` to keep the maintenance surface small. Fabric projects: official Mojang mappings, no Fabric API (loader + Mixins only). One jar per project covering its version range.
+- Fabric covers Quilt for free. No classic Forge exists for 26.x → Fabric-only there. 1.8.9 is Forge-only (Legacy Fabric lacks the Sodium/performance-mod ecosystem that PvP audience uses).
 
 ## Per-era cape hook (verified from each version's genSources)
 - **26.x — render-state:** tail of `AvatarRenderer.extractRenderState`; swap `AvatarRenderState.skin` for one whose `cape()` = `vermeil:cape` and force `showCape`. `CapeLayer.submit` renders it.
 - **1.21.1 — feature-renderer:** `@Redirect` the `getSkin()` call in `CapeLayer.render` to return a `PlayerSkin` with `capeTexture()` = `vermeil:cape`. Local capeless player only; no `isCapeLoaded()` guard in 1.21.1.
-- Both: never override an account's real cape; local player only.
+- **1.8.9 — coremod, not Mixin:** FML core plugin + `IClassTransformer` injects a redirect at the head of `AbstractClientPlayer.getLocationCape()` (SRG `func_110303_q`, verified from MCP `stable_22` genSources) → returns `vermeil:cape` for the local player; vanilla `LayerCape` (gates on `getLocationCape() != null` + `isWearing(CAPE)`) then draws our texture with its own geometry. Texture is a `DynamicTexture` (int[] ARGB via `getTextureData()`/`updateDynamicTexture()`), animation re-uploads frames on client tick. No NativeImage/sampler API on 1.8.9; mipmap/filter questions don't apply (cape art is bound 64-wide).
+- All: never override an account's real cape; local player only.
 
 ## Texture filtering / HD aliasing
 - Cape texture filter must match skinview3d: editor uses `magFilter = minFilter = NEAREST` (Three.js source). The mod sets the same: 26.x reassigns `AbstractTexture.sampler` to `(NEAREST, NEAREST)` via the new `GpuSampler` cache; 1.21.1 calls `AbstractTexture.setFilter(false, false)` (the default mag is `GL_LINEAR` — blurry — because `TextureUtil.prepareImage` doesn't set it).

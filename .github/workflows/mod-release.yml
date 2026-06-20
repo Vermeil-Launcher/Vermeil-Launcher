@@ -31,28 +31,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # The companion mod targets the latest Minecraft, which needs JDK 25.
-      - name: Setup JDK 25
+      # The companion mod spans toolchains: the modern Fabric eras need JDK 21/25,
+      # the legacy Forge 1.8.9 build needs JDK 8.
+      - name: Setup JDKs
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: |
+            8
             21
             25
 
       - name: Build the mods
         run: |
           set -euo pipefail
-          chmod +x companion-mod/fabric/26.1-26.2/gradlew companion-mod/fabric/1.21-1.21.1/gradlew companion-mod/fabric/1.21.11/gradlew
+          chmod +x companion-mod/fabric/26.1-26.2/gradlew companion-mod/fabric/1.21-1.21.1/gradlew companion-mod/fabric/1.21.11/gradlew companion-mod/forge/1.8.9/gradlew
           # Each era runs its Gradle daemon on a different JDK: 26.x on 25
-          # (Gradle 9.x), the 1.21.x projects on 21.
+          # (Gradle 9.x), the 1.21.x projects on 21, Forge 1.8.9 on 8 (Gradle 3.1).
           (cd companion-mod/fabric/26.1-26.2 && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew build --console=plain)
-          # The 1.21.x gradle.properties pin a local Windows JDK path for dev
-          # convenience; CI supplies its own JDK 21, so drop that line first.
+          # The dev gradle.properties pin a local Windows JDK path for convenience;
+          # CI supplies its own JDK, so drop that line before building.
           sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21-1.21.1/gradle.properties
           (cd companion-mod/fabric/1.21-1.21.1 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
           sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.11/gradle.properties
           (cd companion-mod/fabric/1.21.11 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          # Forge 1.8.9: classic ForgeGradle 2 on Gradle 3.1 + JDK 8. --no-daemon
+          # because the old Gradle shouldn't linger; build pulls in the decomp
+          # workspace automatically (3G heap is set in its gradle.properties).
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/forge/1.8.9/gradle.properties
+          (cd companion-mod/forge/1.8.9 && JAVA_HOME="$JAVA_HOME_8_X64" ./gradlew build --console=plain --no-daemon)
 
       - name: Stage jars and build manifest
         id: stage
@@ -69,12 +76,20 @@ jobs:
           mkdir -p dist
           entries='[]'
           shopt -s nullglob
-          # One jar per render-era project. Each declares the Minecraft versions
-          # it supports (mc_versions) and the range label baked into its jar name
-          # (mc_range); the manifest lists every supported version pointing at the
-          # one jar, so the launcher matches an instance's exact version to it.
-          for proj in companion-mod/fabric/*/; do
+          # One jar per render-era project, across both loader families. Each
+          # declares the Minecraft versions it supports (mc_versions) and the
+          # range label baked into its jar name (mc_range); the manifest lists
+          # every supported version pointing at the one jar, so the launcher
+          # matches an instance's exact version + loader to it.
+          for proj in companion-mod/fabric/*/ companion-mod/forge/*/; do
             proj=${proj%/}
+            # Loaders this jar serves, by source family. The Fabric jar also runs
+            # on Quilt (Quilt loads Fabric mods); the Forge jar is Forge-only.
+            case "$proj" in
+              companion-mod/fabric/*) loaders='["fabric","quilt"]' ;;
+              companion-mod/forge/*)  loaders='["forge"]' ;;
+              *) echo "Unknown loader family for $proj" >&2; exit 1 ;;
+            esac
             range=$(prop "$proj" mc_range)
             [ -z "$range" ] && range=$(prop "$proj" minecraft_version)
             versions=$(prop "$proj" mc_versions)
@@ -93,8 +108,8 @@ jobs:
             url="https://github.com/${REPO}/releases/download/${TAG}/${file}"
             vjson=$(echo "$versions" | jq -R 'split(",")')
             entries=$(echo "$entries" | jq \
-              --argjson mcs "$vjson" --arg file "$file" --arg url "$url" --arg sha1 "$sha1" --argjson size "$size" \
-              '. + [{minecraftVersions:$mcs, loaders:["fabric","quilt"], file:$file, url:$url, sha1:$sha1, size:$size}]')
+              --argjson mcs "$vjson" --argjson loaders "$loaders" --arg file "$file" --arg url "$url" --arg sha1 "$sha1" --argjson size "$size" \
+              '. + [{minecraftVersions:$mcs, loaders:$loaders, file:$file, url:$url, sha1:$sha1, size:$size}]')
           done
 
           if [ "$entries" = "[]" ]; then

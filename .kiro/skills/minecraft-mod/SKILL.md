@@ -1,20 +1,21 @@
 ---
 name: minecraft-mod
-description: Work on the Vermeil companion Minecraft mod (Java/Fabric/Mixin) in vermeil-fabric-26/. Use when writing or changing mod code, adding a cape/render feature, hooking the game with a Mixin, resolving mappings, or building/running the mod with Gradle. Relevant terms include fabric, mixin, java, gradle, loom, cape, render, vermeil-fabric-26, genSources, runClient.
+description: Work on the Vermeil companion Minecraft mod (Java/Fabric/Mixin) under companion-mod/fabric/. Use when writing or changing mod code, adding a cape/render feature, hooking the game with a Mixin, resolving mappings, or building/running the mod with Gradle. Relevant terms include fabric, mixin, java, gradle, loom, cape, render, companion-mod, genSources, runClient.
 ---
 
 # Working on the Vermeil Companion Mod
 
-The Vermeil companion mod is a **separate Gradle/Java project** at `vermeil-fabric-26/`
-(repo root). It is NOT part of the launcher's Tauri/SolidJS build and must stay
-out of the `pnpm` and `cargo` pipelines. It's the general-purpose Vermeil client
-mod — capes are its first feature, but it's named/structured so later features
-slot in without a rename. Mod id is `vermeil`, package root `com.vermeil`.
+The Vermeil companion mod is a set of **separate Gradle/Java projects** under
+`companion-mod/fabric/` (repo root) — one per render-era (see the table below).
+They are NOT part of the launcher's Tauri/SolidJS build and must stay out of the
+`pnpm` and `cargo` pipelines. It's the general-purpose Vermeil client mod — capes
+are its first feature, but it's named/structured so later features slot in
+without a rename. Mod id is `vermeil`, package root `com.vermeil`.
 
 ## Toolchain (exact, pinned)
 
-These are the real versions this project builds with. Don't substitute from
-memory — check `vermeil-fabric-26/gradle.properties` and `build.gradle` for the
+These are the real versions each project builds with. Don't substitute from
+memory — check that project's `gradle.properties` and `build.gradle` for the
 current pins.
 
 - **JDK 25** (Temurin/Adoptium). The latest Minecraft (26.1.x) requires Java 25.
@@ -38,11 +39,12 @@ JDK 25 is on PATH in the dev shell, so the mod CAN be built and smoke-tested her
 (unlike the launcher's runtime, which needs a real install). Use it — treat mod
 code as **unverified until built and run in-game**.
 
-- Build: `vermeil-fabric-26\gradlew.bat build` → builds the mod jar at
-  `vermeil-fabric-26/build/libs/vermeil-<modVersion>+<mc>.jar`. Expect `BUILD SUCCESSFUL`.
-- Run in-game: `vermeil-fabric-26\gradlew.bat runClient` → launches a dev client;
+- Build: `companion-mod\fabric\26.1\gradlew.bat build` → builds the mod jar at
+  `companion-mod/fabric/26.1/build/libs/vermeil-<modVersion>+<mc_range>.jar`. Expect `BUILD SUCCESSFUL`.
+- Run in-game: `companion-mod\fabric\26.1\gradlew.bat runClient` → launches a dev client;
   confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
   client initialized.`) and the feature renders, then exit cleanly with no crash.
+  (Swap `26.1` for `1.21` to work on the feature-renderer project, etc.)
 - Use `git -C` for git; run `gradlew` directly. PowerShell shell — chain with
   `;`, never `&&`.
 
@@ -58,8 +60,8 @@ Built projects:
 
 | Project | Minecraft range | Loader | Java | Cape hook |
 |---------|-----------------|--------|------|-----------|
-| `vermeil-fabric-26/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
-| `vermeil-fabric-1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
+| `companion-mod/fabric/26.1/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
+| `companion-mod/fabric/1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 
 Each is plain Fabric, MC/loader/Java pins in `gradle.properties`, official Mojang
 mappings, **no Fabric API** (loader + Mixins only) — no preprocessor comments, no
@@ -149,14 +151,15 @@ platforms; verify that part per the launcher's Cross-Platform Parity rule.
 
 The jar does NOT ship inside the launcher exe or get committed to the repo. Model
 is **download-on-demand**: `.github/workflows/mod-release.yml` (triggered by a
-`mod-v*` tag or manual dispatch) builds every node and uploads each
-`vermeil-<modVersion>+<mcVersion>.jar` plus a generated `companion-manifest.json`
+`mod-v*` tag or manual dispatch) builds every project and uploads each
+`vermeil-<modVersion>+<mc_range>.jar` plus a generated `companion-manifest.json`
 to a GitHub release. The mod is versioned independently of the launcher
-(`mod_version` in `vermeil-fabric-26/gradle.properties`). The launcher reads the
+(`mod_version` in each project's `gradle.properties`; kept in sync across them).
 manifest and fetches the matching jar (SHA-1-verified) into the instance's
 `mods/`, like it does for loaders/Java/mods — see `services/companion_mod.rs`.
 The jar filename is set by `base.archivesName = 'vermeil'` + `version =
-"<modVersion>+<minecraft_version>"` in `build.gradle`.
+"<modVersion>+<mc_range>"` in `build.gradle` (where `mc_range` is the project's
+`gradle.properties` range label, e.g. `26.1-26.2`).
 
 ## Keep the research docs current
 

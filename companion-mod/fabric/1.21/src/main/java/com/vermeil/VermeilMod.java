@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This is the Minecraft 1.21.x (Fabric) build. It renders the cape through
  * the feature-renderer pipeline ({@code CapeLayer}); the modern 26.x build uses
- * the render-state pipeline instead. See {@code vermeil-fabric-26} and
+ * the render-state pipeline instead. See {@code companion-mod/fabric/26.1} and
  * {@code docs/research/ingame-capes/research.md}.
  */
 public class VermeilMod implements ModInitializer {

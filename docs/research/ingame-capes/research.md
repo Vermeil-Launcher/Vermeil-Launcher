@@ -18,7 +18,7 @@ Goal: render a user's local custom cape **in-game**, not just in the launcher's 
 
 ## Build structure
 - **One standalone Gradle project per (era, loader)** — eras can't share a toolchain (Java 25 Fabric vs Java 8 Forge can't even share a Gradle). Stonecutter (single-source multi-version) was tried and dropped.
-- Built: `vermeil-fabric-26/` (26.x), `vermeil-fabric-1.21/` (1.21.1). Each: official Mojang mappings, no Fabric API (loader + Mixins only).
+- Built: `companion-mod/fabric/26.1/` (26.1–26.2), `companion-mod/fabric/1.21/` (1.21–1.21.1). Each: official Mojang mappings, no Fabric API (loader + Mixins only). One jar per project covering its version range.
 - Fabric covers Quilt for free. No classic Forge exists for 26.x → Fabric-only there.
 
 ## Per-era cape hook (verified from each version's genSources)

@@ -75,6 +75,12 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 ## Multi-version: one jar per render-era, range in the name
 - A project now ships **one jar covering a range** of MC versions (Fabric jar is intermediary-remapped → runs anywhere its Mixin targets are unchanged). Era boundary = render-pipeline change, not version number.
 - `gradle.properties` per project gains `mc_range` (jar-name label) + `mc_versions` (exact supported list). `build.gradle` derives `fabric.mod.json` `depends.minecraft` from `mc_range` (`26.1-26.2` → `>=26.1 <=26.2`). Jar: `vermeil-<modVer>+<mc_range>.jar`.
-- Widened coverage: `vermeil-fabric-26` → 26.1, 26.1.1, 26.1.2, 26.2; `vermeil-fabric-1.21` → 1.21, 1.21.1. Verified each era is one jar by compiling both endpoints (26.1+26.2; 1.21+1.21.1 all `BUILD SUCCESSFUL`).
+- Widened coverage: `companion-mod/fabric/26.1` → 26.1, 26.1.1, 26.1.2, 26.2; `companion-mod/fabric/1.21` → 1.21, 1.21.1. Verified each era is one jar by compiling both endpoints (26.1+26.2; 1.21+1.21.1 all `BUILD SUCCESSFUL`).
 - Manifest entry schema: `minecraftVersion: String` → `minecraftVersions: [String]`; CI reads each project's `mc_versions`. Launcher `companion_mod` matches membership; `instance_cape::version_supported` is now an explicit allow-list kept in lockstep. Offline-grace check is "any managed jar present" (range names have no version suffix).
 - Forge stays single `1.8.9` (no multi-version) — PvP target, per decision.
+
+
+## Mod projects reorganized under companion-mod/fabric/
+- Repo root was cluttered with `vermeil-fabric-26/` + `vermeil-fabric-1.21/`. Moved both under `companion-mod/fabric/`, leaf named by the **lowest MC version** it supports: `companion-mod/fabric/26.1/` (26.1–26.2), `companion-mod/fabric/1.21/` (1.21–1.21.1). Future: `companion-mod/forge/1.8.9/`.
+- Range + render-era detail stays in each `gradle.properties` (`mc_range`, `mc_versions`); folder name never churns when a range extends.
+- Updated all references: `mod-release.yml` (build paths + `companion-mod/fabric/*/` glob), `minecraft-mod`/`dependencies` skills, `coding-standards`, `DEVELOPMENT.md`, research docs, launcher comments.

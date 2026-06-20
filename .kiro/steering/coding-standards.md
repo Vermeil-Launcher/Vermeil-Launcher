@@ -29,14 +29,15 @@ Vermeil/
 │       └── main.rs               # Entry point
 ```
 
-## Companion Mod (`vermeil-fabric-26/`)
+## Companion Mod (`companion-mod/fabric/`)
 
-The repo also contains the **Vermeil companion Minecraft mod** at `vermeil-fabric-26/`
-(repo root) — a separate Java/Fabric Gradle project, the general-purpose Vermeil
-client mod (capes first). It is **not** part of the launcher's Tauri/SolidJS
-build and must stay out of the `pnpm` and `cargo` pipelines. For its toolchain
-(JDK 25, Gradle wrapper, Loom, official Mojang mappings), build/`runClient`
-verify loop, Mixin and mappings-research discipline, and Java naming conventions,
+The repo also contains the **Vermeil companion Minecraft mod** under
+`companion-mod/fabric/` (repo root) — separate Java/Fabric Gradle projects (one per
+render-era), the general-purpose Vermeil client mod (capes first). They are **not**
+part of the launcher's Tauri/SolidJS build and must stay out of the `pnpm` and
+`cargo` pipelines. For the toolchain (JDK 25 / JDK 21, Gradle wrapper, Loom,
+official Mojang mappings), the per-era project layout, build/`runClient` verify
+loop, Mixin and mappings-research discipline, and Java naming conventions,
 **see the `minecraft-mod` skill** — these rules don't repeat it here.
 
 ## Rust Backend Rules

@@ -5,7 +5,7 @@
 ## Prerequisites
 
 The lists below are for building the **launcher**. The companion mod
-(`vermeil-fabric-26/`) needs one extra tool — see [Companion mod](#companion-mod-all-platforms).
+(under `companion-mod/fabric/`) needs one extra tool — see [Companion mod](#companion-mod-all-platforms).
 
 ### Windows
 
@@ -32,13 +32,15 @@ Then install Node 24 and pnpm via [fnm](https://github.com/Schniz/fnm) or [nvm](
 
 ### Companion mod (all platforms)
 
-Only needed if you build the mod in `vermeil-fabric-26/`:
+Only needed if you build the mod under `companion-mod/fabric/`:
 
-- **JDK 25** — [Temurin/Adoptium](https://adoptium.net/) 25. The latest
-  Minecraft (26.1.x) requires Java 25. Confirm with `java -version`.
+- **JDK 25** — [Temurin/Adoptium](https://adoptium.net/) 25, for the 26.x
+  project. The latest Minecraft (26.x) requires Java 25. Confirm with `java -version`.
+- **JDK 21** — [Temurin/Adoptium](https://adoptium.net/) 21, for the 1.21.x
+  projects (their era's Loom/Gradle doesn't run on 25).
 
-No separate Gradle install is required — the mod ships a Gradle wrapper
-(`gradlew` / `gradlew.bat`). See [Companion Mod](#companion-mod-vermeil-fabric-26) below
+No separate Gradle install is required — each project ships a Gradle wrapper
+(`gradlew` / `gradlew.bat`). See [Companion Mod](#companion-mod) below
 for build commands.
 
 ## Running in Development
@@ -83,18 +85,19 @@ Outputs:
 | `cargo check` | `Vermeil/src-tauri/` | Type-check Rust backend |
 | `cargo build --release` | `Vermeil/src-tauri/` | Build Rust backend only |
 
-## Companion Mod (`vermeil-fabric-26/`)
+## Companion Mod
 
-The repo includes the **Vermeil companion Minecraft mod** at `vermeil-fabric-26/` — a
-separate Java/Fabric Gradle project (the general Vermeil client mod; in-game
-custom capes are its first feature). It is **not** part of the launcher's
-Tauri/SolidJS build and is excluded from the `pnpm` and `cargo` pipelines; it is
-built and distributed (download-on-demand) on its own.
+The repo includes the **Vermeil companion Minecraft mod** under `companion-mod/fabric/` — a
+set of separate Java/Fabric Gradle projects (the general Vermeil client mod; in-game
+custom capes are its first feature). They are **not** part of the launcher's
+Tauri/SolidJS build and are excluded from the `pnpm` and `cargo` pipelines; they are
+built and distributed (download-on-demand) on their own.
 
 ### Prerequisites
 
-- **JDK 25** — see [Companion mod](#companion-mod-all-platforms) under Prerequisites.
-- No system Gradle needed — the project ships a Gradle **wrapper**
+- **JDK 25** (26.x project) and **JDK 21** (1.21.x projects) — see
+  [Companion mod](#companion-mod-all-platforms) under Prerequisites.
+- No system Gradle needed — each project ships a Gradle **wrapper**
   (`gradlew` / `gradlew.bat`). Fabric Loom drives the Gradle/Loom versions.
 
 ### Multi-version (separate projects per era/loader)
@@ -105,31 +108,32 @@ to share a toolchain. So each `(era, loader)` is built as its **own standalone
 Gradle project** with its own wrapper and pinned toolchain, rather than a
 single-source preprocessor tree:
 
-| Project | Minecraft | Loader | Java | Cape hook era |
-|---------|-----------|--------|------|---------------|
-| `vermeil-fabric-26/` (built) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
-| `vermeil-fabric-1.21/` (built) | 1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
+| Project | Minecraft range | Loader | Java | Cape hook era |
+|---------|-----------------|--------|------|---------------|
+| `companion-mod/fabric/26.1/` | 26.1–26.2 | Fabric | 25 | render-state (`Avatar*`) |
+| `companion-mod/fabric/1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
 
-The two built projects are the **Fabric 26.x** (`vermeil-fabric-26/`) and **Fabric
-1.21.1** (`vermeil-fabric-1.21/`) mods. Both use **official Mojang mappings** and
-have **no Fabric API dependency** (loader + Mixins only). Each is a standalone
-Gradle project with its own wrapper and pinned toolchain; Minecraft / loader / Java
-pins live in each project's `gradle.properties`.
+Each project ships **one jar covering a range** of Minecraft versions (a Fabric
+jar is intermediary-remapped, so it runs on every version where its Mixin targets
+are unchanged); the folder is named for the lowest version it supports. Both use
+**official Mojang mappings** and have **no Fabric API dependency** (loader + Mixins
+only). Minecraft / loader / Java pins, plus the `mc_range` (jar-name label) and
+`mc_versions` (exact supported list) live in each project's `gradle.properties`.
 
 ### Building & running the mod
 
 ```powershell
 # from repo root, on Windows. Each project builds the same way under its own
-# directory; substitute vermeil-fabric-1.21 for the 1.21.1 build.
-vermeil-fabric-26\gradlew.bat build           # build the mod jar -> build/libs/vermeil-<modVersion>+<mc>.jar
-vermeil-fabric-26\gradlew.bat runClient       # launch a dev client
-vermeil-fabric-26\gradlew.bat genSources      # decompiled Mojang-mapped sources (research)
+# directory; substitute 1.21 (or another project) for the 26.1 build.
+companion-mod\fabric\26.1\gradlew.bat build      # build the mod jar -> build/libs/vermeil-<modVersion>+<mc_range>.jar
+companion-mod\fabric\26.1\gradlew.bat runClient  # launch a dev client
+companion-mod\fabric\26.1\gradlew.bat genSources # decompiled Mojang-mapped sources (research)
 ```
 
 ```bash
 # on Linux
-./vermeil-fabric-26/gradlew build
-./vermeil-fabric-26/gradlew runClient
+./companion-mod/fabric/26.1/gradlew build
+./companion-mod/fabric/26.1/gradlew runClient
 ```
 
 ### Publishing the mod jars (download-on-demand)
@@ -140,12 +144,12 @@ launcher. Publishing is automated by `.github/workflows/mod-release.yml`:
 
 - Trigger it by pushing a `mod-v*` tag (e.g. `mod-v0.1.0`), or run it manually
   via the Actions tab with a tag input.
-- It builds the mod (`gradlew build`), then uploads each
-  `vermeil-<modVersion>+<mcVersion>.jar` plus a generated `companion-manifest.json`
-  (lists each jar's Minecraft version, loaders, URL, SHA-1, and size) to a release
-  on that tag. As the per-era/loader projects land, each is built and staged here.
-- The mod is versioned independently of the launcher via `mod_version` in
-  `vermeil-fabric-26/gradle.properties`.
+- It builds each project (`gradlew build`), then uploads each
+  `vermeil-<modVersion>+<mc_range>.jar` plus a generated `companion-manifest.json`
+  (lists each jar's supported Minecraft versions, loaders, URL, SHA-1, and size) to
+  a release on that tag.
+- The mod is versioned independently of the launcher via `mod_version` in each
+  project's `gradle.properties` (kept in sync across them).
 
 The launcher reads the manifest, picks the jar matching an instance's Minecraft
 version + loader, downloads and SHA-1-verifies it into the instance's `mods/`
@@ -175,6 +179,7 @@ Vermeil-Launcher/             # repo root
 │   │   └── tauri.conf.json   # Tauri config (version, window, plugins)
 │   ├── package.json
 │   └── vite.config.ts
-├── vermeil-fabric-26/              # companion Minecraft mod (Java/Fabric, separate build)
+├── companion-mod/            # companion Minecraft mod (Java/Fabric, separate builds)
+│   └── fabric/               #   per-render-era projects: 26.1/, 1.21/
 └── docs/                     # project docs + docs/research/ notes
 ```

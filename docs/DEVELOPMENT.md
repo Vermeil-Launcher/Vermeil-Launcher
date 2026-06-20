@@ -110,11 +110,11 @@ single-source preprocessor tree:
 
 | Project | Minecraft range | Loader | Java | Cape hook era |
 |---------|-----------------|--------|------|---------------|
-| `companion-mod/fabric/26.1/` | 26.1–26.2 | Fabric | 25 | render-state (`Avatar*`) |
-| `companion-mod/fabric/1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
-| `companion-mod/fabric/1.21.2/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer`/`PlayerRenderState`) |
-| `companion-mod/fabric/1.21.5/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (`DynamicTexture` label-ctor) |
-| `companion-mod/fabric/1.21.9/` | 1.21.9–1.21.10 | Fabric | 21 | render-state (`ResourceLocation`/`setFilter`) |
+| `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`Avatar*`) |
+| `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
+| `companion-mod/fabric/1.21.2-1.21.4/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer`/`PlayerRenderState`) |
+| `companion-mod/fabric/1.21.5-1.21.8/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (`DynamicTexture` label-ctor) |
+| `companion-mod/fabric/1.21.9-1.21.10/` | 1.21.9–1.21.10 | Fabric | 21 | render-state (`ResourceLocation`/`setFilter`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source) |
 
 Each project ships **one jar covering a range** of Minecraft versions (a Fabric
@@ -128,16 +128,16 @@ only). Minecraft / loader / Java pins, plus the `mc_range` (jar-name label) and
 
 ```powershell
 # from repo root, on Windows. Each project builds the same way under its own
-# directory; substitute 1.21 (or another project) for the 26.1 build.
-companion-mod\fabric\26.1\gradlew.bat build      # build the mod jar -> build/libs/vermeil-<modVersion>+<mc_range>.jar
-companion-mod\fabric\26.1\gradlew.bat runClient  # launch a dev client
-companion-mod\fabric\26.1\gradlew.bat genSources # decompiled Mojang-mapped sources (research)
+# directory; substitute another project folder (e.g. 1.21-1.21.1) for the 26.1-26.2 build.
+companion-mod\fabric\26.1-26.2\gradlew.bat build      # build the mod jar -> build/libs/vermeil-<modVersion>+<low>.jar
+companion-mod\fabric\26.1-26.2\gradlew.bat runClient  # launch a dev client
+companion-mod\fabric\26.1-26.2\gradlew.bat genSources # decompiled Mojang-mapped sources (research)
 ```
 
 ```bash
 # on Linux
-./companion-mod/fabric/26.1/gradlew build
-./companion-mod/fabric/26.1/gradlew runClient
+./companion-mod/fabric/26.1-26.2/gradlew build
+./companion-mod/fabric/26.1-26.2/gradlew runClient
 ```
 
 ### Publishing the mod jars (download-on-demand)
@@ -184,6 +184,6 @@ Vermeil-Launcher/             # repo root
 │   ├── package.json
 │   └── vite.config.ts
 ├── companion-mod/            # companion Minecraft mod (Java/Fabric, separate builds)
-│   └── fabric/               #   per-render-era projects: 26.1/, 1.21/
+│   └── fabric/               #   per-render-era projects: 26.1-26.2/, 1.21-1.21.1/, …
 └── docs/                     # project docs + docs/research/ notes
 ```

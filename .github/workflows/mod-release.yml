@@ -7,7 +7,7 @@ run-name: Mod Release ${{ github.event.inputs.tag || github.ref_name }}
 # manually via workflow_dispatch with a tag input.
 #
 # The mod is versioned independently of the launcher (its `mod_version` lives in
-# companion-mod/fabric/26.1/gradle.properties). The launcher reads companion-manifest.json to
+# companion-mod/fabric/26.1-26.2/gradle.properties). The launcher reads companion-manifest.json to
 # find the jar matching an instance's Minecraft version + loader, then downloads
 # and SHA-1-verifies it. See services/companion_mod.rs.
 
@@ -43,20 +43,20 @@ jobs:
       - name: Build the mods
         run: |
           set -euo pipefail
-          chmod +x companion-mod/fabric/26.1/gradlew companion-mod/fabric/1.21/gradlew companion-mod/fabric/1.21.2/gradlew companion-mod/fabric/1.21.5/gradlew companion-mod/fabric/1.21.9/gradlew companion-mod/fabric/1.21.11/gradlew
+          chmod +x companion-mod/fabric/26.1-26.2/gradlew companion-mod/fabric/1.21-1.21.1/gradlew companion-mod/fabric/1.21.2-1.21.4/gradlew companion-mod/fabric/1.21.5-1.21.8/gradlew companion-mod/fabric/1.21.9-1.21.10/gradlew companion-mod/fabric/1.21.11/gradlew
           # Each era runs its Gradle daemon on a different JDK: 26.x on 25
           # (Gradle 9.x), the 1.21.x projects on 21.
-          (cd companion-mod/fabric/26.1 && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew build --console=plain)
+          (cd companion-mod/fabric/26.1-26.2 && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew build --console=plain)
           # The 1.21.x gradle.properties pin a local Windows JDK path for dev
           # convenience; CI supplies its own JDK 21, so drop that line first.
-          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21/gradle.properties
-          (cd companion-mod/fabric/1.21 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
-          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.2/gradle.properties
-          (cd companion-mod/fabric/1.21.2 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
-          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.5/gradle.properties
-          (cd companion-mod/fabric/1.21.5 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
-          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.9/gradle.properties
-          (cd companion-mod/fabric/1.21.9 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21-1.21.1/gradle.properties
+          (cd companion-mod/fabric/1.21-1.21.1 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.2-1.21.4/gradle.properties
+          (cd companion-mod/fabric/1.21.2-1.21.4 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.5-1.21.8/gradle.properties
+          (cd companion-mod/fabric/1.21.5-1.21.8 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.9-1.21.10/gradle.properties
+          (cd companion-mod/fabric/1.21.9-1.21.10 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
           sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.11/gradle.properties
           (cd companion-mod/fabric/1.21.11 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
 
@@ -66,7 +66,7 @@ jobs:
           set -euo pipefail
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           REPO="${{ github.repository }}"
-          MODVER=$(grep -E '^mod_version=' companion-mod/fabric/26.1/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          MODVER=$(grep -E '^mod_version=' companion-mod/fabric/26.1-26.2/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           echo "Publishing companion mod $MODVER under tag $TAG"
 
           # Read a property from a project's gradle.properties (empty if absent).

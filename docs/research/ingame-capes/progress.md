@@ -122,3 +122,9 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Full 1.21.x render-state split now: 1.21.2–1.21.4, 1.21.5–1.21.8, 1.21.9–1.21.10, 1.21.11. Plus 1.21–1.21.1 (feature) and 26.1–26.2. Every endpoint compile-verified.
 - Jar naming changed to **lowest version only** (e.g. `vermeil-0.1.4+1.21.9.jar`); `depends.minecraft` still spans the full range. `mc_versions` drives manifest matching.
 - Wired: launcher `version_supported` += 1.21.9, 1.21.10, 1.21.11; CI builds both new projects; manifest auto-includes via glob.
+
+
+## Project folders renamed to full version range
+- Folders now named by the **full MC range** they cover, not the lowest version: `1.21` → `1.21-1.21.1`, `1.21.2` → `1.21.2-1.21.4`, `1.21.5` → `1.21.5-1.21.8`, `1.21.9` → `1.21.9-1.21.10`, `26.1` → `26.1-26.2`. `1.21.11` stays single (one version). Done via `git mv`.
+- Jar filenames still use **lowest version only** (`vermeil-0.1.4+1.21.5.jar`) — folder name (range) and jar label (min) are intentionally different.
+- Updated all sibling/path references: `mod-release.yml`, `minecraft-mod` skill, `DEVELOPMENT.md`, `test-cape.ps1`, `instance_cape.rs` comments, each project's `gradle.properties` header + `VermeilMod.java` javadoc, and these research docs. `cargo check` clean.

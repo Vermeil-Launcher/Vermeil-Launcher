@@ -12,9 +12,12 @@ import org.slf4j.LoggerFactory;
  * client-side rendering lives in {@link com.vermeil.client.VermeilModClient};
  * this common initializer only sets up shared state such as logging.
  *
- * <p>This is the Minecraft 1.21.x (Fabric) build. It renders the cape through
- * the feature-renderer pipeline ({@code CapeLayer}); the modern 26.x build uses
- * the render-state pipeline instead. See {@code companion-mod/fabric/26.1} and
+ * <p>This is the Minecraft 1.21.2–1.21.4 (Fabric) build. It renders the cape
+ * through the render-state pipeline (hooking {@code PlayerRenderer.extractRenderState}
+ * to set the cape on the {@code PlayerRenderState}). The 1.21–1.21.1 build
+ * ({@code companion-mod/fabric/1.21-1.21.1}) uses the older feature-renderer hook; later
+ * 1.21.x and 26.x are also render-state but with churned mappings/texture APIs,
+ * handled by their own projects. See
  * {@code docs/research/ingame-capes/research.md}.
  */
 public class VermeilMod implements ModInitializer {

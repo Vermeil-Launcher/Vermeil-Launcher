@@ -151,21 +151,21 @@ fn loader_supported(loader: &LoaderType) -> bool {
 
 /// Minecraft versions the companion mod currently targets — every version the
 /// published Fabric jars support. Each render-era jar covers a range:
-/// `companion-mod/fabric/26.1` → 26.x; `companion-mod/fabric/1.21` → 1.21–1.21.1
+/// `companion-mod/fabric/26.1-26.2` → 26.x; `companion-mod/fabric/1.21-1.21.1` → 1.21–1.21.1
 /// (feature-renderer). Keep this in lockstep with the jars CI publishes (the
 /// `mc_versions` lists in each project's `gradle.properties`). Add Forge to
 /// `loader_supported` when a Forge build exists.
 fn version_supported(version: &str) -> bool {
     const SUPPORTED: &[&str] = &[
-        // 26.x render-state era (companion-mod/fabric/26.1).
+        // 26.x render-state era (companion-mod/fabric/26.1-26.2).
         "26.1", "26.1.1", "26.1.2", "26.2",
-        // 1.21 feature-renderer era (companion-mod/fabric/1.21).
+        // 1.21 feature-renderer era (companion-mod/fabric/1.21-1.21.1).
         "1.21", "1.21.1",
-        // 1.21.2–1.21.4 render-state era (companion-mod/fabric/1.21.2).
+        // 1.21.2–1.21.4 render-state era (companion-mod/fabric/1.21.2-1.21.4).
         "1.21.2", "1.21.3", "1.21.4",
-        // 1.21.5–1.21.8 render-state era (companion-mod/fabric/1.21.5).
+        // 1.21.5–1.21.8 render-state era (companion-mod/fabric/1.21.5-1.21.8).
         "1.21.5", "1.21.6", "1.21.7", "1.21.8",
-        // 1.21.9–1.21.10 render-state era (companion-mod/fabric/1.21.9).
+        // 1.21.9–1.21.10 render-state era (companion-mod/fabric/1.21.9-1.21.10).
         "1.21.9", "1.21.10",
         // 1.21.11 render-state era (companion-mod/fabric/1.21.11).
         "1.21.11",

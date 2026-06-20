@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  * <p>This is the Minecraft 1.21.11 (Fabric) build. By 1.21.11 the client API
  * matches the 26.x shape ({@code Identifier}, {@code TickableTexture}, sampler
  * filtering), so its client source is identical to the 26.x project
- * ({@code companion-mod/fabric/26.1}) — only the toolchain (JDK 21) differs.
+ * ({@code companion-mod/fabric/26.1-26.2}) — only the toolchain (JDK 21) differs.
  * 1.21.9–1.21.10 still use the older {@code ResourceLocation}/{@code setFilter}
  * API. See {@code docs/research/ingame-capes/research.md}.
  */

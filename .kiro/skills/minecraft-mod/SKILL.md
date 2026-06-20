@@ -39,12 +39,12 @@ JDK 25 is on PATH in the dev shell, so the mod CAN be built and smoke-tested her
 (unlike the launcher's runtime, which needs a real install). Use it — treat mod
 code as **unverified until built and run in-game**.
 
-- Build: `companion-mod\fabric\26.1\gradlew.bat build` → builds the mod jar at
-  `companion-mod/fabric/26.1/build/libs/vermeil-<modVersion>+<low>.jar`. Expect `BUILD SUCCESSFUL`.
-- Run in-game: `companion-mod\fabric\26.1\gradlew.bat runClient` → launches a dev client;
+- Build: `companion-mod\fabric\26.1-26.2\gradlew.bat build` → builds the mod jar at
+  `companion-mod/fabric/26.1-26.2/build/libs/vermeil-<modVersion>+<low>.jar`. Expect `BUILD SUCCESSFUL`.
+- Run in-game: `companion-mod\fabric\26.1-26.2\gradlew.bat runClient` → launches a dev client;
   confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
   client initialized.`) and the feature renders, then exit cleanly with no crash.
-  (Swap `26.1` for `1.21` to work on the feature-renderer project, etc.)
+  (Swap `26.1-26.2` for another project folder, e.g. `1.21-1.21.1`, as needed.)
 - Use `git -C` for git; run `gradlew` directly. PowerShell shell — chain with
   `;`, never `&&`.
 
@@ -60,11 +60,11 @@ Built projects:
 
 | Project | Minecraft range | Loader | Java | Cape hook |
 |---------|-----------------|--------|------|-----------|
-| `companion-mod/fabric/26.1/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
-| `companion-mod/fabric/1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
-| `companion-mod/fabric/1.21.2/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer.extractRenderState` → `PlayerRenderState.skin`) |
-| `companion-mod/fabric/1.21.5/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (same hook; `DynamicTexture` label-ctor) |
-| `companion-mod/fabric/1.21.9/` | 1.21.9–1.21.10 | Fabric | 21 | render-state (26.x-shaped hook; `ResourceLocation` + `setFilter`) |
+| `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
+| `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
+| `companion-mod/fabric/1.21.2-1.21.4/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer.extractRenderState` → `PlayerRenderState.skin`) |
+| `companion-mod/fabric/1.21.5-1.21.8/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (same hook; `DynamicTexture` label-ctor) |
+| `companion-mod/fabric/1.21.9-1.21.10/` | 1.21.9–1.21.10 | Fabric | 21 | render-state (26.x-shaped hook; `ResourceLocation` + `setFilter`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source: `Identifier` + sampler) |
 
 Each is plain Fabric, MC/loader/Java pins in `gradle.properties`, official Mojang
@@ -90,7 +90,8 @@ Each `gradle.properties` carries:
   `fabric.mod.json` `depends.minecraft` predicate from it (`26.1-26.2` →
   `>=26.1 <=26.2`). The **jar name uses only the low end** (the lowest supported
   version): `vermeil-<modVer>+<low>.jar` (e.g. `vermeil-0.1.4+26.1.jar`), so the
-  filename stays short and matches the per-era folder name.
+  filename stays short. The **folder** is named by the full range (`26.1-26.2/`),
+  so folder and jar label intentionally differ.
 - `mc_versions` — the exact comma-separated versions the jar supports. CI emits one
   `companion-manifest.json` entry per project with `minecraftVersions: [<list>]`,
   and the launcher matches an instance's exact version against that list.

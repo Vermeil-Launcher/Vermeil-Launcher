@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  * <p>This is the Minecraft 1.21.5–1.21.8 (Fabric) build. It renders the cape
  * through the render-state pipeline (hooking {@code PlayerRenderer.extractRenderState}
  * to set the cape on the {@code PlayerRenderState}). It differs from the
- * 1.21.2–1.21.4 build ({@code companion-mod/fabric/1.21.2}) only in the
+ * 1.21.2–1.21.4 build ({@code companion-mod/fabric/1.21.2-1.21.4}) only in the
  * {@code DynamicTexture} constructor (1.21.5 added a label arg). See
  * {@code docs/research/ingame-capes/research.md}.
  */

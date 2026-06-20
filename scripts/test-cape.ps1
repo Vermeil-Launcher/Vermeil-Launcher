@@ -15,9 +15,13 @@
   modal offers: 1, 2, 4, 8, 16, 32  (frame size = 64*Res; 8 -> 512px, 32 -> 2048px).
 
 .EXAMPLE
-  # from the repo root
-  ./scripts/test-cape.ps1 -Res 1
+  # Test on your installed 26.2 launcher instance (default target):
   ./scripts/test-cape.ps1 -Res 8
+
+  # Test in the dev client launched by `gradlew runClient`:
+  ./scripts/test-cape.ps1 -Res 8 -Target dev
+
+  # Other options:
   ./scripts/test-cape.ps1 -Res 32 -FrameMs 50
   ./scripts/test-cape.ps1 -Res 16 -Source "$env:USERPROFILE\Downloads\my.png"
 #>
@@ -26,7 +30,12 @@ param(
   [int]$Res = 8,
   [string]$Source = "$env:USERPROFILE\Downloads\test.gif",
   [int]$FrameMs = 100,
-  [int]$MaxFrames = 64
+  [int]$MaxFrames = 64,
+  # Where the cape files go:
+  #   launcher = %LOCALAPPDATA%\Vermeil\companion  (your installed 26.2 instance)
+  #   dev      = companion-mod\fabric\26.1\run\vermeil  (the `gradlew runClient` dev client)
+  [ValidateSet('launcher', 'dev')]
+  [string]$Target = 'launcher'
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,7 +43,14 @@ Add-Type -AssemblyName System.Drawing
 
 if (-not (Test-Path $Source)) { throw "Source image not found: $Source" }
 
-$companion = Join-Path $env:LOCALAPPDATA "Vermeil\companion"
+if ($Target -eq 'dev') {
+  # The runClient dev client's game dir is the project's run/ folder, and the
+  # mod falls back to <gameDir>/vermeil/ when no -Dvermeil.dataDir is set.
+  $repo = Split-Path $PSScriptRoot -Parent
+  $companion = Join-Path $repo "companion-mod\fabric\26.1\run\vermeil"
+} else {
+  $companion = Join-Path $env:LOCALAPPDATA "Vermeil\companion"
+}
 New-Item -ItemType Directory -Force -Path $companion | Out-Null
 $outPng = Join-Path $companion "cape.png"
 $outJson = Join-Path $companion "cape.json"

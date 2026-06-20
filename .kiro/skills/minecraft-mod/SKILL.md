@@ -64,6 +64,8 @@ Built projects:
 | `companion-mod/fabric/1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 | `companion-mod/fabric/1.21.2/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer.extractRenderState` → `PlayerRenderState.skin`) |
 | `companion-mod/fabric/1.21.5/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (same hook; `DynamicTexture` label-ctor) |
+| `companion-mod/fabric/1.21.9/` | 1.21.9–1.21.10 | Fabric | 21 | render-state (26.x-shaped hook; `ResourceLocation` + `setFilter`) |
+| `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source: `Identifier` + sampler) |
 
 Each is plain Fabric, MC/loader/Java pins in `gradle.properties`, official Mojang
 mappings, **no Fabric API** (loader + Mixins only) — no preprocessor comments, no

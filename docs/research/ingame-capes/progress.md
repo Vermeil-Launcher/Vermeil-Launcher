@@ -113,3 +113,12 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Era 1 was confirmed in-game (runClient 1.21.2): render-state cape shows + animates.
 - Final 1.21.x render-state split: **1.21.2–1.21.4**, **1.21.5–1.21.8**, **1.21.9–1.21.11** (Era 3, still to build).
 - Wired: launcher `version_supported` += 1.21.5–1.21.8; CI builds the project; manifest auto-includes via the glob.
+
+
+## 1.21.9–1.21.10 and 1.21.11 projects — full 1.21.x coverage
+- The 1.21.9–1.21.11 tail churns the client API almost per-patch. Mapped it by genSources + compile-probing:
+  - **1.21.9–1.21.10**: 26.x-shaped hook (`AvatarRenderer.extractRenderState` → `AvatarRenderState.skin`, world `PlayerSkin` with `ClientAsset` cape), but still `ResourceLocation` + `setFilter` + `Tickable`. New `companion-mod/fabric/1.21.9/`.
+  - **1.21.11**: API reaches the 26.x shape — `ResourceLocation`→`Identifier`, `Tickable`→`TickableTexture`, filtering via `RenderSystem.getSamplerCache`. So its client source = the 26.1 project verbatim, just on the JDK-21 toolchain. New `companion-mod/fabric/1.21.11/`.
+- Full 1.21.x render-state split now: 1.21.2–1.21.4, 1.21.5–1.21.8, 1.21.9–1.21.10, 1.21.11. Plus 1.21–1.21.1 (feature) and 26.1–26.2. Every endpoint compile-verified.
+- Jar naming changed to **lowest version only** (e.g. `vermeil-0.1.4+1.21.9.jar`); `depends.minecraft` still spans the full range. `mc_versions` drives manifest matching.
+- Wired: launcher `version_supported` += 1.21.9, 1.21.10, 1.21.11; CI builds both new projects; manifest auto-includes via glob.

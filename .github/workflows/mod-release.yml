@@ -43,7 +43,7 @@ jobs:
       - name: Build the mods
         run: |
           set -euo pipefail
-          chmod +x companion-mod/fabric/26.1/gradlew companion-mod/fabric/1.21/gradlew companion-mod/fabric/1.21.2/gradlew
+          chmod +x companion-mod/fabric/26.1/gradlew companion-mod/fabric/1.21/gradlew companion-mod/fabric/1.21.2/gradlew companion-mod/fabric/1.21.5/gradlew companion-mod/fabric/1.21.9/gradlew companion-mod/fabric/1.21.11/gradlew
           # Each era runs its Gradle daemon on a different JDK: 26.x on 25
           # (Gradle 9.x), the 1.21.x projects on 21.
           (cd companion-mod/fabric/26.1 && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew build --console=plain)
@@ -55,6 +55,10 @@ jobs:
           (cd companion-mod/fabric/1.21.2 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
           sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.5/gradle.properties
           (cd companion-mod/fabric/1.21.5 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.9/gradle.properties
+          (cd companion-mod/fabric/1.21.9 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
+          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.11/gradle.properties
+          (cd companion-mod/fabric/1.21.11 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
 
       - name: Stage jars and build manifest
         id: stage

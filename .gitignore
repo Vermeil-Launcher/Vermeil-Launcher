@@ -43,3 +43,6 @@ desktop.ini
 # Tauri signing key
 *.key
 tauri-signing.key
+
+# Local MCP server config — environment-specific, not committed.
+.kiro/settings/mcp.json

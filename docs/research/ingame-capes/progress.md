@@ -37,3 +37,10 @@ Terse journal. Exact diffs in git.
 ## Cape fixes round 2 (Skins state)
 - **Flicker fixed:** the Skins screen mounts via `<Show>`, so it unmounts on navigation and local state reset every revisit — briefly highlighting "No cape" until the async `getIngameCape` resolved. Moved the selection + in-game state (`activeCustomCapeId`/`ingameCapeId`/`ingameEnabled`) to module scope so they persist across remounts, loaded once.
 - **Resolution edit fixed:** saving a cape now re-bakes and re-applies it in-game from the just-saved transform (was: only updated the viewer), so a res/position/bg edit reaches the game, not just the preview. Verified editor and mod both render NEAREST (skinview3d sets `capeTexture.magFilter = NearestFilter`; mod uses NEAREST sampler/`setFilter`), so they match at the chosen resolution. Backend `set_ingame_cape` writes the baked PNG raw (no resize), and the transform round-trips `res` untouched — so resolution is end-to-end faithful.
+
+
+## Companion-support badge on instance cards
+- Instance cards (Library + Settings list) show a Vermeil-logo badge when the companion mod runs on that instance's `(loader, MC version)`.
+- Single source: `list_instances` attaches a computed `ingame_cape_supported` (flattened, not persisted) from the same `instance_cape::is_supported` gate that controls the launch-time install — so the badge can't disagree with whether the cape actually applies.
+- Derived purely from the instance's stored version + loader, so it appears automatically for custom-created and modpack-installed instances (no creation-flow code), and widens by itself when a future mod build supports more versions.
+- Removed the dead `.skins-ingame-toggle` CSS (its button was dropped with click-to-equip).

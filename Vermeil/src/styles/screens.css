@@ -1170,28 +1170,3 @@
   margin-left: auto;
 }
 
-/* In-game cape toggle — shows the selected custom cape in-game (companion mod).
-   Sits at the bottom of the cape dock; wider than the square cape chips. */
-.skins-ingame-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  margin-top: 4px;
-  padding: 6px 8px;
-  font-size: 11px;
-  background: var(--surface-panel);
-  border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
-}
-.skins-ingame-toggle svg { width: 13px; height: 13px; }
-.skins-ingame-toggle:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
-.skins-ingame-toggle.on {
-  background: var(--accent-soft, rgba(139, 92, 246, 0.15));
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.skins-ingame-toggle:disabled { opacity: 0.5; cursor: not-allowed; }

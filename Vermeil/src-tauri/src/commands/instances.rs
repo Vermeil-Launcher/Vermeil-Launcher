@@ -2,12 +2,33 @@ use crate::models::instance::{Instance, CreateInstanceConfig};
 use crate::services::instance_service;
 use crate::services::instance_cape;
 use crate::models::settings::IngameCapeSettings;
+use serde::Serialize;
+
+/// A library instance plus UI-only computed flags. Flattened, so the frontend
+/// `Instance` shape is unchanged apart from the extra field; the flag is never
+/// persisted (it's recomputed each list).
+#[derive(Serialize)]
+pub struct InstanceListItem {
+    #[serde(flatten)]
+    instance: Instance,
+    /// Whether the Vermeil companion mod (in-game capes) runs on this instance's
+    /// (loader, MC version). Same gate as the launch-time install
+    /// (`instance_cape::is_supported`), so the badge can't disagree with it.
+    ingame_cape_supported: bool,
+}
 
 #[tauri::command]
-pub async fn list_instances() -> Result<Vec<Instance>, String> {
-    instance_service::list_all()
+pub async fn list_instances() -> Result<Vec<InstanceListItem>, String> {
+    let list = instance_service::list_all()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    Ok(list
+        .into_iter()
+        .map(|instance| InstanceListItem {
+            ingame_cape_supported: instance_cape::is_supported(&instance),
+            instance,
+        })
+        .collect())
 }
 
 #[tauri::command]

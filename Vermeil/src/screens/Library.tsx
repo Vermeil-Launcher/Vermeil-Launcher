@@ -208,6 +208,11 @@ const Library: Component = () => {
                         {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
                       </span>
                       <span class="badge">{inst.java.memory_max_mb} MB</span>
+                      <Show when={inst.ingame_cape_supported}>
+                        <span class="badge badge--companion" title="Vermeil companion mod supported — in-game custom capes work on this instance">
+                          <img src="/logo.png" alt="Vermeil" draggable={false} />
+                        </span>
+                      </Show>
                       <Show when={(inst.source_platforms || []).includes("modrinth")}>
                         <span class="badge badge--source badge--modrinth" title="Available on Modrinth"><IconModrinth /></span>
                       </Show>

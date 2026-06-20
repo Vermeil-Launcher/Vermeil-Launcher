@@ -31,6 +31,10 @@ export interface Instance {
   created_at: string;
   source_project_id: string | null;
   source_platforms: string[];
+  /** Whether the Vermeil companion mod (in-game capes) runs on this instance's
+   *  loader + MC version. Computed by the backend on list (not persisted);
+   *  drives the companion badge on instance cards. */
+  ingame_cape_supported?: boolean;
 }
 
 export interface CreateInstanceConfig {

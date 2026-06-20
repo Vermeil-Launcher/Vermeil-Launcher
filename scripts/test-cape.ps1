@@ -32,10 +32,12 @@ param(
   [int]$FrameMs = 100,
   [int]$MaxFrames = 64,
   # Where the cape files go:
-  #   launcher = %LOCALAPPDATA%\Vermeil\companion  (your installed 26.2 instance)
-  #   dev      = companion-mod\fabric\26.1\run\vermeil  (the `gradlew runClient` dev client)
+  #   launcher = %LOCALAPPDATA%\Vermeil\companion  (your installed instance)
+  #   dev      = companion-mod\fabric\<DevProject>\run\vermeil  (a `gradlew runClient` dev client)
   [ValidateSet('launcher', 'dev')]
-  [string]$Target = 'launcher'
+  [string]$Target = 'launcher',
+  # Which mod project's dev client to target when -Target dev (e.g. 26.1, 1.21, 1.21.2).
+  [string]$DevProject = '26.1'
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +49,7 @@ if ($Target -eq 'dev') {
   # The runClient dev client's game dir is the project's run/ folder, and the
   # mod falls back to <gameDir>/vermeil/ when no -Dvermeil.dataDir is set.
   $repo = Split-Path $PSScriptRoot -Parent
-  $companion = Join-Path $repo "companion-mod\fabric\26.1\run\vermeil"
+  $companion = Join-Path $repo "companion-mod\fabric\$DevProject\run\vermeil"
 } else {
   $companion = Join-Path $env:LOCALAPPDATA "Vermeil\companion"
 }

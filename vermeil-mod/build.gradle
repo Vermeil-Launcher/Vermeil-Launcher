@@ -6,8 +6,8 @@ plugins {
 version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
-// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar, unique
-// per Stonecutter node. minecraft_version is a per-node gradle.properties value.
+// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar.
+// minecraft_version is a gradle.properties value.
 base.archivesName = 'vermeil'
 
 repositories {

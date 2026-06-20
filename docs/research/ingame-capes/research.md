@@ -108,53 +108,56 @@ Likely **two** mod projects, not one:
   decoded once and capped to a memory budget; uploads happen only on frame change,
   not every tick. Revisit if very high-res HD strips prove costly.)*
 
-## Target version matrix (multi-version plan)
+## Target version matrix (decided)
 
-Goal versions: **26.x (latest)**, **1.21.x**, **1.20.1**, **1.12.2**, **1.8.9**.
-All are achievable — a client mod can render a custom cape on every one of them —
-but **not from one jar or one codebase**: the loader, mappings, Java version, and
-cape-render API differ across Minecraft's eras. The exact hook names per version
-are confirmed at build time from that version's decompiled sources (genSources /
+Shipped versions: **26.x (Fabric)**, **1.21.x (Fabric)**, **1.8.x (Forge)**. All
+are achievable — a client mod can render a custom cape on each — but **not from
+one jar or one codebase**: the loader, mappings, Java version, and cape-render
+API differ across Minecraft's eras. The exact hook names per version are
+confirmed at build time from that version's decompiled sources (genSources /
 MCP), not assumed here; what's fixed is the *era* each version belongs to.
 
-| Version | Loader(s) | Java | Mappings | Cape render era | Cape texture |
-|---------|-----------|------|----------|-----------------|--------------|
-| 26.x (latest) | Fabric/Quilt | 25 | Mojang | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `PlayerSkin`) — **built/verified on 26.1.2** | 64×64 |
-| 1.21.x | Fabric/Quilt/(Neo)Forge | 21 | Mojang/Yarn | mixed: 1.21.2+ = render-state; 1.21.0–1.21.1 = feature-renderer | 64×64 |
-| 1.20.1 | Fabric/Forge/NeoForge | 17 | Mojang/Yarn | feature-renderer (`CapeFeatureRenderer`, `PlayerSkin`) | 64×64 |
-| 1.12.2 | Forge only | 8 | MCP/SRG | legacy (`LayerCape`, `AbstractClientPlayer.getLocationCape()`) | 64×32 |
-| 1.8.9 | Forge | 8 | MCP/SRG | legacy (`LayerCape`, `getLocationCape()`) | 64×32 |
+(Earlier drafts also listed 1.20.1 and 1.12.2; both were **dropped** to keep the
+matrix to the three the user ships. Forge does **not** exist for the 26.x
+versioning scheme — verified against files.minecraftforge.net, whose newest build
+is 1.21.x — so 26.x is Fabric-only and that's not a closable gap; NeoForge was
+not adopted there.)
 
-### The three porting families
+| Version | Loader | Java | Mappings | Cape render era | Cape texture |
+|---------|--------|------|----------|-----------------|--------------|
+| 26.x | Fabric (Quilt rides free) | 25 | Mojang | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `PlayerSkin`) — **built/verified on 26.2** | 64×64 |
+| 1.21.x | Fabric (Quilt rides free) | 21 | Mojang/Yarn | sub-version dependent: 1.21.2+ = render-state (`Player*`); 1.21.0–1.21.1 = feature-renderer (`CapeFeatureRenderer`) | 64×64 |
+| 1.8.x | Forge | 8 | MCP/SRG | legacy (`LayerCape`, `AbstractClientPlayer.getLocationCape()`) | 64×32 |
+
+### The porting families
 
 1. **Modern Fabric (render-state)** — 26.x + 1.21.2+. Closest to what's built; the
    current hook nearly transfers (note 26.x renamed `Player*` → `Avatar*`, so the
    class names differ even within this family). Mostly version bumps + mapping tweaks.
-2. **Mid Fabric (feature-renderer)** — 1.20.1 + 1.21.0/1.21.1. Same loader/Java-ish
-   but a different hook: `CapeFeatureRenderer` instead of `CapeLayer.submit`.
-3. **Legacy Forge** — 1.12.2 + 1.8.9. Separate project: Forge (not Fabric), MCP/SRG
-   mappings, Java 8, ancient Gradle/Loom-equivalent toolchain, `LayerCape` hook, and
-   **64×32** cape textures. Heaviest lift; 1.8.9 is the PvP target.
+2. **Mid Fabric (feature-renderer)** — only if a 1.21.0/1.21.1 sub-version is pinned:
+   a different hook, `CapeFeatureRenderer` instead of `CapeLayer.submit`.
+3. **Legacy Forge** — 1.8.x. Separate project: Forge (not Fabric), MCP/SRG
+   mappings, Java 8, ancient ForgeGradle toolchain, `LayerCape` hook, and
+   **64×32** cape textures. Heaviest lift; 1.8.x is the PvP target.
 
 ### Ripples into the launcher
 
 - The cape baker already produces both 64×32 (editor/skinview3d) and 64×64 (mod).
   Legacy targets want 64×32, modern want 64×64 → the launcher picks the layout per
   target version.
-- `instance_cape::is_supported` / `version_supported` grow from "26.1.x only" into a
+- `instance_cape::is_supported` / `version_supported` grow from "26.x only" into a
   real `(version range, loader)` table, and download-on-demand fetches the matching
   per-version jar.
 
-### Chosen order (easiest-reusing-first)
+### Build order (easiest-reusing-first)
 
-1. **26.x + 1.21.2+** (render-state family).
-2. **1.20.1 + 1.21.0/1.21.1** (feature-renderer family).
-3. **1.8.9 + 1.12.2** (legacy Forge).
+1. **26.x Fabric** — render-state family. ✓ built (the current `vermeil-mod/`).
+2. **1.21.x Fabric** — render-state if a 1.21.2+ sub-version is pinned (reuse the
+   hook with `Player*` names), or feature-renderer if 1.21.0–1.21.1 is pinned.
+3. **1.8.x Forge** — legacy `LayerCape`, separate Java-8 ForgeGradle project.
 
-Open question for family work: build system for multi-version Fabric — a
-preprocessor like **Stonecutter** (single source, per-version conditional code,
-emits many jars) vs separate source sets/branches. Decide before adding the second
-modern version so the matrix doesn't fork into copy-pasted projects.
+Build system: **separate standalone Gradle projects per era/loader** — Stonecutter
+was tried and dropped (see below).
 
 
 ## Loader scope — decided (Plan A)
@@ -170,102 +173,66 @@ explicit targets:
   tradeoff, not "NeoForge is unpopular." Revisit if modern Forge-side demand
   appears; Plan B in the chat history adds it.)
 
-Plan A target set, built in this order:
+Plan A target set:
 
-1. **Fabric-family across the modern versions first** — one toolchain family, the
-   biggest reach for the least work. Fabric for 1.20.1 / 1.21.x / 26.x; Quilt
-   covered free. (1.12.2 and 1.8.9 have no relevant Fabric option for us — see below.)
-2. **Classic Forge, legacy versions only** — 1.12.2 and 1.8.9, where classic
-   Forge is the relevant loader (NeoForge didn't exist then, and Legacy Fabric for
-   1.8.9 is a niche backport not worth the separate toolchain — Forge only).
+1. **Fabric for the modern versions** — one toolchain family, the biggest reach for
+   the least work. Fabric for 1.21.x and 26.x; Quilt covered free.
+2. **Classic Forge, legacy only** — 1.8.x, where classic Forge is the relevant
+   loader (NeoForge didn't exist then, and Legacy Fabric for 1.8.x is a niche
+   backport not worth the separate toolchain — Forge only).
 
 So the shipped `(version, loader)` jars under Plan A:
 
-| Version | Fabric-family jar | Forge jar |
-|---------|-------------------|-----------|
-| 26.x    | Fabric (✓ built)  | —         |
-| 1.21.x  | Fabric            | —         |
-| 1.20.1  | Fabric            | —         |
-| 1.12.2  | — (no Fabric)     | Forge     |
-| 1.8.9   | — (no Legacy Fabric) | Forge  |
+| Version | Fabric jar | Forge jar |
+|---------|------------|-----------|
+| 26.x    | Fabric (✓ built) | — (no Forge for 26.x) |
+| 1.21.x  | Fabric     | —         |
+| 1.8.x   | — (no Legacy Fabric) | Forge |
 
-Build-system decision (locked): **Stonecutter** (`dev.kikugie.stonecutter`) for the
-multi-version Fabric tree — single source, per-version conditional code, emits one
-jar per version. The legacy Forge builds (1.12.2/1.8.9) stay a separate project
-(different toolchain/mappings/Java 8), as already anticipated.
+Build-system decision (locked): **separate standalone Gradle projects per
+era/loader** — each with its own wrapper and pinned toolchain. Stonecutter (a
+single-source multi-version preprocessor) was tried and **dropped**; see the next
+section.
 
 
-## Stonecutter setup (confirmed from official docs — 0.9.6, Gradle 9+)
+## Build structure: separate projects per era/loader (Stonecutter dropped)
 
-Source: https://stonecutter.kikugie.dev/wiki/start/ (settings / builds / comments).
-Recorded so implementation doesn't re-derive it. Our wrapper is Gradle 9.4.1, so
-the **Gradle 9.0+** requirement is already met.
+Stonecutter (`dev.kikugie.stonecutter`, a single-source multi-version preprocessor)
+was set up and built two 26.x nodes, then **dropped** — it caused too many problems
+in practice. The replacement is simpler and more robust: **each `(era, loader)` is
+its own standalone Gradle project** with its own wrapper and pinned toolchain. No
+shared `src/` with `//? if` comment toggling, no generated `versions/<node>/` tree,
+no per-node controller.
 
-**Mental model.** Root project = the "tree" (holds the shared `src/` and common
-config). Each supported version = a "node" — a generated Gradle subproject under
-`versions/<node>/`. `build.gradle` runs once per node. Switching the active
-version rewrites the shared `src/` via comment toggling (deterministic/reversible);
-commit only from the **VCS version** (first registered, or `vcsVersion = …`) so the
-preprocessor noise doesn't land in git.
+Why separate projects is the right call here (not a step back):
+- The eras genuinely **can't share a toolchain**: 26.x is Java 25 / Loom 1.16 /
+  Mojang mappings; 1.8.x is Java 8 / ancient ForgeGradle / MCP-SRG. ForgeGradle for
+  1.8.x won't even run under the Gradle 9 the 26.x build needs. A preprocessor can't
+  paper over two incompatible Gradle/Java/loader stacks.
+- With only three targets across three different render eras, there's little shared
+  source to factor out — the cape hook differs per era anyway. The preprocessor's
+  upside (one source, many jars) barely applies, while its downsides (toggling noise,
+  VCS-version discipline, tooling friction) all bite.
+- Each project stays a plain, conventional Fabric/Forge mod — easy to read, build,
+  and verify against its own genSources, with no preprocessor layer in between.
 
-**`settings.gradle` (Groovy equivalent of the Kotlin docs):**
-```
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        maven { url "https://maven.kikugie.dev/snapshots" } // KikuGie snapshots
-    }
-}
-plugins { id 'dev.kikugie.stonecutter' version '0.9.6' }
-stonecutter {
-    create(rootProject) {
-        versions("1.20.1", "1.21.1", "26.2") // our three modern Fabric nodes
-        vcsVersion = "26.2"
-    }
-}
-```
-After a sync, Stonecutter generates a `stonecutter.gradle` controller at the root
-and the `versions/<node>/` dirs.
+Planned layout (the 26.x project exists today as `vermeil-mod/`; siblings are added
+as their own projects):
 
-**`build.gradle` becomes version-aware** via the `stonecutter`/`sc` extension:
-- `sc.current.version` → the node's MC version string (use for the `minecraft` dep).
-- `sc.current.parsed` → comparable (`>= "1.20.6"` etc).
-- Per-node deps live in `versions/<node>/gradle.properties` (`deps.fabric_loader`,
-  `deps.fabric_api`); shared values (`mod.id`, `mod.version`) in root `gradle.properties`.
-- Java per version (our targets): `>= "26" → 25`, `>= "1.20.6" → 21`, `>= "1.18" → 17`.
-  So 26.2 → Java 25, 1.21.1 → 21, 1.20.1 → 17.
+| Project | MC | Loader | Java | Toolchain | Cape hook |
+|---------|----|--------|------|-----------|-----------|
+| Fabric 26.x (built) | 26.x | Fabric | 25 | Loom 1.16, Mojang mappings | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `AvatarRenderState`) |
+| Fabric 1.21.x | 1.21.x | Fabric | 21 | Loom, Mojang/Yarn | render-state (`PlayerRenderer`/`PlayerRenderState`) if 1.21.2+ pinned; `CapeFeatureRenderer` if 1.21.0–1.21.1 |
+| Forge 1.8.x | 1.8.x | Forge | 8 | ForgeGradle, MCP/SRG | legacy `LayerCape` + `AbstractClientPlayer.getLocationCape()`, 64×32 texture |
 
-**Versioned comments** (Java `//` + `/* */`), condition compares against the node version:
-```
-//? if >=1.21.2 {
-/* … render-state code (PlayerRenderState / AvatarRenderState) … */
-//?}
-//? if <1.21.2
- … feature-renderer code (CapeFeatureRenderer) …
-```
-`elif` / `else` chain supported; only the last branch may be non-closed.
+Each project's cape-render hook is verified against **that version's own**
+genSources/decompiled sources (verify-don't-guess, per the minecraft-mod skill) —
+what's true on one era is never assumed on another. The shared *concept* (load a
+local cape PNG → register a texture → force the local player's cape to use it) is
+re-implemented per era against that era's API, not shared as code.
 
-### Reality check: the Fabric tree spans TWO hooks, not one rename
+**Build order:** 26.x Fabric (done) → 1.21.x Fabric (closest reuse) → 1.8.x Forge
+(heaviest lift, new toolchain). Each ships its `vermeil-<modVersion>+<mc>.jar` to
+the same `mod-v*` GitHub release; the manifest tags each jar with its loader, and
+the launcher picks by `(version, loader)`.
 
-Our three modern Fabric nodes don't all share the current hook — the cape render
-path differs by era, so this is more than an `Avatar`↔`Player` name swap:
-
-- **26.2** — render-state, classes renamed `Player*` → `Avatar*`
-  (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`, `AvatarRenderState`). ✓ built.
-- **1.21.x** — *sub-version dependent*: 1.21.2+ is render-state with `Player*`
-  names (`PlayerRenderer`, `PlayerRenderState`); 1.21.0–1.21.1 is still
-  feature-renderer. Pick a specific 1.21 sub-version and pin it.
-- **1.20.1** — feature-renderer: `CapeFeatureRenderer` (no render-state, no `CapeLayer.submit`).
-
-So inside the Stonecutter tree we maintain **two cape-hook implementations** gated
-by `//? if >=<render-state-cutoff>` — one mixin targeting the render-state
-`CapeLayer`/extract path, one targeting `CapeFeatureRenderer`. Each is verified per
-node against that version's genSources (verify-don't-guess, per the minecraft-mod skill).
-
-Legacy Forge (1.12.2, 1.8.9) stays a **separate project** — different loader,
-MCP/SRG mappings, Java 8 — not part of this Stonecutter tree.
-
-**Implementation order when we build it:** convert `vermeil-mod` to Stonecutter
-with 26.2 as the sole node first (prove the build-system change in isolation →
-`chiseledBuild` still produces the 26.2 jar), then add a render-state 1.21 node
-(reuse the hook with `Player*` names), then the 1.20.1 feature-renderer node.

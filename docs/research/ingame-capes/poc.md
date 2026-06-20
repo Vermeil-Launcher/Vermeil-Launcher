@@ -87,5 +87,13 @@ out of the launcher's `pnpm`/`cargo` pipelines.
 
 ## After the PoC
 
-In rough order: animation → NeoForge/Forge builds (multiloader) → 1.8.9 legacy
-project → launcher-side support matrix + auto-install + cape-file writing.
+The PoC (static → animated cape on 26.x Fabric) is done and the launcher
+integration (download-on-demand, global cape dir, toggle) is in place. Remaining,
+in rough order: **1.21.x Fabric** build (closest reuse of the render-state hook) →
+**1.8.x Forge** build (legacy `LayerCape`, separate Java-8 ForgeGradle project) →
+widen the launcher's `(version, loader)` support table and manifest accordingly.
+
+Build system: **separate standalone Gradle projects per era/loader** — Stonecutter
+was tried and dropped (see `research.md`). The matrix is Fabric for 26.x and
+1.21.x, Forge for 1.8.x; there is no classic Forge for the 26.x versioning scheme,
+so 26.x is Fabric-only.

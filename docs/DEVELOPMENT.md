@@ -97,31 +97,33 @@ built and distributed (download-on-demand) on its own.
 - No system Gradle needed — the project ships a Gradle **wrapper**
   (`gradlew` / `gradlew.bat`). Fabric Loom drives the Gradle/Loom versions.
 
-### Multi-version (Stonecutter)
+### Multi-version (separate projects per era/loader)
 
-The mod targets multiple Minecraft versions via **Stonecutter**
-(`dev.kikugie.stonecutter`): one shared source tree in `vermeil-mod/src/`, one
-"node" per version under `vermeil-mod/versions/<version>/`. Per-node pins
-(Minecraft, Fabric loader, `java_version`) live in
-`versions/<version>/gradle.properties`; shared values (mod version, Loom) in the
-root `gradle.properties`. The project uses **official Mojang mappings** and has
-**no Fabric API dependency** (loader + Mixins only), so one Loom builds every
-era. The few version-specific lines are gated with `//? if <version>` Stonecutter
-comments.
+The mod targets multiple Minecraft eras, but **not from one codebase** — the
+loader, mappings, Java version, and cape-render API differ too much across eras
+to share a toolchain. So each `(era, loader)` is built as its **own standalone
+Gradle project** with its own wrapper and pinned toolchain, rather than a
+single-source preprocessor tree:
+
+| Project | Minecraft | Loader | Java | Cape hook era |
+|---------|-----------|--------|------|---------------|
+| `vermeil-mod/` (current) | 26.x | Fabric | 25 | render-state (`Avatar*`) |
+| Fabric 1.21.x (planned) | 1.21.x | Fabric | 21 | render-state (`Player*`) / feature-renderer |
+| Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`) |
+
+The build that exists today is the **Fabric 26.x** project at `vermeil-mod/`. It
+uses **official Mojang mappings** and has **no Fabric API dependency** (loader +
+Mixins only). Minecraft / loader / Java pins live in `vermeil-mod/gradle.properties`.
+The full matrix and per-era hook details are in
+`docs/research/ingame-capes/research.md`.
 
 ### Building & running the mod
 
 ```powershell
 # from repo root, on Windows
-vermeil-mod\gradlew.bat build           # build the ACTIVE node -> versions/<node>/build/libs/
-vermeil-mod\gradlew.bat chiseledBuild   # build EVERY node (all versions)
-vermeil-mod\gradlew.bat runClient       # launch a dev client for the active node
+vermeil-mod\gradlew.bat build           # build the mod jar -> build/libs/vermeil-<modVersion>+<mc>.jar
+vermeil-mod\gradlew.bat runClient       # launch a dev client
 vermeil-mod\gradlew.bat genSources      # decompiled Mojang-mapped sources (research)
-```
-
-Switch the active node via the Gradle `stonecutter` task group (e.g. a generated
-`Set active project to <version>` task). Each node compiles to its own Java
-release (26.x → 25, 1.21.x → 21, 1.20.1 → 17).
 ```
 
 ```bash
@@ -138,10 +140,10 @@ launcher. Publishing is automated by `.github/workflows/mod-release.yml`:
 
 - Trigger it by pushing a `mod-v*` tag (e.g. `mod-v0.1.0`), or run it manually
   via the Actions tab with a tag input.
-- It builds every node (`chiseledBuild`), then uploads each
+- It builds the mod (`gradlew build`), then uploads each
   `vermeil-<modVersion>+<mcVersion>.jar` plus a generated `companion-manifest.json`
   (lists each jar's Minecraft version, loaders, URL, SHA-1, and size) to a release
-  on that tag.
+  on that tag. As the per-era/loader projects land, each is built and staged here.
 - The mod is versioned independently of the launcher via `mod_version` in
   `vermeil-mod/gradle.properties`.
 

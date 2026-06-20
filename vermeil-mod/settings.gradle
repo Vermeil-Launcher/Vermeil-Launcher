@@ -4,28 +4,13 @@ pluginManagement {
 			name = 'Fabric'
 			url = 'https://maven.fabricmc.net/'
 		}
-		maven {
-			name = 'KikuGie Snapshots'
-			url = 'https://maven.kikugie.dev/snapshots'
-		}
 		mavenCentral()
 		gradlePluginPortal()
 	}
 }
 
-plugins {
-	id 'dev.kikugie.stonecutter' version '0.9.6'
-}
-
-// Multi-version tree (Stonecutter). Each version is a node; the shared source
-// lives in root src/ and is preprocessed per node. See
-// docs/research/ingame-capes/research.md for the node plan and hook differences.
-stonecutter {
-	create(rootProject) {
-		versions('26.1.2', '26.2')
-		vcsVersion = '26.2'
-	}
-}
-
-// Should match the mod id
+// Single-version Fabric project for Minecraft 26.x. Multi-version coverage is
+// provided by separate sibling projects per era/loader (Fabric 1.21.x, Forge
+// 1.8.x), not by an in-tree preprocessor — see
+// docs/research/ingame-capes/research.md for the matrix and rationale.
 rootProject.name = 'vermeil'

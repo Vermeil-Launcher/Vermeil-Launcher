@@ -38,30 +38,37 @@ JDK 25 is on PATH in the dev shell, so the mod CAN be built and smoke-tested her
 (unlike the launcher's runtime, which needs a real install). Use it — treat mod
 code as **unverified until built and run in-game**.
 
-- Build: `vermeil-mod\gradlew.bat build` → builds the **active** Stonecutter node;
-  jar at `vermeil-mod/versions/<node>/build/libs/vermeil-<version>.jar`. Expect
-  `BUILD SUCCESSFUL`.
-- Build all versions: `vermeil-mod\gradlew.bat chiseledBuild`.
-- Run in-game: `vermeil-mod\gradlew.bat runClient` → launches the active node's
-  client; confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
+- Build: `vermeil-mod\gradlew.bat build` → builds the mod jar at
+  `vermeil-mod/build/libs/vermeil-<modVersion>+<mc>.jar`. Expect `BUILD SUCCESSFUL`.
+- Run in-game: `vermeil-mod\gradlew.bat runClient` → launches a dev client;
+  confirm the init log lines fire (`Vermeil mod initialized.` / `Vermeil
   client initialized.`) and the feature renders, then exit cleanly with no crash.
 - Use `git -C` for git; run `gradlew` directly. PowerShell shell — chain with
   `;`, never `&&`.
 
-## Multi-version (Stonecutter)
+## Multi-version (separate projects per era/loader)
 
-The mod is a **Stonecutter** multi-version project (`dev.kikugie.stonecutter`):
-one shared source tree in `src/`, one node per Minecraft version under
-`versions/<version>/`. Per-node pins (MC / loader / Fabric API / `java_version`)
-live in `versions/<version>/gradle.properties`; shared values in root
-`gradle.properties`; `settings.gradle` registers the nodes via
-`stonecutter { create(rootProject) { versions(...) ; vcsVersion = ... } }`. The
-generated `stonecutter.gradle.kts` controller holds the active node. Gate the few
-version-specific lines with `//? if <cond> { … }` comments (the cape render hook
-differs by era — render-state vs `CapeFeatureRenderer`). `build.gradle` is one
-shared script that runs per node; read per-node values via `project.<prop>` and
-branch on `stonecutter`/`sc` (e.g. `sc.current.version`). Verify each node against
-**its own** genSources — what's true on one version is not assumed on another.
+Stonecutter was tried and **dropped** — it caused too many problems. The mod
+targets multiple Minecraft eras, but **not from one codebase**: loader, mappings,
+Java version, and cape-render API differ too much to share a toolchain (Java 25
+Fabric vs Java 8 Forge can't even share a Gradle). So each `(era, loader)` is its
+**own standalone Gradle project** with its own wrapper and pinned toolchain.
+
+The locked matrix:
+
+| Project | Minecraft | Loader | Java | Cape hook |
+|---------|-----------|--------|------|-----------|
+| `vermeil-mod/` (built) | 26.x | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
+| Fabric 1.21.x (planned) | 1.21.x | Fabric | 21 | render-state (`Player*`) or feature-renderer (sub-version dependent) |
+| Forge 1.8.x (planned) | 1.8.x | Forge | 8 | legacy (`LayerCape`, 64×32 texture) |
+
+The build that exists today is the **Fabric 26.x** project at `vermeil-mod/`:
+plain single-version Fabric, MC/loader/Java pins in `gradle.properties`, official
+Mojang mappings, **no Fabric API** (loader + Mixins only). No preprocessor
+comments, no `versions/` nodes — each project carries plain source for its own
+render era. Verify every project against **its own** genSources — what's true on
+one version is not assumed on another. See `docs/research/ingame-capes/research.md`
+for the full matrix and per-era hook details.
 
 ## Research before hooking: verify mappings, never guess
 

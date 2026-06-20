@@ -680,3 +680,59 @@ renders fully on the player's back — user-confirmed.
 (Test note: the mod reads a PNG frame-strip, not a raw GIF — a dev `runClient`
 test converts the GIF to the strip + `cape.json`, which is what the launcher's
 Skins screen does automatically.)
+
+
+## Stage 14 — drop Stonecutter, lock the version/loader matrix, clean the mod (done, builds)
+
+Status: **Stonecutter removed; `vermeil-mod` is a plain single-version Fabric 26.x
+project again; `gradlew build` clean. Launcher `cargo check` clean.**
+
+The Stonecutter multi-version setup (Stages 6b–9) was **dropped** — it caused too
+many problems in practice. The multi-version strategy is now **separate standalone
+Gradle projects per era/loader** (each with its own wrapper + pinned toolchain),
+not one preprocessor tree. The locked, trimmed matrix:
+
+| Version | Loader | why |
+|---------|--------|-----|
+| 26.x | Fabric | render-state hook, already built |
+| 1.21.x | Fabric | render-state (1.21.2+) or feature-renderer (1.21.0–1.21.1) |
+| 1.8.x | Forge | legacy `LayerCape`, Java 8 |
+
+- **No Forge for 26.x** — verified against files.minecraftforge.net (newest classic
+  Forge is 1.21.x; nothing for the 26.x versioning scheme), and NeoForge wasn't
+  adopted. So 26.x is Fabric-only and that's not a closable gap. The earlier
+  5-version plan's **1.20.1 and 1.12.2 were dropped** to the three the user ships.
+
+**What I did (this commit):**
+- Removed the Stonecutter plugin + KikuGie repo + `stonecutter { … }` block from
+  `settings.gradle`; deleted `stonecutter.gradle.kts` and the whole `versions/`
+  node tree (26.1.2 + 26.2) and the `.gradle/vcs-1` Stonecutter VCS cache.
+- Folded the per-node pins back into root `gradle.properties`
+  (`minecraft_version=26.2`, `loader_version=0.19.3`, `java_version=25`) and dropped
+  the `dev.kikugie.stonecutter.hard_mode` line. `build.gradle` reads them as plain
+  project properties (no `sc.*`), so it was unchanged apart from a comment.
+- **CI** (`mod-release.yml`): the build step ran the now-deleted `chiseledBuild`
+  task and globbed the deleted `versions/*/build/libs` path — both fixed to
+  `gradlew build` and `build/libs`. (The 26.1.2 jar is no longer produced; only
+  `vermeil-0.1.0+26.2.jar`.)
+- **Launcher** (`instance_cape::version_supported`): narrowed from `26.1.x` + `26.2`
+  to `26.2`, since the 26.1.2 node/jar no longer exists and the manifest matches MC
+  version exactly — claiming 26.1.x with no jar behind it would just fail the
+  best-effort download. The doc comment no longer references "Stonecutter nodes".
+- **Docs reconciled** (all still described Stonecutter as the locked choice):
+  `research.md` (matrix → 3 rows, "Build structure: separate projects" replaces the
+  Stonecutter-setup deep-dive, Plan A table, build order), `poc.md` ("After the
+  PoC"), `DEVELOPMENT.md` (Multi-version section + build commands, no `chiseledBuild`),
+  and the `minecraft-mod` skill (build commands + Multi-version section). Historical
+  Stages 6b–13 in this log are left intact as the chronological record.
+
+**Verified here:** `vermeil-mod\gradlew.bat build` → `BUILD SUCCESSFUL`, jar
+`build/libs/vermeil-0.1.0+26.2.jar`. Launcher `cargo check` → clean (pending, run
+next). Source (Java mixins + cape code) untouched — the 26.x cape still renders as
+verified in Stage 13; this was a build-system/docs change only.
+
+**Still next:** scaffold the **Fabric 1.21.x** project (closest reuse of the
+render-state hook — pin a sub-version first to decide render-state vs
+feature-renderer), then the **Forge 1.8.x** project (new Java-8 ForgeGradle
+toolchain, `LayerCape`), wiring each into CI + the launcher's `(version, loader)`
+support table. Plus the still-open mod-jar publish (`mod-v0.1.0`).

@@ -650,3 +650,33 @@ point is the exact spot Fabric's event used, so behavior should be identical).
 **Next:** with Fabric API gone, re-attempt the 1.21.1 node on Loom 1.16 — it
 should get past the access-widener error now — then `genSources`, the gated
 `CapeFeatureRenderer` hook, build + runClient.
+
+
+## Stage 13 — fix the "half cape" (2:1 texture) (done, verified in-game)
+
+Status: **fixed and confirmed in-game on 26.2** — the cape now fills fully
+instead of showing the image in the top half with black below.
+
+A Minecraft cape texture is **2:1** (e.g. 64×32) — the cape model's UVs are
+normalized to a 64-wide × **32**-tall sheet. But the mod was registering a
+**square** 64×64 texture (the launcher bakes each frame into a square slot, art
+in the top half). With a square texture the model sampled only the top ~half and
+the rest read transparent → rendered black: the "half cape." It showed identically
+for the launcher's baked PNG and a hand-made test, confirming it was the texture
+layout, not the file.
+
+Fix (mod-only, in `VermeilCape.buildTexture`): register a **2:1** texture by
+taking the top `W × W/2` region of each baked square slot — which is exactly the
+cape atlas the launcher already places there. New `cropFrame` helper replaces the
+square `splitFrames`. Tolerant of input that is already 2:1 (used whole) or square
+(top half taken). The launcher's square-slot bake is unchanged and still correct;
+the mod's animation-strip detection still keys on square slots, then extracts the
+2:1 cape from each.
+
+**Verified:** `26.2:compileClientJava` clean; `runClient` logged `Loaded custom
+cape texture (512x256, 24 frames @ 33ms)` (2:1, was 512x512) and the animated cape
+renders fully on the player's back — user-confirmed.
+
+(Test note: the mod reads a PNG frame-strip, not a raw GIF — a dev `runClient`
+test converts the GIF to the strip + `cape.json`, which is what the launcher's
+Skins screen does automatically.)

@@ -155,42 +155,50 @@ public final class VermeilCape {
 		int height = sheet.getHeight();
 		int frameCount = (width > 0 && height > width && height % width == 0) ? height / width : 1;
 
+		// A Minecraft cape texture is 2:1 (e.g. 64x32) — the cape model's UVs are
+		// normalized to a 64-wide x 32-tall sheet. The launcher bakes the cape atlas
+		// into the top of a square slot, so the cape is that top half. Register a 2:1
+		// texture (W x W/2): a square one renders only the top portion ("half cape").
 		if (frameCount <= 1) {
-			VermeilMod.LOGGER.info("Loaded custom cape texture ({}x{}, static).", width, height);
-			return new VermeilCapeTexture(sheet, List.of(), frameTimeMs);
+			// Static. Use the top 2:1 region; tolerates input that is already 2:1
+			// (used whole) or square (top half taken).
+			int capeHeight = Math.min(height, Math.max(1, width / 2));
+			NativeImage frame = cropFrame(sheet, 0, width, capeHeight);
+			sheet.close();
+			VermeilMod.LOGGER.info("Loaded custom cape texture ({}x{}, static).", width, capeHeight);
+			return new VermeilCapeTexture(frame, List.of(), frameTimeMs);
 		}
 
+		final int capeHeight = Math.max(1, width / 2);
 		// Bound decoded memory: cap the frame count to what fits the budget.
-		long perFrameBytes = (long) width * width * 4L;
+		long perFrameBytes = (long) width * capeHeight * 4L;
 		int maxFrames = (int) Math.max(1L, MAX_TEXTURE_BYTES / perFrameBytes);
 		if (frameCount > maxFrames) {
 			VermeilMod.LOGGER.warn("Cape strip has {} frames; capping to {} to bound memory.", frameCount, maxFrames);
 			frameCount = maxFrames;
 		}
 
-		List<NativeImage> frames = splitFrames(sheet, frameCount, width);
+		List<NativeImage> frames = new ArrayList<>(frameCount);
+		for (int f = 0; f < frameCount; f++) {
+			frames.add(cropFrame(sheet, f * width, width, capeHeight));
+		}
 		sheet.close();
-		NativeImage activeFrame = new NativeImage(width, width, false);
+		NativeImage activeFrame = new NativeImage(width, capeHeight, false);
 		activeFrame.copyFrom(frames.get(0));
 
-		VermeilMod.LOGGER.info("Loaded custom cape texture ({}x{}, {} frames @ {}ms).", width, width, frameCount, frameTimeMs);
+		VermeilMod.LOGGER.info("Loaded custom cape texture ({}x{}, {} frames @ {}ms).", width, capeHeight, frameCount, frameTimeMs);
 		return new VermeilCapeTexture(activeFrame, frames, frameTimeMs);
 	}
 
-	/** Splits a vertical strip into {@code frameCount} square frames of {@code frameSize}. */
-	private static List<NativeImage> splitFrames(final NativeImage sheet, final int frameCount, final int frameSize) {
-		List<NativeImage> frames = new ArrayList<>(frameCount);
-		for (int f = 0; f < frameCount; f++) {
-			NativeImage frame = new NativeImage(frameSize, frameSize, false);
-			int baseY = f * frameSize;
-			for (int y = 0; y < frameSize; y++) {
-				for (int x = 0; x < frameSize; x++) {
-					frame.setPixelABGR(x, y, argbToAbgr(sheet.getPixel(x, baseY + y)));
-				}
+	/** Copies a {@code width x h} region starting at row {@code baseY} into a new image. */
+	private static NativeImage cropFrame(final NativeImage sheet, final int baseY, final int width, final int h) {
+		NativeImage frame = new NativeImage(width, h, false);
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < width; x++) {
+				frame.setPixelABGR(x, y, argbToAbgr(sheet.getPixel(x, baseY + y)));
 			}
-			frames.add(frame);
 		}
-		return frames;
+		return frame;
 	}
 
 	/** Reads the toggle and animation speed from the optional metadata file. */

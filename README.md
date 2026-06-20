@@ -1,7 +1,7 @@
 # Vermeil
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v0.5.7-blue?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest)
+[![Release](https://img.shields.io/badge/Release-v0.6.0-blue?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest)
 [![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/actions)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-informational?style=flat-square)]()
 [![Status](https://img.shields.io/badge/Status-Alpha-orange?style=flat-square)]()

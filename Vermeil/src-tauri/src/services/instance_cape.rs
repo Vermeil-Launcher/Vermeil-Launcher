@@ -149,11 +149,20 @@ fn loader_supported(loader: &LoaderType) -> bool {
     matches!(loader, LoaderType::Fabric | LoaderType::Quilt)
 }
 
-/// Minecraft versions the companion mod currently targets — the published Fabric
-/// builds: `26.x` and `1.21.1`. Widen as more jars ship (and add Forge to
-/// `loader_supported` when a Forge build exists).
+/// Minecraft versions the companion mod currently targets — every version the
+/// published Fabric jars support. Each render-era jar covers a range:
+/// `vermeil-fabric-26` → 26.x; `vermeil-fabric-1.21` → 1.21–1.21.1
+/// (feature-renderer). Keep this in lockstep with the jars CI publishes (the
+/// `mc_versions` lists in each project's `gradle.properties`). Add Forge to
+/// `loader_supported` when a Forge build exists.
 fn version_supported(version: &str) -> bool {
-    version.starts_with("26.2") || version == "1.21.1"
+    const SUPPORTED: &[&str] = &[
+        // 26.x render-state era (vermeil-fabric-26).
+        "26.1", "26.1.1", "26.1.2", "26.2",
+        // 1.21 feature-renderer era (vermeil-fabric-1.21).
+        "1.21", "1.21.1",
+    ];
+    SUPPORTED.contains(&version)
 }
 
 /// Whether the companion mod can render a cape on this instance.

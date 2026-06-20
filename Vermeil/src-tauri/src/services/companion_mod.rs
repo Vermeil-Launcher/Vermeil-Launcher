@@ -37,8 +37,11 @@ struct Manifest {
 
 #[derive(Debug, Deserialize)]
 struct ManifestEntry {
-    #[serde(rename = "minecraftVersion")]
-    minecraft_version: String,
+    /// Every Minecraft version this single jar supports. One jar can cover a
+    /// whole render-era range (e.g. `["26.1","26.1.1","26.1.2","26.2"]`), so the
+    /// launcher matches an instance's exact version against this list.
+    #[serde(rename = "minecraftVersions")]
+    minecraft_versions: Vec<String>,
     loaders: Vec<String>,
     file: String,
     url: String,
@@ -113,8 +116,8 @@ pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
         Err(e) => {
             // Couldn't reach/parse the manifest (e.g. offline). Don't fail a
             // launch over an inability to *check* for updates: if a managed jar
-            // for this Minecraft version is already present, keep using it.
-            if let Some(file) = installed_jar_for_version(&mods, &instance.game_version) {
+            // is already present, keep using it.
+            if let Some(file) = installed_managed_jar(&mods) {
                 tracing::warn!(
                     "Companion update check failed for instance {} ({}); keeping existing jar {}",
                     instance.id,
@@ -145,7 +148,10 @@ async fn resolve_and_install(instance: &Instance, mods: &Path) -> Result<String,
     let entry = manifest
         .entries
         .into_iter()
-        .find(|e| e.minecraft_version == instance.game_version && e.loaders.iter().any(|l| l == loader))
+        .find(|e| {
+            e.minecraft_versions.iter().any(|v| v == &instance.game_version)
+                && e.loaders.iter().any(|l| l == loader)
+        })
         .ok_or_else(|| {
             format!("no companion build for Minecraft {} ({})", instance.game_version, loader)
         })?;
@@ -207,13 +213,13 @@ async fn fetch_manifest() -> Result<Manifest, String> {
         .map_err(|e| format!("parse manifest: {}", e))
 }
 
-/// Returns the filename of the managed jar already in `mods/` for the given
-/// Minecraft version, or `None`.
-fn installed_jar_for_version(mods: &Path, mc_version: &str) -> Option<String> {
-    let suffix = format!("+{}.jar", mc_version);
-    read_jar_names(mods)
-        .into_iter()
-        .find(|name| is_managed(name) && name.ends_with(&suffix))
+/// Returns the filename of a managed jar already present in `mods/`, or `None`.
+/// Used only for offline grace: we only ever keep the single jar we installed
+/// for this instance (others are pruned), so any managed jar here is *the* cape
+/// jar. Filenames embed a version *range* now, so we can't match on an exact
+/// version suffix — presence of any managed jar is the signal.
+fn installed_managed_jar(mods: &Path) -> Option<String> {
+    read_jar_names(mods).into_iter().find(|name| is_managed(name))
 }
 
 /// Remove every managed jar in `mods/`, except `keep` if given. Best-effort.

@@ -56,17 +56,43 @@ Fabric vs Java 8 Forge can't even share a Gradle). So each `(era, loader)` is it
 
 Built projects:
 
-| Project | Minecraft | Loader | Java | Cape hook |
-|---------|-----------|--------|------|-----------|
-| `vermeil-fabric-26/` | 26.x | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
-| `vermeil-fabric-1.21/` | 1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
+| Project | Minecraft range | Loader | Java | Cape hook |
+|---------|-----------------|--------|------|-----------|
+| `vermeil-fabric-26/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
+| `vermeil-fabric-1.21/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 
-Each is plain single-version Fabric, MC/loader/Java pins in `gradle.properties`,
-official Mojang mappings, **no Fabric API** (loader + Mixins only) — no preprocessor
-comments, no `versions/` nodes. Verify every project against **its own** genSources;
-what's true on one version is not assumed on another. Note: the 1.21.1-era Loom
-needs fabric-loader as `modImplementation` (not `implementation`) to put Mixin on
-the classpath; the 26.x-era Loom doesn't.
+Each is plain Fabric, MC/loader/Java pins in `gradle.properties`, official Mojang
+mappings, **no Fabric API** (loader + Mixins only) — no preprocessor comments, no
+`versions/` nodes. Verify every project against **its own** genSources; what's true
+on one version is not assumed on another. Note: the 1.21.1-era Loom needs
+fabric-loader as `modImplementation` (not `implementation`) to put Mixin on the
+classpath; the 26.x-era Loom doesn't.
+
+### One jar per render-era, named with its range
+
+A project covers a **range** of Minecraft versions with a **single jar**, because
+a Fabric jar (shipped in intermediary mappings) runs on every version where the
+members its Mixins target are unchanged. The boundary between projects is a
+**render-pipeline change**, not a version number — e.g. 1.21.2 switched from the
+feature-renderer to the render-state cape path, so `1.21`–`1.21.1` and `1.21.2`+
+can't share a jar even though both are "1.21.x".
+
+Each `gradle.properties` carries:
+- `minecraft_version` — the *representative* version the jar compiles against (the
+  newest in the range, for the freshest mappings).
+- `mc_range` — the label baked into the jar name: `vermeil-<modVer>+<mc_range>.jar`
+  (e.g. `vermeil-0.1.4+26.1-26.2.jar`). `build.gradle` also derives the
+  `fabric.mod.json` `depends.minecraft` predicate from it (`26.1-26.2` →
+  `>=26.1 <=26.2`).
+- `mc_versions` — the exact comma-separated versions the jar supports. CI emits one
+  `companion-manifest.json` entry per project with `minecraftVersions: [<list>]`,
+  and the launcher matches an instance's exact version against that list.
+
+**Confirm a range is really one jar by compiling against both endpoints** (low and
+high) — if both build, the targeted members exist across the span. If an endpoint
+fails, the era isn't uniform and must be split into a new project. The launcher's
+`instance_cape::version_supported` allow-list must stay in lockstep with the union
+of every project's `mc_versions`.
 
 ## Research before hooking: verify mappings, never guess
 

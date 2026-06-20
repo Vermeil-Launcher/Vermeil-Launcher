@@ -3,13 +3,28 @@ plugins {
 	id 'maven-publish'
 }
 
-version = "${project.mod_version}+${project.minecraft_version}"
+version = "${project.mod_version}+${vermeilMcRange()}"
 group = project.maven_group
 
-// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar, matching
+// Distribution-friendly jar name: vermeil-<modVersion>+<mcRange>.jar, matching
 // the modern project's scheme so the launcher manifest can list them together.
+// mcRange is the span of Minecraft versions this single jar supports (e.g.
+// 1.21-1.21.1); falls back to minecraft_version for plain local dev builds.
 base {
 	archivesName = 'vermeil'
+}
+
+// The Minecraft version span this jar covers, as a label for the jar name.
+def vermeilMcRange() {
+	return project.findProperty('mc_range') ?: project.minecraft_version
+}
+
+// A Fabric version predicate for fabric.mod.json's `depends.minecraft`, derived
+// from mc_range: "1.21-1.21.1" → ">=1.21 <=1.21.1"; a bare version → "~<version>".
+def vermeilMcDepends() {
+	def range = vermeilMcRange().toString()
+	def parts = range.split('-')
+	return parts.length == 2 ? ">=${parts[0]} <=${parts[1]}" : "~${range}"
 }
 
 loom {
@@ -39,6 +54,7 @@ processResources {
 	def props = [
 		"version": project.version,
 		"minecraft_version": project.minecraft_version,
+		"minecraft_depends": vermeilMcDepends(),
 		"java_version": project.java_version
 	]
 	inputs.properties props

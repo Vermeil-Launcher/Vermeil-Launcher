@@ -61,21 +61,36 @@ jobs:
           MODVER=$(grep -E '^mod_version=' vermeil-fabric-26/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           echo "Publishing companion mod $MODVER under tag $TAG"
 
+          # Read a property from a project's gradle.properties (empty if absent).
+          prop() { grep -E "^$2=" "$1/gradle.properties" | cut -d= -f2 | tr -d '[:space:]' || true; }
+
           mkdir -p dist
           entries='[]'
           shopt -s nullglob
-          for jar in vermeil-fabric-*/build/libs/vermeil-*+*.jar; do
-            case "$jar" in *-sources.jar) continue;; esac
+          # One jar per render-era project. Each declares the Minecraft versions
+          # it supports (mc_versions) and the range label baked into its jar name
+          # (mc_range); the manifest lists every supported version pointing at the
+          # one jar, so the launcher matches an instance's exact version to it.
+          for proj in vermeil-fabric-*/; do
+            proj=${proj%/}
+            range=$(prop "$proj" mc_range)
+            [ -z "$range" ] && range=$(prop "$proj" minecraft_version)
+            versions=$(prop "$proj" mc_versions)
+            [ -z "$versions" ] && versions=$(prop "$proj" minecraft_version)
+            jar="$proj/build/libs/vermeil-${MODVER}+${range}.jar"
+            if [ ! -f "$jar" ]; then
+              echo "Expected jar not found for $proj: $jar" >&2
+              exit 1
+            fi
             file=$(basename "$jar")
             cp "$jar" "dist/$file"
-            mc=${file#vermeil-${MODVER}+}
-            mc=${mc%.jar}
             sha1=$(sha1sum "$jar" | cut -d' ' -f1)
             size=$(stat -c%s "$jar")
             url="https://github.com/${REPO}/releases/download/${TAG}/${file}"
+            vjson=$(echo "$versions" | jq -R 'split(",")')
             entries=$(echo "$entries" | jq \
-              --arg mc "$mc" --arg file "$file" --arg url "$url" --arg sha1 "$sha1" --argjson size "$size" \
-              '. + [{minecraftVersion:$mc, loaders:["fabric","quilt"], file:$file, url:$url, sha1:$sha1, size:$size}]')
+              --argjson mcs "$vjson" --arg file "$file" --arg url "$url" --arg sha1 "$sha1" --argjson size "$size" \
+              '. + [{minecraftVersions:$mcs, loaders:["fabric","quilt"], file:$file, url:$url, sha1:$sha1, size:$size}]')
           done
 
           if [ "$entries" = "[]" ]; then

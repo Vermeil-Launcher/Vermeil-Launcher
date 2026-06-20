@@ -70,3 +70,11 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Bug: `ensure_installed` skipped re-download if *any* managed jar matched the MC version, ignoring mod version → an instance holding `vermeil-0.1.3+…` never got `0.1.4+…`.
 - Fix: resolve the manifest every launch (gated to enabled + supported), download only when the *exact* expected filename (embeds latest mod version) is absent; the old managed jar is pruned after. Manifest-fetch failure falls back to the existing jar (offline grace — never fails a launch over an update check).
 - mod_version 0.1.3 → 0.1.4 (both projects) so the mipmap-revert build actually ships and existing installs pull it.
+
+
+## Multi-version: one jar per render-era, range in the name
+- A project now ships **one jar covering a range** of MC versions (Fabric jar is intermediary-remapped → runs anywhere its Mixin targets are unchanged). Era boundary = render-pipeline change, not version number.
+- `gradle.properties` per project gains `mc_range` (jar-name label) + `mc_versions` (exact supported list). `build.gradle` derives `fabric.mod.json` `depends.minecraft` from `mc_range` (`26.1-26.2` → `>=26.1 <=26.2`). Jar: `vermeil-<modVer>+<mc_range>.jar`.
+- Widened coverage: `vermeil-fabric-26` → 26.1, 26.1.1, 26.1.2, 26.2; `vermeil-fabric-1.21` → 1.21, 1.21.1. Verified each era is one jar by compiling both endpoints (26.1+26.2; 1.21+1.21.1 all `BUILD SUCCESSFUL`).
+- Manifest entry schema: `minecraftVersion: String` → `minecraftVersions: [String]`; CI reads each project's `mc_versions`. Launcher `companion_mod` matches membership; `instance_cape::version_supported` is now an explicit allow-list kept in lockstep. Offline-grace check is "any managed jar present" (range names have no version suffix).
+- Forge stays single `1.8.9` (no multi-version) — PvP target, per decision.

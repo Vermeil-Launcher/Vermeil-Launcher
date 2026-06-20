@@ -3,12 +3,27 @@ plugins {
 	id 'maven-publish'
 }
 
-version = "${project.mod_version}+${project.minecraft_version}"
+version = "${project.mod_version}+${vermeilMcRange()}"
 group = project.maven_group
 
-// Distribution-friendly jar name: vermeil-<modVersion>+<mcVersion>.jar.
-// minecraft_version is a gradle.properties value.
+// Distribution-friendly jar name: vermeil-<modVersion>+<mcRange>.jar, where
+// mcRange is the span of Minecraft versions this single jar supports (e.g.
+// 26.1-26.2). Falls back to the representative minecraft_version for plain
+// local dev builds that don't set mc_range.
 base.archivesName = 'vermeil'
+
+// The Minecraft version span this jar covers, as a label for the jar name.
+def vermeilMcRange() {
+	return project.findProperty('mc_range') ?: project.minecraft_version
+}
+
+// A Fabric version predicate for fabric.mod.json's `depends.minecraft`, derived
+// from mc_range: "26.1-26.2" → ">=26.1 <=26.2"; a bare version → "~<version>".
+def vermeilMcDepends() {
+	def range = vermeilMcRange().toString()
+	def parts = range.split('-')
+	return parts.length == 2 ? ">=${parts[0]} <=${parts[1]}" : "~${range}"
+}
 
 repositories {
 	// Add repositories to retrieve artifacts from in here.
@@ -41,13 +56,15 @@ dependencies {
 processResources {
 	def version = project.version
 	def minecraftVersion = project.minecraft_version
+	def minecraftDepends = vermeilMcDepends()
 	def javaVersion = project.java_version
 	inputs.property "version", version
 	inputs.property "minecraft_version", minecraftVersion
+	inputs.property "minecraft_depends", minecraftDepends
 	inputs.property "java_version", javaVersion
 
 	filesMatching("fabric.mod.json") {
-		expand "version": version, "minecraft_version": minecraftVersion, "java_version": javaVersion
+		expand "version": version, "minecraft_version": minecraftVersion, "minecraft_depends": minecraftDepends, "java_version": javaVersion
 	}
 }
 

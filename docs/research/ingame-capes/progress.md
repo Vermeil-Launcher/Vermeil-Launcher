@@ -53,3 +53,10 @@ Terse journal. Exact diffs in git.
 - **Launch-time install visibility.** `companion_mod::ensure_installed` now returns a `CompanionStatus` (`Installed{file}` / `Skipped` / `Failed{reason}`); `launch.rs` emits `companion-mod-status` and the frontend toasts `Installed` and `Failed` (skipped = silent so unrelated launches aren't noisy). Closes the silent-failure gap when an instance has the cape on but its `(MC, loader)` doesn't match a published manifest entry.
 - **Click-to-equip toast** added so it's clear the cape was activated and where it'll show up.
 - Verified: `gradlew build` clean both projects; `runClient` on 1.21.1 loads the mipmapped animated cape with no errors. 26.x mipmap path also builds; eyes-on test pending.
+
+
+## Mipmap fixups (animated cape + non-square levels)
+Two bugs the mipmap commit introduced, both now fixed and re-verified on 1.21.1 (`runClient`: cape loads, **zero** GL errors):
+- **Animation froze (1.21.1):** `tick()` re-uploaded frames with `NativeImage.upload(level,…)` but never bound the texture first — that call writes to the *currently bound* GL texture. Added `this.bind()` before the per-frame upload (the original animated path used `DynamicTexture.upload()`, which binds). 26.x is unaffected — its `tick()` uses `CommandEncoder.writeToTexture(this.texture,…)`, which targets the texture explicitly.
+- **`GL_INVALID_VALUE` on non-square capes:** mip-level count was based on `max(w,h)`, but both `TextureUtil.prepareImage` (1.21.1) and `GpuTexture.getWidth(level)` (26.x) size each level with a raw `dim >> level` (no clamp to 1). For a 2:1 cape (e.g. 1024×512) the smaller side hit 0 at the last level → invalid. Now based on `min(w,h)` so every level stays ≥1. (Vanilla never hits this — it doesn't mipmap non-square textures.)
+- Lesson: the `runClient` smoke test only proves the texture *registers*; it doesn't show frame advance or surface GL errors unless the log is checked with GL debug messages — which is how the second bug was caught.

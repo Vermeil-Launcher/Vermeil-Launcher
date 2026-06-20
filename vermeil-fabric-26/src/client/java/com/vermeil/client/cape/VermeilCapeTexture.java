@@ -86,14 +86,17 @@ public class VermeilCapeTexture extends DynamicTexture implements TickableTextur
 	}
 
 	/**
-	 * The number of additional mip levels (above the base) needed to reach 1×1.
-	 * For 1024×512, that's 10 (down to 1×1 in 10 halvings of the longer side).
+	 * Mip levels above the base, based on the **smaller** dimension. {@link GpuTexture}
+	 * sizes each level with a raw {@code dim >> level} (no clamp to 1), so for a
+	 * non-square cape (e.g. 1024×512) counting by the larger side would drive the
+	 * smaller side to 0 at the last level — an invalid level the upload rejects.
+	 * Stopping when the smaller side reaches 1 keeps every level valid.
 	 */
 	private static int mipLevelsFor(final int width, final int height) {
-		int max = Math.max(width, height);
+		int min = Math.min(width, height);
 		int levels = 0;
-		while (max > 1) {
-			max >>= 1;
+		while (min > 1) {
+			min >>= 1;
 			levels++;
 		}
 		return levels;

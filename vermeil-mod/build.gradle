@@ -40,10 +40,14 @@ dependencies {
 
 processResources {
 	def version = project.version
+	def minecraftVersion = project.minecraft_version
+	def javaVersion = project.java_version
 	inputs.property "version", version
+	inputs.property "minecraft_version", minecraftVersion
+	inputs.property "java_version", javaVersion
 
 	filesMatching("fabric.mod.json") {
-		expand "version": version
+		expand "version": version, "minecraft_version": minecraftVersion, "java_version": javaVersion
 	}
 }
 

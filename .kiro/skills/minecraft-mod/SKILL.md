@@ -67,10 +67,14 @@ Built projects:
 |---------|-----------------|--------|------|-----------|
 | `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
 | `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
-| `companion-mod/fabric/1.21.2-1.21.4/` | 1.21.2–1.21.4 | Fabric | 21 | render-state (`PlayerRenderer.extractRenderState` → `PlayerRenderState.skin`) |
-| `companion-mod/fabric/1.21.5-1.21.8/` | 1.21.5–1.21.8 | Fabric | 21 | render-state (same hook; `DynamicTexture` label-ctor) |
-| `companion-mod/fabric/1.21.9-1.21.10/` | 1.21.9–1.21.10 | Fabric | 21 | render-state (26.x-shaped hook; `ResourceLocation` + `setFilter`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source: `Identifier` + sampler) |
+
+Three intermediate 1.21.x render-state eras — **1.21.2–1.21.4**, **1.21.5–1.21.8**,
+**1.21.9–1.21.10** — are built and compile-verified but **archived** under
+`companion-mod/archive/fabric/` to keep the active maintenance surface small (a new
+mod feature would otherwise have to be ported into every era). They're out of CI,
+the launcher support gate, and the manifest. To restore one, see the README in
+`companion-mod/archive/`.
 
 Each is plain Fabric, MC/loader/Java pins in `gradle.properties`, official Mojang
 mappings, **no Fabric API** (loader + Mixins only) — no preprocessor comments, no

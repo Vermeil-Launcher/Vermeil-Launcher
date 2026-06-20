@@ -37,7 +37,7 @@ param(
   [ValidateSet('launcher', 'dev')]
   [string]$Target = 'launcher',
   # Which mod project's dev client to target when -Target dev (the folder name,
-  # e.g. 26.1-26.2, 1.21-1.21.1, 1.21.9-1.21.10, 1.21.11).
+  # e.g. 26.1-26.2, 1.21-1.21.1, 1.21.11).
   [string]$DevProject = '26.1-26.2'
 )
 

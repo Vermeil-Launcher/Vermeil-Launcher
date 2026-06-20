@@ -16,8 +16,9 @@ import org.slf4j.LoggerFactory;
  * matches the 26.x shape ({@code Identifier}, {@code TickableTexture}, sampler
  * filtering), so its client source is identical to the 26.x project
  * ({@code companion-mod/fabric/26.1-26.2}) — only the toolchain (JDK 21) differs.
- * 1.21.9–1.21.10 still use the older {@code ResourceLocation}/{@code setFilter}
- * API. See {@code docs/research/ingame-capes/research.md}.
+ * The intermediate 1.21.x render-state eras (1.21.5–1.21.10) use older texture
+ * APIs and are archived under {@code companion-mod/archive/fabric/}.
+ * See {@code docs/research/ingame-capes/research.md}.
  */
 public class VermeilMod implements ModInitializer {
 	public static final String MOD_ID = "vermeil";

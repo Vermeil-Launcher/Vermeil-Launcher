@@ -128,3 +128,10 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Folders now named by the **full MC range** they cover, not the lowest version: `1.21` → `1.21-1.21.1`, `1.21.2` → `1.21.2-1.21.4`, `1.21.5` → `1.21.5-1.21.8`, `1.21.9` → `1.21.9-1.21.10`, `26.1` → `26.1-26.2`. `1.21.11` stays single (one version). Done via `git mv`.
 - Jar filenames still use **lowest version only** (`vermeil-0.1.4+1.21.5.jar`) — folder name (range) and jar label (min) are intentionally different.
 - Updated all sibling/path references: `mod-release.yml`, `minecraft-mod` skill, `DEVELOPMENT.md`, `test-cape.ps1`, `instance_cape.rs` comments, each project's `gradle.properties` header + `VermeilMod.java` javadoc, and these research docs. `cargo check` clean.
+
+
+## Trimmed active eras to 3; archived the intermediate 1.21.x projects
+- Decision: maintenance surface > coverage. Each render-era is a separate source variant, so every future render feature must be ported per era. Cut active set to **1.21-1.21.1** (feature-renderer), **1.21.11** (= 26.x source), **26.1-26.2** — 2 distinct source shapes.
+- Archived (not deleted) the three intermediate render-state eras `1.21.2-1.21.4`, `1.21.5-1.21.8`, `1.21.9-1.21.10` to `companion-mod/archive/fabric/` via `git mv` — outside the CI glob `companion-mod/fabric/*/`, so they're frozen + recoverable. Restore steps in `companion-mod/archive/fabric/README.md`.
+- Trimmed all active references: `mod-release.yml` (chmod + build steps), `instance_cape::version_supported` (dropped 1.21.2–1.21.10), `DEVELOPMENT.md` + `minecraft-mod` skill tables, `1.21.11` project sibling comments, `research.md`, `test-cape.ps1` example.
+- Coverage gap is now 1.21.2–1.21.10 (incl. popular 1.21.5–1.21.8) — conscious tradeoff; reversible from the archive with usage data later.

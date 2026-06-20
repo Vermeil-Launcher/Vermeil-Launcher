@@ -129,6 +129,11 @@ While in pre-1.0 development, anything goes — use MINOR for any meaningful cha
    EXPERIMENTAL` automatically (standing policy — see below). Promote to a full
    "latest" release only when the user explicitly says to.
 
+**After pushing the tag, stop.** Do not poll or monitor the CI run (`gh run list`,
+`gh run watch`, re-opening the release, etc.) — the user watches the workflow and
+verifies the published release manually. The pre-tag checks in the checklist above
+are the only validation expected on our side; post-push is the user's to confirm.
+
 ### Changelog Generation Rules
 
 When generating the changelog from conventional commits since the last tag:

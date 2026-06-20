@@ -608,3 +608,45 @@ clean, zero warnings.
 an end-to-end smoke test — enable the cape on a supported instance, launch, and
 confirm the jar lands in `mods/` and the cape renders; toggle off and confirm the
 jar is removed.
+
+
+## Stage 12 — drop Fabric API (unblocks multi-era builds) (done, builds)
+
+Status: **Fabric API removed; both 26.x nodes build clean. In-game tick-hook
+re-test pending (runClient).**
+
+Adding a 1.21.1 node surfaced a hard toolchain wall: the 26.x nodes pin Gradle
+9.4.1 + Java 25 + Loom 1.16 (all required for the new-versioning/Java-25 era), and
+that's the *only* Loom that runs on our Gradle/Java — but Loom 1.16 refuses to
+remap the 1.21.1-era Fabric API (access-widener namespace error). Newer Loom
+(1.17.11) needs Gradle 9.5.0; older Loom that built 1.21.1 cleanly won't run on
+Gradle 9 / Java 25. One shared toolchain couldn't span both eras *while depending
+on Fabric API*.
+
+Root-cause fix: **the mod no longer depends on Fabric API at all.** Its only use
+was `ClientTickEvents.END_CLIENT_TICK` (the once-a-second cape-file reload poll),
+which fires at the tail of `Minecraft.tick()`. Replaced with a tiny client Mixin:
+
+- `client/.../mixin/MinecraftClientMixin.java` — `@Inject(method="tick",
+  at=@At("TAIL"))` calls `VermeilCape.tickReload(...)`. Added to
+  `vermeil.client.mixins.json`.
+- `VermeilModClient` no longer registers the event (just logs init).
+- Removed the `fabric-api` dependency from `build.gradle`, the `fabric-api`
+  entry from `fabric.mod.json` depends, and the now-unused `fabric_api_version`
+  pins from the node `gradle.properties`.
+
+Why this is the right call (not just a workaround): Fabric API's access-widener
+remapping was the *only* thing breaking cross-era builds. Removing it means one
+Loom (1.16) builds every era, the single Stonecutter tree holds, and the
+dependency footprint shrinks (loader + Mixins only). `VermeilCape` still uses
+fabric-**loader**'s `getGameDir()` — that's the loader, always present, not the
+API.
+
+**Verified:** `gradlew chiseledBuild` → both 26.1.2 and 26.2 `BUILD SUCCESSFUL`
+with the new tick Mixin and no Fabric API. **Pending:** `runClient` on 26.2 to
+confirm the tick Mixin binds and the cape still live-reloads in-game (the inject
+point is the exact spot Fabric's event used, so behavior should be identical).
+
+**Next:** with Fabric API gone, re-attempt the 1.21.1 node on Loom 1.16 — it
+should get past the access-widener error now — then `genSources`, the gated
+`CapeFeatureRenderer` hook, build + runClient.

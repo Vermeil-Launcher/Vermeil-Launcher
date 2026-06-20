@@ -24,10 +24,13 @@ current pins.
 - **Fabric Loom** (`loom_version` in `gradle.properties`).
 - **Official Mojang mappings** (deobfuscated real names) — NOT Yarn. Method and
   class names you see in genSources output are the names you use in code.
-- **MC / loader / Fabric API** versions are pinned in `gradle.properties`
-  (`minecraft_version`, `loader_version`, `fabric_api_version`). Pin exact values
+- **MC / loader** versions are pinned in `gradle.properties`
+  (`minecraft_version`, `loader_version`). Pin exact values
   from the official Fabric "Develop" page (https://fabricmc.net/develop) for the
-  target MC version.
+  target MC version. The mod intentionally has **no Fabric API dependency** — it
+  uses only the loader plus Mixins (a client-tick Mixin drives the cape
+  watcher), so it builds across MC eras on one Loom without Fabric API's
+  access-widener remapping getting in the way.
 
 ## I can build and run this from the agent shell
 

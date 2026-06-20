@@ -102,10 +102,12 @@ built and distributed (download-on-demand) on its own.
 The mod targets multiple Minecraft versions via **Stonecutter**
 (`dev.kikugie.stonecutter`): one shared source tree in `vermeil-mod/src/`, one
 "node" per version under `vermeil-mod/versions/<version>/`. Per-node pins
-(Minecraft, Fabric loader, Fabric API, `java_version`) live in
+(Minecraft, Fabric loader, `java_version`) live in
 `versions/<version>/gradle.properties`; shared values (mod version, Loom) in the
-root `gradle.properties`. The project uses **official Mojang mappings**. The few
-version-specific lines are gated with `//? if <version>` Stonecutter comments.
+root `gradle.properties`. The project uses **official Mojang mappings** and has
+**no Fabric API dependency** (loader + Mixins only), so one Loom builds every
+era. The few version-specific lines are gated with `//? if <version>` Stonecutter
+comments.
 
 ### Building & running the mod
 

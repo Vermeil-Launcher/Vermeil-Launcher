@@ -3,7 +3,8 @@
 	"package": "com.vermeil.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"AvatarRendererMixin"
+		"AvatarRendererMixin",
+		"MinecraftClientMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

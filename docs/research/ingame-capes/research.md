@@ -99,7 +99,7 @@ Likely **two** mod projects, not one:
   the mod locates it (config or fixed path). *(Settled: one shared launcher dir
   for the mod's data. The mod resolves it from the `vermeil.dataDir` system
   property when set, falling back to `<gameDir>/vermeil/` for a launcher-less
-  manual install. The launcher stores the cape once under `<data>/mod-data/`
+  manual install. The launcher stores the cape once under `<data>/companion/`
   (`cape.png` + `cape.json`) — the mod's data home generally, not cape-specific —
   and injects `-Dvermeil.dataDir=<that dir>` at launch for supported instances, so
   the cape isn't duplicated per instance and every instance type behaves

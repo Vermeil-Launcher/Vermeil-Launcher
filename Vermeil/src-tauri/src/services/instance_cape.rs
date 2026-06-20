@@ -3,10 +3,10 @@
 //! This is a **global, single-toggle** feature. The state (on/off, which library
 //! cape, frame timing) lives in the launcher settings (`config.json` →
 //! `ingame_cape`), and the cape itself is stored **once** in the launcher's
-//! companion-mod data directory — `<data>/mod-data/` holding `cape.png` (the
+//! companion-mod data directory — `<data>/companion/` holding `cape.png` (the
 //! baked texture) and `cape.json` (`{enabled, frameTimeMs}`, mirrored from
 //! settings for the mod to read). There are no per-instance copies. The
-//! `mod-data` dir is the mod's data home generally (capes are its first
+//! `companion` dir is the mod's data home generally (capes are its first
 //! feature); future mod data slots in alongside the cape files.
 //!
 //! The companion mod reads its data dir from the `vermeil.dataDir` system
@@ -46,32 +46,38 @@ struct CapeMeta {
 
 /// The launcher's data directory for the companion mod (`vermeil.dataDir`). Holds
 /// the cape files now; the mod's data home for future features too.
-fn mod_data_dir() -> PathBuf {
-    paths::data_dir().join("mod-data")
+fn companion_dir() -> PathBuf {
+    paths::data_dir().join("companion")
 }
 
 fn global_cape_png() -> PathBuf {
-    mod_data_dir().join("cape.png")
+    companion_dir().join("cape.png")
 }
 
 fn global_cape_meta() -> PathBuf {
-    mod_data_dir().join("cape.json")
+    companion_dir().join("cape.json")
 }
 
-/// One-time rename of the pre-rename cape dir (`<data>/ingame-cape/`) to the
-/// current `mod-data/` dir, so a cape set before the rename keeps working without
-/// re-toggling. Idempotent and best-effort.
+/// One-time rename of an earlier companion dir name (`<data>/ingame-cape/` or
+/// `<data>/mod-data/`) to the current `companion/`, so a cape set before a rename
+/// keeps working without re-toggling. Idempotent and best-effort.
 fn migrate_legacy_dir() {
-    let old = paths::data_dir().join("ingame-cape");
-    let new = mod_data_dir();
-    if old.is_dir() && !new.exists() {
-        let _ = fs::rename(&old, &new);
+    let new = companion_dir();
+    if new.exists() {
+        return;
+    }
+    for old_name in ["mod-data", "ingame-cape"] {
+        let old = paths::data_dir().join(old_name);
+        if old.is_dir() {
+            let _ = fs::rename(&old, &new);
+            return;
+        }
     }
 }
 
 /// Write the mod-facing `cape.json` mirroring the launcher's toggle state.
 fn write_global_meta(enabled: bool, frame_time_ms: Option<u32>) -> Result<(), String> {
-    fs::create_dir_all(mod_data_dir()).map_err(|e| format!("create mod-data dir: {}", e))?;
+    fs::create_dir_all(companion_dir()).map_err(|e| format!("create companion dir: {}", e))?;
     let meta = CapeMeta { enabled, frame_time_ms };
     let json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
     paths::atomic_write(global_cape_meta(), json.as_bytes())
@@ -80,7 +86,7 @@ fn write_global_meta(enabled: bool, frame_time_ms: Option<u32>) -> Result<(), St
 
 // ───────────────────────── Toggle / store (settings-backed) ─────────────
 
-/// Set the in-game cape: store the baked strip + meta in the mod-data dir and
+/// Set the in-game cape: store the baked strip + meta in the companion dir and
 /// record it in settings (on). Running supported instances live-reload it.
 pub async fn set_ingame_cape(
     cape_id: Option<String>,
@@ -89,7 +95,7 @@ pub async fn set_ingame_cape(
 ) -> Result<(), String> {
     validate_strip(strip_png)?;
     migrate_legacy_dir();
-    fs::create_dir_all(mod_data_dir()).map_err(|e| format!("create mod-data dir: {}", e))?;
+    fs::create_dir_all(companion_dir()).map_err(|e| format!("create companion dir: {}", e))?;
     paths::atomic_write(global_cape_png(), strip_png).map_err(|e| format!("write cape.png: {}", e))?;
     write_global_meta(true, frame_time_ms)?;
 
@@ -119,8 +125,8 @@ pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
 
 /// Remove the in-game cape entirely (global files + settings).
 pub async fn clear_ingame_cape() -> Result<(), String> {
-    if mod_data_dir().exists() {
-        let _ = fs::remove_dir_all(mod_data_dir());
+    if companion_dir().exists() {
+        let _ = fs::remove_dir_all(companion_dir());
     }
     let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
     settings.ingame_cape = IngameCapeSettings::default();
@@ -159,7 +165,7 @@ pub fn is_supported(instance: &Instance) -> bool {
 
 /// The `-Dvermeil.dataDir=…` JVM argument to inject at launch, or `None` when the
 /// instance isn't supported or no cape has been set. Pointing every supported
-/// instance at the one mod-data dir is what replaces per-instance file copies:
+/// instance at the one companion dir is what replaces per-instance file copies:
 /// the mod reads the shared cape, and toggling/swapping it live-reloads anywhere
 /// it's running.
 pub fn jvm_property(instance: &Instance) -> Option<String> {
@@ -167,16 +173,16 @@ pub fn jvm_property(instance: &Instance) -> Option<String> {
     if !is_supported(instance) || !global_cape_png().is_file() {
         return None;
     }
-    Some(format!("-Dvermeil.dataDir={}", mod_data_dir().display()))
+    Some(format!("-Dvermeil.dataDir={}", companion_dir().display()))
 }
 
 /// Best-effort removal of cape files written by the earlier per-instance design
 /// (`instances/<id>/.minecraft/vermeil/cape.{png,json}`) and the old single-file
-/// global cape (`<data>/ingame-cape.png`). The mod now reads the `mod-data/` dir
+/// global cape (`<data>/ingame-cape.png`). The mod now reads the `companion/` dir
 /// via `vermeil.dataDir`, so these are obsolete; clean them up the next time the
 /// user touches the cape so no stale folders linger. Never propagates errors.
 async fn cleanup_legacy_instance_capes() {
-    // Old single-file global cape (superseded by the mod-data/ dir).
+    // Old single-file global cape (superseded by the companion/ dir).
     let legacy_global = paths::data_dir().join("ingame-cape.png");
     if legacy_global.is_file() {
         let _ = fs::remove_file(&legacy_global);

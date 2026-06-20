@@ -1379,6 +1379,12 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         let _ = fs::write(&options_path, &content);
     }
 
+    // Ensure the companion mod jar matches the in-game cape state: install the
+    // version/loader-matched jar into mods/ when the cape is on (download-on-
+    // demand, the first time it's needed), or remove our managed jar when off /
+    // unsupported. Best-effort — never blocks the launch.
+    crate::services::companion_mod::ensure_installed(instance).await;
+
     // 8. Spawn process with stdout/stderr capture
     let mut cmd = Command::new(&java);
     cmd.args(&jvm_args);

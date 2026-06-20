@@ -2,6 +2,7 @@ pub mod app_updater;
 pub mod auth;
 pub mod cf_import;
 pub mod cf_mod_install;
+pub mod companion_mod;
 pub mod curseforge;
 pub mod discord;
 pub mod download;

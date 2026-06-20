@@ -573,3 +573,38 @@ manifest, pick the entry for the instance's MC version + loader, download the ja
 (SHA-1-verified, `.part`→rename, shared client) into `mods/` at launch for
 supported instances with the cape on, and remove the managed jar when off /
 unsupported. That's the change that graduates the cape out of experimental (0.7.0).
+
+
+## Stage 11 — launcher download-on-demand (Phase 2)
+
+Status: **implemented; `cargo check` clean. End-to-end in-app smoke test pending
+(needs a published `mod-v*` release to fetch from).**
+
+The launcher now installs the companion mod jar itself, closing the loop so the
+in-game cape works without the user hand-placing a jar:
+
+- **`services/companion_mod.rs`** — at launch, `ensure_installed(instance)`:
+  - When the cape is **enabled** and the instance is **supported**: if a managed
+    jar for the instance's Minecraft version is already in `mods/`, do nothing
+    (no network on the common path). Otherwise fetch the manifest, pick the entry
+    matching the instance's MC version + loader, and download the jar
+    (SHA-1-verified via the shared `download_file`, `.part`→rename) into `mods/`,
+    then prune older managed jars.
+  - When the cape is **off** or the instance is **unsupported**: remove our
+    managed jar so no orphan mod lingers.
+  - Managed jars are matched by our published naming (`vermeil-…+….jar`), so user
+    mods are never touched. Best-effort: every error is logged and swallowed — a
+    cosmetic cape never blocks a launch.
+- **Manifest discovery.** Finds the latest non-draft `mod-v*` GitHub release via
+  the releases API (shared client, `send_with_retry`, sends a UA + GitHub Accept
+  header) and reads its `companion-manifest.json` asset.
+- **Launch wiring.** `launch.rs` calls `ensure_installed` just before spawn,
+  alongside the existing `-Dvermeil.dataDir` cape-dir injection.
+
+No IPC/frontend surface — it's launch-time plumbing. Verified: `cargo check`
+clean, zero warnings.
+
+**Needs:** publish `mod-v0.1.0` (the workflow) so there's a release to fetch, then
+an end-to-end smoke test — enable the cape on a supported instance, launch, and
+confirm the jar lands in `mods/` and the cape renders; toggle off and confirm the
+jar is removed.

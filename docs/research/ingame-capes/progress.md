@@ -97,3 +97,11 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 ## Animated cape resolution capped at ×8 in the editor (no preview/game mismatch)
 - Confirmed via the `scripts/test-cape.ps1` harness + `runClient`: the mod renders every resolution correctly (×1 blocky → ×8 crisp; log shows the real texture size, e.g. ×8 → 512×256). So the prior in-game low-res was purely the frontend bake collapse, now fixed.
 - `bakeForIngame` already capped animated capes at ×8 (memory), but the editor still *offered* ×16/×32 for animated → preview looked sharper than the game would deliver (silent mismatch). Fixed: shared `ANIMATED_MAX_RES = 8` in `lib/cape.ts`; the editor hides higher options for animated sources and clamps a higher saved/selected value down. Static capes still go up to ×32 (small, safe).
+
+
+## 1.21.2–1.21.4 render-state project (and: the 1.21.x line is NOT one era)
+- New `companion-mod/fabric/1.21.2/`: render-state cape hook for the post-feature-renderer 1.21.x. Toolchain: Loom 1.16.3 + Gradle 9.4.1 wrapper, JDK 21, loader 0.19.3 (the 1.21 project's 1.7.4 is too old for late 1.21.x).
+- Hook (verified via genSources at 1.21.2): `@Inject` TAIL of `PlayerRenderer.extractRenderState(AbstractClientPlayer, PlayerRenderState, float)` → set `state.showCape=true` and `state.skin = new PlayerSkin(…, CAPE_ID, …)`. `PlayerSkin` is still `client.resources.PlayerSkin` with a `ResourceLocation` cape (same record as 1.21.1) — only the injection point differs from the feature-renderer hook.
+- Texture API drift from 1.21.1: `NativeImage.getPixelRGBA/setPixelRGBA` → `getPixel/setPixel` (both ARGB-symmetric → raw copy still correct).
+- **Endpoint verification proved 1.21.2–1.21.11 is not one jar.** Compile probes: 1.21.2/1.21.3/1.21.4 OK; 1.21.5 breaks (`DynamicTexture` gains a `Supplier<String>` label arg); 1.21.6 same; 1.21.11 fully 26.x-shaped (`PlayerSkin`/`PlayerRenderer` moved, `Tickable` gone). So the render-state 1.21.x line is ~3 sub-eras → this project is scoped to the verified **1.21.2–1.21.4**; 1.21.5+ need their own projects.
+- Wired: launcher `version_supported` += 1.21.2–1.21.4; `mod-release.yml` builds the project (JDK 21); manifest auto-includes it via the `companion-mod/fabric/*/` glob.

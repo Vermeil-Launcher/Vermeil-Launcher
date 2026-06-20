@@ -161,6 +161,8 @@ fn version_supported(version: &str) -> bool {
         "26.1", "26.1.1", "26.1.2", "26.2",
         // 1.21 feature-renderer era (companion-mod/fabric/1.21).
         "1.21", "1.21.1",
+        // 1.21.2–1.21.4 render-state era (companion-mod/fabric/1.21.2).
+        "1.21.2", "1.21.3", "1.21.4",
     ];
     SUPPORTED.contains(&version)
 }

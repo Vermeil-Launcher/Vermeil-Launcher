@@ -82,10 +82,10 @@ jobs:
         with:
           projectPath: Vermeil
           tagName: ${{ github.ref_name }}
-          releaseName: 'Vermeil ${{ github.ref_name }}'
+          releaseName: 'Vermeil ${{ github.ref_name }} EXPERIMENTAL'
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
-          prerelease: false
+          prerelease: true
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
 

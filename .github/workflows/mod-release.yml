@@ -36,13 +36,21 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: |
+            21
+            25
 
-      - name: Build the mod
-        working-directory: vermeil-fabric-26
+      - name: Build the mods
         run: |
-          chmod +x gradlew
-          ./gradlew build --console=plain
+          set -euo pipefail
+          chmod +x vermeil-fabric-26/gradlew vermeil-fabric-1.21/gradlew
+          # Each era runs its Gradle daemon on a different JDK: 26.x on 25
+          # (Gradle 9.x), 1.21.x on 21 (Gradle 8.8 doesn't run on 25).
+          (cd vermeil-fabric-26 && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew build --console=plain)
+          # The 1.21.x gradle.properties pins a local Windows JDK path for dev
+          # convenience; CI supplies its own JDK 21, so drop that line first.
+          sed -i '/^org\.gradle\.java\.home=/d' vermeil-fabric-1.21/gradle.properties
+          (cd vermeil-fabric-1.21 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
 
       - name: Stage jars and build manifest
         id: stage
@@ -56,7 +64,7 @@ jobs:
           mkdir -p dist
           entries='[]'
           shopt -s nullglob
-          for jar in vermeil-fabric-26/build/libs/vermeil-*+*.jar; do
+          for jar in vermeil-fabric-*/build/libs/vermeil-*+*.jar; do
             case "$jar" in *-sources.jar) continue;; esac
             file=$(basename "$jar")
             cp "$jar" "dist/$file"

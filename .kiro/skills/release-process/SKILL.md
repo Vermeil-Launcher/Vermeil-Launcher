@@ -125,9 +125,9 @@ While in pre-1.0 development, anything goes — use MINOR for any meaningful cha
 5. Push: `git push`
 6. Tag: `git tag vX.Y.Z`
 7. Push tag: `git push origin vX.Y.Z`
-8. Mark the release **pre-release + EXPERIMENTAL** — this is the current standing
-   default (see below). Don't make it a full "latest" release unless the user
-   explicitly says to.
+8. The release workflow publishes it as a pre-release titled `Vermeil vX.Y.Z
+   EXPERIMENTAL` automatically (standing policy — see below). Promote to a full
+   "latest" release only when the user explicitly says to.
 
 ### Changelog Generation Rules
 
@@ -172,28 +172,22 @@ Replace file contents on each release. Don't prepend.
 - Never bump/tag without explicit user approval (the `release:` commit requires confirmation)
 - Tags are immutable — never reuse a tag once pushed
 
-## Experimental / Build-Test Releases
+## Experimental Releases — standing policy
 
-## Experimental Releases — current standing policy
+**Until the user explicitly says to fully release, every `v*` tag ships as a
+pre-release.** `release.yml` does this automatically: each release is published as
+a pre-release titled `Vermeil vX.Y.Z EXPERIMENTAL` (`prerelease: true`). No manual
+step after the tag push.
 
-**Until the user explicitly says to fully release (their words: "fully release as
-is"), EVERY `v*` release ships as a pre-release titled `vX.Y.Z EXPERIMENTAL`.**
-This holds through the `0.7.0` run and beyond until lifted — it is the default for
-every tag, not a special case.
+Why: a non-prerelease release becomes "latest" and the auto-updater serves its
+`latest.json` to every user. Pre-release is excluded from `releases/latest`, so
+the updater skips it.
 
-Why: a normal (non-prerelease) release becomes "latest", and the launcher's
-auto-updater serves that release's `latest.json` to every user — so a full release
-ships itself to everyone. Pre-release is excluded from `releases/latest`, so the
-updater skips it.
-
-Right after pushing the tag (before any user can update):
-
-- `gh release edit vX.Y.Z --prerelease --title "vX.Y.Z EXPERIMENTAL" --repo <repo>`
-
-When the user says to fully release a given version, promote that one:
+Promote a version to a full release only on the user's say-so (drops EXPERIMENTAL,
+removes the pre-release label, makes it latest):
 
 - `gh release edit vX.Y.Z --prerelease=false --latest --title "Vermeil vX.Y.Z"`
 
 Mod releases (`mod-v*`): the launcher fetches the latest **non-draft** `mod-v*`
-release (it does not skip prereleases), so an experimental mod build must be a
-**draft** until verified — `gh release edit mod-vX.Y.Z --draft`.
+release (it does not skip prereleases). For a build you don't want the launcher to
+pick up yet, keep it a **draft** — `gh release edit mod-vX.Y.Z --draft`.

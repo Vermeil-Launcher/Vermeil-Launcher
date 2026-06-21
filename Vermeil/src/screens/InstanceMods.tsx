@@ -1529,9 +1529,6 @@ const InstanceMods: Component = () => {
                 );
               })()}
             </div>
-            <Show when={installedActiveCount() > 0}>
-              <span class="cat-count">{installedActiveCount()} installed</span>
-            </Show>
             {/* Bulk-delete button — scope follows the active filter. "All" wipes
                 everything, otherwise only the matching category. */}
             <button
@@ -1549,13 +1546,17 @@ const InstanceMods: Component = () => {
           </div>
           {/* Search + sort row — applies on top of the category filter above. */}
           <div class="installed-search-row">
-            <input
-              class="field-control field-control--text"
-              style="flex:1"
-              placeholder="Search installed content..."
-              value={installedSearch()}
-              onInput={(e) => setInstalledSearch(e.currentTarget.value)}
-            />
+            <div class="search-field">
+              <input
+                class="field-control field-control--text"
+                placeholder="Search installed content..."
+                value={installedSearch()}
+                onInput={(e) => setInstalledSearch(e.currentTarget.value)}
+              />
+              <Show when={installedActiveCount() > 0}>
+                <span class="search-count">{installedActiveCount()} installed</span>
+              </Show>
+            </div>
             <select
               class="control-select"
               value={installedSort()}
@@ -1635,9 +1636,6 @@ const InstanceMods: Component = () => {
               );
             })()}
             </div>
-            <Show when={totalHits() > 0}>
-              <span class="cat-count">{totalHits().toLocaleString()} results</span>
-            </Show>
           </div>
         </Show>
 
@@ -1773,7 +1771,12 @@ const InstanceMods: Component = () => {
                   <span class="mod-source-badge mr"><IconModrinth /></span>
                 </Show>
               </button>
-              <input class="field-control field-control--text" style="flex:1" placeholder={modSource() === "modrinth" ? "Search Modrinth..." : "Search CurseForge..."} value={searchQuery()} onInput={(e) => handleSearch(e.currentTarget.value)} />
+              <div class="search-field">
+                <input class="field-control field-control--text" placeholder={modSource() === "modrinth" ? "Search Modrinth..." : "Search CurseForge..."} value={searchQuery()} onInput={(e) => handleSearch(e.currentTarget.value)} />
+                <Show when={totalHits() > 0}>
+                  <span class="search-count">{totalHits().toLocaleString()} results</span>
+                </Show>
+              </div>
               <button class={`btn tip-below ${selectMode() ? "btn-active" : ""}`} style="font-size:10px;padding:5px 10px;white-space:nowrap"
                 data-tip="Bulk install"
                 onClick={() => { setSelectMode(!selectMode()); if (selectMode()) setSelectedItems(new Map()); }}>

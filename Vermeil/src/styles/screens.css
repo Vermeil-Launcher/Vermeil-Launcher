@@ -1218,11 +1218,18 @@
   box-shadow: 0 0 0 1px var(--cat-edge, var(--accent));
 }
 
-/* Count moved beside the filter row (not on the buttons, so the buttons keep a
-   fixed width regardless of the number). */
+/* Count rendered inside the search input as a trailing suffix, so it never
+   widens the filter buttons or adds a separate row element. The input gets
+   right padding to clear the absolutely-positioned badge. */
 .cat-row { display: flex; align-items: center; gap: 8px; }
-.cat-count {
-  flex-shrink: 0;
+.search-field { position: relative; display: flex; align-items: center; flex: 1; }
+.search-field input { flex: 1; padding-right: 84px; }
+.search-count {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);

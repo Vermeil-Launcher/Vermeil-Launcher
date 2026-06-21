@@ -979,13 +979,26 @@ const InstanceMods: Component = () => {
     return bytes + " B";
   };
 
-  /// Format a project's supported MC versions as a card badge. Modrinth's
-  /// `versions[]` field is sorted oldest first. Filter out pre-release noise
-  /// and show a range when there are several.
+  /// Format a project's supported MC versions as a card badge. The list can
+  /// arrive unsorted or string-sorted (CurseForge), so we sort numerically —
+  /// otherwise "1.10" lands before "1.9.4" and a range reads as "1.10–1.9.4".
+  /// Pre-release / snapshot strings are filtered out, then we show the first
+  /// and last of the numeric set as a range.
   const formatVersionRange = (versions: string[] | undefined): string => {
     if (!versions || versions.length === 0) return "";
     const releases = versions.filter(v => /^\d+(\.\d+)*$/.test(v));
-    const list = releases.length > 0 ? releases : versions;
+    const list = (releases.length > 0 ? releases : versions).slice();
+    // Numeric, component-wise compare so 1.8.9 < 1.10 < 1.12.2 (not lexical).
+    const cmp = (a: string, b: string): number => {
+      const pa = a.split(".").map(Number);
+      const pb = b.split(".").map(Number);
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+        if (d !== 0) return d;
+      }
+      return 0;
+    };
+    if (releases.length > 0) list.sort(cmp);
     if (list.length === 1) return list[0];
     return `${list[0]}–${list[list.length - 1]}`;
   };

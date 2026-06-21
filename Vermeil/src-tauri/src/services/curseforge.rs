@@ -94,6 +94,17 @@ struct CfMod {
     authors: Vec<CfAuthor>,
     #[serde(rename = "latestFilesIndexes")]
     latest_files_indexes: Vec<CfFileIndex>,
+    /// Fuller per-file list. `gameVersions` mixes MC versions and loader names
+    /// (e.g. `["1.8.9","Forge"]`), so it recovers the loader + versions that
+    /// the compact `latestFilesIndexes` drops for older files.
+    #[serde(rename = "latestFiles", default)]
+    latest_files: Vec<CfLatestFile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfLatestFile {
+    #[serde(rename = "gameVersions", default)]
+    game_versions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -216,8 +227,6 @@ pub async fn search(
             .iter()
             .map(|f| f.game_version.clone())
             .collect();
-        versions.sort();
-        versions.dedup();
 
         let latest_version = m.latest_files_indexes
             .first()
@@ -241,6 +250,38 @@ pub async fn search(
                 }
             }
         }
+
+        // The compact latestFilesIndexes omits the loader on older files and
+        // doesn't always list every supported MC version. The fuller
+        // latestFiles[].gameVersions mixes MC versions and loader names
+        // (e.g. ["1.8.9","Forge"]); harvest both so old mods like BetterFps
+        // get a loader badge and a complete version range.
+        for f in &m.latest_files {
+            for gv in &f.game_versions {
+                let loader = match gv.to_lowercase().as_str() {
+                    "forge" => Some("forge"),
+                    "fabric" => Some("fabric"),
+                    "quilt" => Some("quilt"),
+                    "neoforge" => Some("neoforge"),
+                    _ => None,
+                };
+                match loader {
+                    Some(name) => {
+                        if !categories.contains(&name.to_string()) {
+                            categories.push(name.to_string());
+                        }
+                    }
+                    // MC version strings start with a digit (e.g. "1.8.9").
+                    None if gv.chars().next().is_some_and(|c| c.is_ascii_digit()) => {
+                        versions.push(gv.clone());
+                    }
+                    None => {}
+                }
+            }
+        }
+
+        versions.sort();
+        versions.dedup();
 
         CfHit {
             project_id: m.id.to_string(),

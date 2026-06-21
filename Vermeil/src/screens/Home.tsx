@@ -130,6 +130,10 @@ const Home: Component = () => {
               <span class="article-version">{selectedArticle()!.version}</span>
             </div>
           </div>
+          {/* innerHTML is safe here: the article body is sanitized server-side
+              with ammonia::clean() in get_article_body (strips <script>/<iframe>/
+              on*= handlers/javascript: URLs) before it crosses IPC. Only ever
+              feed this element already-sanitized HTML — never raw remote content. */}
           <div class="article-body" innerHTML={articleBody() || (loadingArticle() ? "<p style='color:var(--muted)'>Loading article...</p>" : "<p style='color:var(--muted)'>No content available. Click below to read on minecraft.net.</p>")} />
           <button class="btn" style="margin-top:12px" onClick={() => openUrl(selectedArticle()!.url)}>
             Read on minecraft.net ↗

@@ -1003,6 +1003,14 @@ const InstanceMods: Component = () => {
     return `${list[0]}–${list[list.length - 1]}`;
   };
 
+  /// Per-category modifier suffix for the colored `.cat-btn` filter buttons.
+  const catMod = (cat: string): string =>
+    cat === "resourcepack" ? "resource"
+    : cat === "shader" ? "shader"
+    : cat === "datapack" ? "datapack"
+    : cat === "mod" ? "mod"
+    : "all";
+
   /// Loaders we recognize on Modrinth project `categories`. Modrinth bundles
   /// loader IDs into the same array as content categories, so we filter to
   /// just the loader subset for the badge row.
@@ -1494,12 +1502,15 @@ const InstanceMods: Component = () => {
                 const filter = (cat: "all" | "mod" | "resourcepack" | "shader" | "datapack", label: string, count: () => number) => {
                   if (cat !== "all" && !isCategoryAvailable(cat, loader())) return null;
                   return (
-                    <div
-                      class={`tab ${installedFilter() === cat ? "active" : ""}`}
+                    <button
+                      class={`cat-btn cat-btn--${catMod(cat)} ${installedFilter() === cat ? "active" : ""}`}
                       onClick={() => setInstalledFilter(cat)}
                     >
-                      {label}{count() > 0 ? ` (${count()})` : ""}
-                    </div>
+                      {label}
+                      <Show when={count() > 0}>
+                        <span class="cat-btn-count">{count()}</span>
+                      </Show>
+                    </button>
                   );
                 };
                 return (
@@ -1595,13 +1606,17 @@ const InstanceMods: Component = () => {
               const loader = () => instance()?.loader.type ?? "vanilla";
               const tab = (cat: "mod" | "resourcepack" | "shader" | "datapack", label: string) => {
                 if (!isCategoryAvailable(cat, loader())) return null;
+                const active = () => browseFilter() === cat;
                 return (
-                  <div
-                    class={`tab ${browseFilter() === cat ? "active" : ""}`}
+                  <button
+                    class={`cat-btn cat-btn--${catMod(cat)} ${active() ? "active" : ""}`}
                     onClick={() => setBrowseFilter(cat)}
                   >
-                    {label}{browseFilter() === cat && totalHits() > 0 ? ` (${totalHits().toLocaleString()})` : ""}
-                  </div>
+                    {label}
+                    <Show when={active() && totalHits() > 0}>
+                      <span class="cat-btn-count">{totalHits().toLocaleString()}</span>
+                    </Show>
+                  </button>
                 );
               };
               return (

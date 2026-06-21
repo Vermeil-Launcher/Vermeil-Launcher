@@ -1177,3 +1177,61 @@
   margin-left: auto;
 }
 
+
+/* ── Category filter buttons (Installed / Browse content rows) ──────────────
+   FAB-style chunky plates: a hard inset under-shadow gives them physical depth
+   at rest, which drops on hover/press so they "flatten in" (same feel as the
+   dock's center FAB). Each content category is colour-coded; the active one is
+   full-opacity with an accent ring while the rest sit back. The per-category
+   count moved off the label into its own pill. */
+.cat-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--cat-edge, var(--border));
+  background: var(--cat-bg, var(--bg3));
+  color: var(--cat-fg, var(--text));
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.30);
+  transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.15s ease, background 0.15s ease;
+  opacity: 0.6;
+}
+.cat-btn:hover {
+  box-shadow: none;        /* flatten the plate on hover */
+  opacity: 0.9;
+}
+.cat-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+.cat-btn.active {
+  opacity: 1;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.30), 0 0 0 1px var(--cat-edge, var(--accent));
+}
+.cat-btn.active:hover {
+  box-shadow: 0 0 0 1px var(--cat-edge, var(--accent));
+}
+
+/* Count pill — relocated out of the "(3)" label suffix. */
+.cat-btn-count {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.32);
+  color: var(--cat-fg, #fff);
+}
+
+/* Per-category colours. */
+.cat-btn--all      { --cat-bg: var(--accent);  --cat-edge: var(--accent-strong); --cat-fg: var(--accent-contrast); }
+.cat-btn--mod      { --cat-bg: #2f6db0; --cat-edge: #4a8ad6; --cat-fg: #eaf3ff; }
+.cat-btn--resource { --cat-bg: #2f8f57; --cat-edge: #44b06e; --cat-fg: #eafff1; }
+.cat-btn--shader   { --cat-bg: #9c3f8e; --cat-edge: #c651b0; --cat-fg: #ffeaf9; }
+.cat-btn--datapack { --cat-bg: #b0742f; --cat-edge: #d68f44; --cat-fg: #fff4ea; }

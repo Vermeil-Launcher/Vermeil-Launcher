@@ -577,6 +577,8 @@ export interface WorldEntry {
   size_mb: number;
   last_played: string;
   game_mode: string;
+  /** World thumbnail (icon.png) as a data URL, or null if the world has none. */
+  icon: string | null;
 }
 
 export const listInstanceFiles = (instanceId: string, subPath?: string) =>

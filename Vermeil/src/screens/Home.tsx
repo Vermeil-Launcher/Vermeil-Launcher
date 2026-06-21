@@ -36,6 +36,33 @@ function relativePlayed(iso: string | null | undefined): string | null {
   return `${months} month${months === 1 ? "" : "s"} ago`;
 }
 
+/** Loader-tinted icon-tile background class (mirrors the Library card). */
+function bannerColor(loader: string): string {
+  switch (loader) {
+    case "fabric": return "fabric";
+    case "quilt": return "quilt";
+    case "forge": return "orange";
+    case "neoforge": return "purple";
+    default: return "green";
+  }
+}
+
+/** Per-loader badge color modifier (mirrors the Library card). */
+function loaderBadgeClass(loader: string): string {
+  switch (loader) {
+    case "fabric": return "badge--fabric";
+    case "quilt": return "badge--quilt";
+    case "forge": return "badge--forge";
+    case "neoforge": return "badge--neoforge";
+    default: return "badge--vanilla";
+  }
+}
+
+/** Display label for a loader id. */
+function loaderLabel(loader: string): string {
+  return loader === "vanilla" ? "Vanilla" : loader.charAt(0).toUpperCase() + loader.slice(1);
+}
+
 const Home: Component = () => {
   const [news] = createResource(getJavaNews);
   const [newsPage, setNewsPage] = createSignal(1);
@@ -89,12 +116,25 @@ const Home: Component = () => {
     const insts = instances();
     if (!insts || insts.length === 0) return [];
 
-    const allWorlds: { instanceId: string; instanceName: string; worldName: string; lastPlayed: string }[] = [];
+    const allWorlds: {
+      instanceId: string; instanceName: string; instanceIcon: string;
+      loader: string; gameVersion: string;
+      worldName: string; worldIcon: string | null; lastPlayed: string;
+    }[] = [];
     for (const inst of insts.slice(0, 5)) {
       try {
         const worlds = await listInstanceWorlds(inst.id);
         for (const w of worlds) {
-          allWorlds.push({ instanceId: inst.id, instanceName: inst.name, worldName: w.name, lastPlayed: w.last_played });
+          allWorlds.push({
+            instanceId: inst.id,
+            instanceName: inst.name,
+            instanceIcon: inst.icon,
+            loader: inst.loader.type,
+            gameVersion: inst.game_version,
+            worldName: w.name,
+            worldIcon: w.icon,
+            lastPlayed: w.last_played,
+          });
         }
       } catch { /* ignore */ }
     }
@@ -221,7 +261,7 @@ const Home: Component = () => {
             <For each={recentWorlds()}>
               {(world) => (
                 <div
-                  class="card card--compact"
+                  class="card card--inst world-card"
                   style="cursor:pointer"
                   onClick={() => {
                     // Default click action is to open the instance — matches
@@ -233,22 +273,41 @@ const Home: Component = () => {
                   }}
                 >
                   <div class="card-body">
-                    <div style="display:flex;align-items:center;justify-content:space-between">
-                      <span class="side-icon"><IconGlobe /></span>
-                      <button
-                        class="btn btn--primary btn--sm"
-                        onClick={(e) => {
-                          // Stop the bubble so the card-level handler doesn't
-                          // also fire and double-navigate.
-                          e.stopPropagation();
-                          handlePlayWorld(world.instanceId);
-                        }}
-                      >
-                        <IconPlay /> Play
-                      </button>
+                    {/* World thumbnail (icon.png) — loader-tinted tile with a
+                        globe fallback when the world has no icon yet. */}
+                    <div class={`inst-card-icon ${bannerColor(world.loader)}`}>
+                      <Show when={world.worldIcon} fallback={<span class="side-icon"><IconGlobe /></span>}>
+                        <img src={world.worldIcon!} alt="" draggable={false} />
+                      </Show>
                     </div>
-                    <div class="card-title">{world.worldName}</div>
-                    <div class="card-sub">{world.instanceName}</div>
+                    <div class="inst-card-content">
+                      <div class="card-title inst-name">{world.worldName}</div>
+                      <div class="card-sub inst-meta world-card-sub">
+                        {/* Modpack/instance icon + name so it's clear which
+                            instance the world belongs to. */}
+                        <Show when={world.instanceIcon && world.instanceIcon !== 'cube'}>
+                          <img class="world-card-inst-icon" src={world.instanceIcon} alt="" draggable={false} />
+                        </Show>
+                        <span class="world-card-inst-name">{world.instanceName}</span>
+                      </div>
+                      <div class="inst-card-badges">
+                        <span class="badge badge--version">{world.gameVersion}</span>
+                        <span class={`badge badge--loader ${loaderBadgeClass(world.loader)}`}>
+                          {loaderLabel(world.loader)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      class="btn btn--primary btn--sm world-card-play"
+                      onClick={(e) => {
+                        // Stop the bubble so the card-level handler doesn't
+                        // also fire and double-navigate.
+                        e.stopPropagation();
+                        handlePlayWorld(world.instanceId);
+                      }}
+                    >
+                      <IconPlay /> Play
+                    </button>
                   </div>
                 </div>
               )}

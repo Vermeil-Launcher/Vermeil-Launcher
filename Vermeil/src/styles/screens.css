@@ -1069,6 +1069,41 @@
 .inst-card-icon.quilt { background: var(--grad-inst-quilt); }
 .inst-card-icon.purple { background: var(--grad-inst-quilt); }
 
+/* Continue-section world cards — reuse the instance-card row layout, with the
+   world's icon.png in the tile, a modpack icon + name sub-row, loader/version
+   badges, and a trailing Play button. */
+.world-card .card-body { align-items: center; }
+.world-card .inst-card-icon .side-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+}
+.world-card .inst-card-icon .side-icon svg { width: 22px; height: 22px; }
+.world-card-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.world-card-inst-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.world-card-inst-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.world-card-play {
+  flex-shrink: 0;
+  align-self: center;
+  white-space: nowrap;
+}
+
 /* Custom cape chip — equip fills the chip; edit + remove reveal on hover.
    Mirrors the saved-skin chip pattern. */
 .skins-cape-chip--custom { padding: 0; }

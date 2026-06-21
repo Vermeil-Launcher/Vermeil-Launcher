@@ -387,9 +387,9 @@ const Settings: Component = () => {
               <div class="settings-row">
                 <div>
                   <div class="settings-key">Website</div>
-                  <div class="settings-val">vermeil-launcher.online</div>
+                  <div class="settings-val">vermeillauncher.app</div>
                 </div>
-                <button class="btn" style="font-size:10px;padding:4px 10px;display:flex;align-items:center;gap:4px" onClick={() => openUrl("https://vermeil-launcher.online/")}>
+                <button class="btn" style="font-size:10px;padding:4px 10px;display:flex;align-items:center;gap:4px" onClick={() => openUrl("https://vermeillauncher.app/")}>
                   <IconGlobe />
                   Visit
                 </button>

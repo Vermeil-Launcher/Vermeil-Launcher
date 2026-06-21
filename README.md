@@ -5,8 +5,11 @@
 [![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/actions)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-informational?style=flat-square)]()
 [![Status](https://img.shields.io/badge/Status-Alpha-orange?style=flat-square)]()
+[![Website](https://img.shields.io/badge/Website-vermeillauncher.app-8b5cf6?style=flat-square)](https://vermeillauncher.app/)
 
 A lightweight Minecraft: Java Edition launcher for Windows and Linux.
+
+Website: [vermeillauncher.app](https://vermeillauncher.app/)
 
 Built with [Tauri 2](https://tauri.app/) (Rust backend) and [SolidJS](https://www.solidjs.com/) (TypeScript frontend).
 

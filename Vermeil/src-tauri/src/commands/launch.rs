@@ -206,9 +206,9 @@ pub async fn sync_instance_mods(instance_id: String) -> Result<(), String> {
     crate::services::mod_install::sync_manual_mods(&instance_id).await
 }
 
-/// Detect available Modrinth updates for every Modrinth-sourced mod in the
-/// given instance. Returned map is keyed by `project_id` so the frontend can
-/// look up update info per card without scanning a list.
+/// Detect available updates for every Modrinth- and CurseForge-sourced mod in
+/// the given instance. Returned map is keyed by `project_id` so the frontend
+/// can look up update info per card without scanning a list.
 #[tauri::command]
 pub async fn check_mod_updates(
     instance_id: String,

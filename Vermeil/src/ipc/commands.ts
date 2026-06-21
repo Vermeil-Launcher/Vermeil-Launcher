@@ -263,7 +263,7 @@ export interface ModUpdate {
   latest_published: string | null;
 }
 
-/** Check every Modrinth-sourced mod in the instance for updates. */
+/** Check every Modrinth- and CurseForge-sourced mod in the instance for updates. */
 export const checkModUpdates = (instanceId: string) =>
   invoke<Record<string, ModUpdate>>("check_mod_updates", { instanceId });
 

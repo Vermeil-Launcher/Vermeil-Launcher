@@ -76,6 +76,12 @@ This list is non-exhaustive. Update it whenever you discover a new mismatch.
 - **Modrinth**: no auth required for read-only API.
 - **CurseForge**: requires an API key in `x-api-key` header. We ship a default key; users can override.
 
+### Update detection (newest-compatible-file comparison)
+
+- **Modrinth**: version list carries `date_published`. We pick the preferred version via `find_preferred_version` and confirm it's newer by comparing publish dates against the installed `version_id`.
+- **CurseForge**: `CfFileInfo` carries **no publish date**. CF file IDs are globally **monotonic**, so update detection compares the newest compatible file's numeric `file_id` against the installed one and only flags an update when it's strictly greater (never a downgrade).
+- Both live in `services/mod_updates.rs` (`check_modrinth_entry` / `check_curseforge_entry`); application reuses each source's install flow (`mod_install::install_mod` / `cf_mod_install::install_cf_mod`).
+
 ## Implementation Workflow
 
 When working on a cross-source feature, follow this sequence:

@@ -1574,7 +1574,7 @@ const InstanceMods: Component = () => {
               style="font-size:11px;padding:6px 10px;white-space:nowrap"
               disabled={checkingUpdates() || (instance()?.mods.length ?? 0) === 0}
               onClick={() => refreshUpdates(true)}
-              title="Check Modrinth for newer versions of every installed item"
+              title="Check Modrinth and CurseForge for newer versions of every installed item"
             >
               {checkingUpdates() ? "Checking..." : "Check updates"}
             </button>

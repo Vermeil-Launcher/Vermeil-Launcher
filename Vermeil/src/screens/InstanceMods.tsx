@@ -1011,6 +1011,14 @@ const InstanceMods: Component = () => {
     : cat === "mod" ? "mod"
     : "all";
 
+  /// Installed-content count for the active category — shown beside the filter
+  /// row (not on the buttons, so they keep a fixed width).
+  const installedActiveCount = (): number => {
+    const mods = instance()?.mods || [];
+    const f = installedFilter();
+    return f === "all" ? mods.length : mods.filter(m => ((m as any).category || "mod") === f).length;
+  };
+
   /// Loaders we recognize on Modrinth project `categories`. Modrinth bundles
   /// loader IDs into the same array as content categories, so we filter to
   /// just the loader subset for the badge row.
@@ -1499,7 +1507,7 @@ const InstanceMods: Component = () => {
             <div class="tab-strip" style="margin-bottom:0;flex:1">
               {(() => {
                 const loader = () => instance()?.loader.type ?? "vanilla";
-                const filter = (cat: "all" | "mod" | "resourcepack" | "shader" | "datapack", label: string, count: () => number) => {
+                const filter = (cat: "all" | "mod" | "resourcepack" | "shader" | "datapack", label: string) => {
                   if (cat !== "all" && !isCategoryAvailable(cat, loader())) return null;
                   return (
                     <button
@@ -1507,23 +1515,23 @@ const InstanceMods: Component = () => {
                       onClick={() => setInstalledFilter(cat)}
                     >
                       {label}
-                      <Show when={count() > 0}>
-                        <span class="cat-btn-count">{count()}</span>
-                      </Show>
                     </button>
                   );
                 };
                 return (
                   <>
-                    {filter("all", "All", () => instance()?.mods.length || 0)}
-                    {filter("mod", "Mods", () => (instance()?.mods || []).filter(m => !(m as any).category || (m as any).category === "mod").length)}
-                    {filter("resourcepack", "Resources", () => (instance()?.mods || []).filter(m => (m as any).category === "resourcepack").length)}
-                    {filter("shader", "Shaders", () => (instance()?.mods || []).filter(m => (m as any).category === "shader").length)}
-                    {filter("datapack", "Datapacks", () => (instance()?.mods || []).filter(m => (m as any).category === "datapack").length)}
+                    {filter("all", "All")}
+                    {filter("mod", "Mods")}
+                    {filter("resourcepack", "Resources")}
+                    {filter("shader", "Shaders")}
+                    {filter("datapack", "Datapacks")}
                   </>
                 );
               })()}
             </div>
+            <Show when={installedActiveCount() > 0}>
+              <span class="cat-count">{installedActiveCount()} installed</span>
+            </Show>
             {/* Bulk-delete button — scope follows the active filter. "All" wipes
                 everything, otherwise only the matching category. */}
             <button
@@ -1601,7 +1609,8 @@ const InstanceMods: Component = () => {
           {/* Browse category tabs. Tabs for categories that aren't usable
               on the current loader (mods/shaders on vanilla) are hidden
               entirely to avoid clutter and confusion. */}
-          <div class="tab-strip" style="margin-bottom:12px">
+          <div class="cat-row" style="margin-bottom:12px">
+            <div class="tab-strip" style="margin-bottom:0;flex:1">
             {(() => {
               const loader = () => instance()?.loader.type ?? "vanilla";
               const tab = (cat: "mod" | "resourcepack" | "shader" | "datapack", label: string) => {
@@ -1613,9 +1622,6 @@ const InstanceMods: Component = () => {
                     onClick={() => setBrowseFilter(cat)}
                   >
                     {label}
-                    <Show when={active() && totalHits() > 0}>
-                      <span class="cat-btn-count">{totalHits().toLocaleString()}</span>
-                    </Show>
                   </button>
                 );
               };
@@ -1628,6 +1634,10 @@ const InstanceMods: Component = () => {
                 </>
               );
             })()}
+            </div>
+            <Show when={totalHits() > 0}>
+              <span class="cat-count">{totalHits().toLocaleString()} results</span>
+            </Show>
           </div>
         </Show>
 

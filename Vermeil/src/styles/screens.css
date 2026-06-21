@@ -1218,15 +1218,15 @@
   box-shadow: 0 0 0 1px var(--cat-edge, var(--accent));
 }
 
-/* Count pill — relocated out of the "(3)" label suffix. */
-.cat-btn-count {
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: var(--radius-pill);
-  background: rgba(0, 0, 0, 0.32);
-  color: var(--cat-fg, #fff);
+/* Count moved beside the filter row (not on the buttons, so the buttons keep a
+   fixed width regardless of the number). */
+.cat-row { display: flex; align-items: center; gap: 8px; }
+.cat-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 /* Per-category colours. */

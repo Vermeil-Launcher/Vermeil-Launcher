@@ -135,7 +135,7 @@ jobs:
           if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --repo "${{ github.repository }}" \
-              --title "Vermeil companion mod $TAG" \
+              --title "Vermeil companion mod ${TAG#mod-}" \
               --notes "Companion mod jars for the in-game cape feature. Installed automatically by the launcher; not meant to be downloaded by hand."
           fi
           gh release upload "$TAG" dist/* --clobber --repo "${{ github.repository }}"

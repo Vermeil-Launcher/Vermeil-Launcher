@@ -1,6 +1,6 @@
 import { Component, createSignal, createResource, For, Show } from "solid-js";
 import { setActiveScreen, refetchInstances, refreshPinnedInstanceIds, showToast } from "../App";
-import { getGameVersions, getFabricLoaderVersions, getFabricGameVersions, getQuiltLoaderVersions, getQuiltGameVersions, getNeoforgeVersions, getNeoforgeGameVersions, getForgeVersions, getForgeGameVersions, createInstance, prepareInstance, getSettings } from "../ipc/commands";
+import { getGameVersions, getFabricLoaderVersions, getFabricGameVersions, getQuiltLoaderVersions, getQuiltGameVersions, getNeoforgeVersions, getNeoforgeGameVersions, getForgeVersions, getForgeGameVersions, createInstance, prepareInstance, getSettings, companionSupportedVersions } from "../ipc/commands";
 
 const LOADERS = ["vanilla", "fabric", "neoforge", "forge", "quilt"] as const;
 
@@ -22,6 +22,11 @@ const CreateCustom: Component = () => {
   const [quiltGameVersions] = createResource(getQuiltGameVersions);
   const [neoforgeGameVersions] = createResource(getNeoforgeGameVersions);
   const [forgeGameVersions] = createResource(getForgeGameVersions);
+
+  // MC versions the Vermeil companion mod supports for the selected loader, so
+  // we can mark them in the dropdown. Re-fetches when the loader changes.
+  const [companionVersions] = createResource(() => loader(), (l) => companionSupportedVersions(l));
+  const isCompanionSupported = (id: string) => !!id && (companionVersions() || []).includes(id);
 
   // Check if selected MC version is a legacy Fabric version (pre-1.14)
   const isLegacyVersion = () => {
@@ -176,6 +181,9 @@ const CreateCustom: Component = () => {
               <div class="custom-dropdown" tabIndex={0} onBlur={() => setVersionDropOpen(false)}>
                 <div class="custom-dropdown-selected" onClick={() => setVersionDropOpen(!versionDropOpen())}>
                   <span>{selectedGameVersion() || "Select version"}{gameVersionList()[0]?.id === selectedGameVersion() ? " (latest)" : ""}</span>
+                  <Show when={isCompanionSupported(selectedGameVersion())}>
+                    <img class="companion-version-mark" src="/logo.png" alt="" title="Vermeil companion mod supported" draggable={false} />
+                  </Show>
                   <span class="custom-dropdown-arrow" classList={{ open: versionDropOpen() }}>▾</span>
                 </div>
                 <Show when={versionDropOpen()}>
@@ -187,7 +195,10 @@ const CreateCustom: Component = () => {
                           classList={{ selected: selectedGameVersion() === v.id }}
                           onClick={() => { setGameVersion(v.id); setVersionDropOpen(false); }}
                         >
-                          {v.id}{i() === 0 ? " (latest)" : ""}
+                          <span>{v.id}{i() === 0 ? " (latest)" : ""}</span>
+                          <Show when={isCompanionSupported(v.id)}>
+                            <img class="companion-version-mark" src="/logo.png" alt="" title="Vermeil companion mod supported" draggable={false} />
+                          </Show>
                         </div>
                       )}
                     </For>

@@ -144,29 +144,43 @@ pub async fn get_ingame_cape() -> Option<IngameCapeSettings> {
 
 // ───────────────────────── Support gate + launch wiring ──────────────────
 
-/// Minecraft versions the **Fabric/Quilt** companion jars target — every version
-/// the published Fabric jars support. Each render-era jar covers a range:
-/// `companion-mod/fabric/26.1-26.2` → 26.x; `companion-mod/fabric/1.21-1.21.1` → 1.21–1.21.1
-/// (feature-renderer). Keep this in lockstep with the jars CI publishes (the
-/// `mc_versions` lists in each Fabric project's `gradle.properties`).
+/// MC versions the **Fabric/Quilt** companion jars target — the union of every
+/// Fabric project's `mc_versions`. Single source for both the support gate and
+/// the frontend "supported version" hints (instance-creator dropdown).
+const FABRIC_SUPPORTED: &[&str] = &[
+    // 26.x render-state era (companion-mod/fabric/26.1-26.2).
+    "26.1", "26.1.1", "26.1.2", "26.2",
+    // 1.21 feature-renderer era (companion-mod/fabric/1.21-1.21.1).
+    "1.21", "1.21.1",
+    // 1.21.11 render-state era (companion-mod/fabric/1.21.11).
+    "1.21.11",
+];
+
+/// MC versions the **Forge** companion jar targets (companion-mod/forge/1.8.9).
+const FORGE_SUPPORTED: &[&str] = &["1.8.9"];
+
+/// Minecraft versions the Fabric/Quilt companion jars support. Each render-era
+/// jar covers a range; keep `FABRIC_SUPPORTED` in lockstep with the jars CI
+/// publishes (the `mc_versions` lists in each Fabric project's `gradle.properties`).
 fn fabric_version_supported(version: &str) -> bool {
-    const SUPPORTED: &[&str] = &[
-        // 26.x render-state era (companion-mod/fabric/26.1-26.2).
-        "26.1", "26.1.1", "26.1.2", "26.2",
-        // 1.21 feature-renderer era (companion-mod/fabric/1.21-1.21.1).
-        "1.21", "1.21.1",
-        // 1.21.11 render-state era (companion-mod/fabric/1.21.11).
-        "1.21.11",
-    ];
-    SUPPORTED.contains(&version)
+    FABRIC_SUPPORTED.contains(&version)
 }
 
-/// Minecraft versions the **Forge** companion jar targets. 1.8.9 only — the
-/// legacy PvP audience runs Forge there for the OptiFine/performance-mod
-/// ecosystem (companion-mod/forge/1.8.9). Keep in lockstep with that project's
-/// `mc_versions` in `gradle.properties`.
+/// Minecraft versions the Forge companion jar targets. 1.8.9 only — the legacy
+/// PvP audience runs Forge there (companion-mod/forge/1.8.9).
 fn forge_version_supported(version: &str) -> bool {
-    version == "1.8.9"
+    FORGE_SUPPORTED.contains(&version)
+}
+
+/// Companion-supported MC versions for a loader, named as the frontend names it
+/// (`"fabric"`/`"quilt"`/`"forge"`/…). Drives the "supported" hint on the
+/// instance creator's version dropdown. Empty for loaders with no companion build.
+pub fn supported_versions_for_loader(loader: &str) -> Vec<String> {
+    match loader {
+        "fabric" | "quilt" => FABRIC_SUPPORTED.iter().map(|s| s.to_string()).collect(),
+        "forge" => FORGE_SUPPORTED.iter().map(|s| s.to_string()).collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// Whether the companion mod can render a cape on this instance. Support is

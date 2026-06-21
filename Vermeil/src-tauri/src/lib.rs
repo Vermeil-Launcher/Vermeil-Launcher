@@ -355,6 +355,7 @@ pub fn run() {
             instances::set_ingame_cape_enabled,
             instances::clear_ingame_cape,
             instances::get_ingame_cape,
+            instances::companion_supported_versions,
             // CurseForge import
             cf_import::import_cf_zip,
             cf_import::import_cf_code,

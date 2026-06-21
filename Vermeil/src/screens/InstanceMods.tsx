@@ -1058,6 +1058,11 @@ const InstanceMods: Component = () => {
           </span>
         </Show>
         <span class="ctx-badge" style="background:var(--bg4);color:var(--muted)">{instance()?.game_version}</span>
+        <Show when={instance()?.ingame_cape_supported}>
+          <span class="ctx-badge ctx-badge--companion" title="Vermeil companion mod supported">
+            <img src="/logo.png" alt="Vermeil" draggable={false} />
+          </span>
+        </Show>
         <Show when={(instance()?.source_platforms || []).includes("modrinth")}>
           <span class="ctx-badge badge-source-mr" title="Available on Modrinth"><IconModrinth /></span>
         </Show>

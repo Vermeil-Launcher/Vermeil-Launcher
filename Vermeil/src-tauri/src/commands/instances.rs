@@ -311,3 +311,11 @@ pub async fn clear_ingame_cape() -> Result<(), String> {
 pub async fn get_ingame_cape() -> Result<Option<IngameCapeSettings>, String> {
     Ok(instance_cape::get_ingame_cape().await)
 }
+
+/// MC versions the Vermeil companion mod supports for a given loader. Drives the
+/// "supported" hint on the instance creator's version dropdown so a user can see,
+/// before creating an instance, which versions get in-game companion support.
+#[tauri::command]
+pub async fn companion_supported_versions(loader: String) -> Result<Vec<String>, String> {
+    Ok(instance_cape::supported_versions_for_loader(&loader))
+}

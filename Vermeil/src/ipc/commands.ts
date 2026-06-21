@@ -541,6 +541,11 @@ export const clearIngameCape = () => invoke<void>("clear_ingame_cape");
 /** Read the current in-game cape state, or null if none is set. */
 export const getIngameCape = () => invoke<IngameCapeState | null>("get_ingame_cape");
 
+/** MC versions the Vermeil companion mod supports for a loader (drives the
+ *  "supported" hint on the instance creator's version dropdown). */
+export const companionSupportedVersions = (loader: string) =>
+  invoke<string[]>("companion_supported_versions", { loader });
+
 /**
  * Fetch a single account's current skin head (data URL) without changing
  * the active account. Used by the Account screen so every Microsoft row

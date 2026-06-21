@@ -1011,7 +1011,7 @@ const Settings: Component = () => {
                             <span class={`badge badge--loader ${badgeClass}`}>{loaderLabel}</span>
                             <span class="badge">{inst.java.memory_max_mb} MB</span>
                             <Show when={inst.ingame_cape_supported}>
-                              <span class="badge badge--companion" title="Vermeil companion mod supported — in-game custom capes work on this instance">
+                              <span class="badge badge--companion" title="Vermeil companion mod supported">
                                 <img src="/logo.png" alt="Vermeil" draggable={false} />
                               </span>
                             </Show>

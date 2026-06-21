@@ -1193,16 +1193,6 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     let win_width = global_vs.and_then(|v| v.window_width).unwrap_or(instance.window.width);
     let win_height = global_vs.and_then(|v| v.window_height).unwrap_or(instance.window.height);
     let (win_width, win_height) = if win_maximized {
-        // When maximized, the explicit resolution is intentionally ignored —
-        // the Settings UI greys the resolution control out to match. We launch
-        // at monitor size so the window already fills the screen on first
-        // paint, rather than appearing at the resolution value and then
-        // jumping to maximized (a jarring small-window→maximize flash).
-        // On Windows `maximize_minecraft_window_async` then snaps it to the
-        // true maximized state (respecting the taskbar work area) and brings
-        // it to the foreground; on other platforms the WM/compositor renders
-        // this near-monitor size as the effective "maximized" window since we
-        // can't call ShowWindow there.
         let monitor_size = window
             .as_ref()
             .and_then(|w| w.current_monitor().ok().flatten())
@@ -1212,8 +1202,27 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
             })
             .unwrap_or((1920, 1080));
         if cfg!(windows) {
-            (monitor_size.0, monitor_size.1)
+            // Windows maximizes the real window via ShowWindow(SW_MAXIMIZE) once
+            // it appears (see focus_minecraft_window_async), so launch at the
+            // *configured* resolution — that becomes the window's restore
+            // rectangle. Launching at monitor size instead made Windows record
+            // the full monitor as the restore size, so the OS maximize/restore
+            // button toggled to a taskbar-covering, fullscreen-looking window
+            // the user couldn't escape (and the monitor-size first paint briefly
+            // flashed fullscreen). ShowWindow handles the actual maximizing.
+            let (mw, mh) = monitor_size;
+            // Guarantee the restore size is a genuine sub-monitor window so the
+            // maximize/restore toggle always lands on a usable windowed state,
+            // even if the configured resolution happens to match the monitor.
+            if win_width >= mw || win_height >= mh {
+                (mw.saturating_sub(160).max(640), mh.saturating_sub(160).max(480))
+            } else {
+                (win_width, win_height)
+            }
         } else {
+            // Linux/macOS can't programmatically maximize the GLFW window, so
+            // launch at near-monitor size as the effective "maximized" window
+            // (minus a strip so the panel/taskbar stays visible).
             (monitor_size.0, monitor_size.1.saturating_sub(60).max(480))
         }
     } else {

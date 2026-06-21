@@ -164,9 +164,38 @@
 /* Article detail */
 .article-detail { animation: fadeIn .15s ease; }
 .article-header { margin-bottom: var(--space-4); }
-.article-hero {
-  width: 100%; height: 180px; object-fit: cover; border-radius: var(--radius-lg);
-  border: 1px solid var(--border); margin-bottom: var(--space-3);
+/* Article hero — blurred backdrop fills the banner while the real image sits
+   centred and contained on top. Feed images are low-res (patch notes are only
+   540×540, news 772×350); contain at this frame height only ever downscales
+   them, so they stay sharp and never crop, with the blur hiding the letterbox. */
+.article-hero-wrap {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg4);
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.article-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) brightness(0.55);
+  transform: scale(1.25); /* hide the blurred edge bleed */
+}
+.article-hero-img {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 .article-title-section { display: flex; align-items: baseline; gap: var(--space-3); }
 .article-title { font-size: 18px; font-weight: 600; color: var(--text); margin: 0; }

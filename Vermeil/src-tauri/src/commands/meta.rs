@@ -132,15 +132,36 @@ async fn fetch_patch_notes() -> Result<Vec<NewsArticle>, String> {
             version: e.version.clone(),
             date: e.date.clone(),
             image_url: format!("https://launchercontent.mojang.com{}", e.image.url),
-            // Patch notes have no canonical minecraft.net article URL in the
-            // feed (the website's slugs aren't derivable from the version), and
-            // the full body is shown in-app anyway — so we leave the external
-            // link empty rather than fabricate a guess that 404s.
-            url: String::new(),
+            // Canonical minecraft.net article URL, rebuilt from the version
+            // (confirmed live patterns — see `patch_note_url`).
+            url: patch_note_url(&e.version),
             body: e.content_path.clone().unwrap_or_default(),
             excerpt: e.short_text.clone(),
         }
     }).collect())
+}
+
+/// Build the canonical minecraft.net article URL for a patch-note version.
+///
+/// Confirmed against live minecraft.net URLs:
+///   26.2            → minecraft-java-edition-26-2          (full release)
+///   26.2-snapshot-8 → minecraft-26-2-snapshot-8           (snapshot)
+///   26.2-rc-1       → minecraft-26-2-release-candidate-1  (release candidate)
+///   26.2-pre-6      → minecraft-26-2-pre-release-6        (pre-release)
+///
+/// Full releases use the `minecraft-java-edition-` prefix; every pre-release
+/// kind (snapshot/rc/pre) uses the plain `minecraft-` prefix. `-rc-`/`-pre-`
+/// expand to their long forms; snapshots keep their short form. Dots become
+/// dashes throughout.
+fn patch_note_url(version: &str) -> String {
+    let is_prerelease =
+        version.contains("snapshot") || version.contains("-pre-") || version.contains("-rc-");
+    let slug = version
+        .replace("-rc-", "-release-candidate-")
+        .replace("-pre-", "-pre-release-")
+        .replace('.', "-");
+    let prefix = if is_prerelease { "minecraft-" } else { "minecraft-java-edition-" };
+    format!("https://www.minecraft.net/en-us/article/{}{}", prefix, slug)
 }
 
 /// Fetch the general Minecraft news feed and keep only Java Edition articles.

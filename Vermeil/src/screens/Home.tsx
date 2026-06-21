@@ -138,7 +138,13 @@ const Home: Component = () => {
         <div class="article-detail">
           <button class="btn btn--ghost" style="margin-bottom:12px" onClick={() => setSelectedArticle(null)}>← Back to News</button>
           <div class="article-header">
-            <img class="article-hero" src={selectedArticle()!.image_url} />
+            <div class="article-hero-wrap">
+              {/* Blurred backdrop fills the wide banner; the sharp copy sits
+                  centred and only ever downscales, so low-res feed images stay
+                  crisp and uncropped. */}
+              <div class="article-hero-bg" style={`background-image:url(${selectedArticle()!.image_url})`} />
+              <img class="article-hero-img" src={selectedArticle()!.image_url} />
+            </div>
             <div class="article-title-section">
               <h2 class="article-title">{selectedArticle()!.title}</h2>
               <span class="article-version">

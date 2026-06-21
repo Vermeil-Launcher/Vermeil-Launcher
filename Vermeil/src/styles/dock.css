@@ -305,10 +305,12 @@
 .dock-pin-carousel {
   display: flex;
   align-items: center;
-  /* Fixed width so the pill stays a consistent size regardless of how many
-     pins exist (with 1 pin it doesn't collapse around the Manage tile). Wide
-     enough for the full 6 pins + Manage tile. */
-  width: min(540px, calc(100vw - 80px));
+  /* Size to content so the pill grows tile-by-tile as pins are added, with the
+     Manage tile as the trailing "next slot". Capped so the full set of pins +
+     Manage still fits on small windows. The empty-state hint gives it a sane
+     minimum width when nothing is pinned yet. */
+  width: auto;
+  max-width: min(540px, calc(100vw - 80px));
   animation: pinCarouselIn 0.25s ease-out;
 }
 @keyframes pinCarouselIn {
@@ -322,18 +324,18 @@
    edge-fade — the pin count is capped low enough to always fit, and the FAB
    sits above the pill (see .dock-wrap.pin-mode .dock-center) so the row needs
    no center gap. */
+/* Pin selector row: pinned tiles ordered left-to-right, with the Manage tile
+   as the trailing "next slot" immediately after them. The row sizes to its
+   content (see .dock-pin-carousel) so the pill grows as pins are added. */
 .dock-pin-track {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
 }
 
-/* Pinned tiles, ordered left-to-right. flex:1 so the row fills the space up to
-   the Manage action on the right; the empty-state hint centers itself within
-   this area via its own auto margins. */
+/* Pinned tiles, ordered left-to-right. Sizes to content so the Manage tile
+   sits right after the last pin rather than being pushed to the far edge. */
 .dock-pin-items {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -352,8 +354,6 @@
   text-align: center;
   padding: 0 var(--space-2);
   user-select: none;
-  /* Center within the left-aligned items row when it's the only child. */
-  margin: 0 auto;
 }
 .dock-pin-hint-title {
   font-size: 13px;

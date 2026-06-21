@@ -201,7 +201,7 @@ const Library: Component = () => {
         </div>
       </Show>
 
-      <div class="card-grid" style="margin-bottom:80px">
+      <div class="card-grid">
           <For each={sortedInstances()}>
             {(inst) => (
               <div

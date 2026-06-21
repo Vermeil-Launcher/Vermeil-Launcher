@@ -969,7 +969,7 @@ const Settings: Component = () => {
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:8px">Select an instance to configure</div>
             <div class="settings-val" style="margin-bottom:12px">Configure memory, resolution, Java arguments, and more per instance.</div>
-            <div class="card-grid" style="margin-bottom:80px">
+            <div class="card-grid">
               <For each={instances() || []}>
                 {(inst) => {
                   const iconUrl = (!inst.icon || inst.icon === "cube") ? undefined : inst.icon;

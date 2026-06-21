@@ -1683,7 +1683,7 @@ const InstanceMods: Component = () => {
               </div>
             </div>
           </Show>
-          <div class="card-grid card-grid--compact" style="margin-bottom:80px" ref={installedAdaptive.setEl}>
+          <div class="card-grid card-grid--compact" ref={installedAdaptive.setEl}>
             <For each={installedPaged()}>
               {(mod) => (
                 <div class="mod-card" style={mod.enabled ? "" : "opacity:0.5"}>
@@ -1811,7 +1811,7 @@ const InstanceMods: Component = () => {
               </div>
             </div>
             <div class="browse-results">
-              <div class="card-grid card-grid--compact browse-grid" style="margin-bottom:80px" ref={browseAdaptive.setEl}>
+              <div class="card-grid card-grid--compact browse-grid" ref={browseAdaptive.setEl}>
               <For each={searchResults()}>
                 {(mod) => (
                   <div class={`mod-card ${selectMode() && selectedItems().has(mod.project_id) ? "mod-item-selected" : ""}`}

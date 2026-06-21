@@ -130,6 +130,17 @@
   height: 18px;
   transition: transform 0.15s ease;
 }
+
+/* Linux/WebKitGTK renders thin SVG strokes noticeably heavier than Chromium
+   (WebView2 on Windows), so the small dock icons read as bold. Trim the stroke
+   on Linux only so the visual weight matches the Windows build. Scoped to the
+   dock — these are the smallest icons where the difference is most obvious.
+   CSS stroke-width overrides each icon's presentation attribute. */
+.platform-linux .dock-btn svg,
+.platform-linux .dock-center-icon svg,
+.platform-linux .dock-pin-tile-manage .dock-pin-tile-img svg {
+  stroke-width: 1.5;
+}
 .dock-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);

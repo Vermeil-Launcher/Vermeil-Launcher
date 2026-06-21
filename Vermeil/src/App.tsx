@@ -115,6 +115,15 @@ if (typeof window !== "undefined") {
   window.addEventListener("online", () => setOffline(false));
 }
 
+// Tag the root element with the host platform so CSS can correct per-engine
+// rendering differences (e.g. WebKitGTK on Linux renders thin SVG strokes
+// heavier than WebView2 on Windows — see the dock icon override in dock.css).
+if (typeof document !== "undefined") {
+  const ua = navigator.userAgent;
+  const platform = ua.includes("Windows") ? "windows" : ua.includes("Mac") ? "mac" : "linux";
+  document.documentElement.classList.add(`platform-${platform}`);
+}
+
 // Download tracking
 export interface DownloadEntry {
   id: string;

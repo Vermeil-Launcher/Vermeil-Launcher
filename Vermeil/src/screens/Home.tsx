@@ -44,14 +44,13 @@ const Home: Component = () => {
   const [loadingArticle, setLoadingArticle] = createSignal(false);
 
   const openArticle = async (article: NewsArticle) => {
-    // General news articles have no in-app body — open them on minecraft.net
-    // directly. Patch notes (with a contentPath body) open in the reader.
-    if (!article.body) {
-      if (article.url) openUrl(article.url);
-      return;
-    }
+    // Every article opens the in-app reader for a consistent experience.
+    // Patch notes (with a contentPath `body`) fetch their full HTML; general
+    // news has no in-app body, so the reader shows the excerpt plus a
+    // "Read on minecraft.net" button (its `url` is the canonical article link).
     setSelectedArticle(article);
     setArticleBody("");
+    if (!article.body) return;
     setLoadingArticle(true);
     try {
       const body = await getArticleBody(article.body);
@@ -147,11 +146,23 @@ const Home: Component = () => {
               </span>
             </div>
           </div>
-          {/* innerHTML is safe here: the article body is sanitized server-side
-              with ammonia::clean() in get_article_body (strips <script>/<iframe>/
-              on*= handlers/javascript: URLs) before it crosses IPC. Only ever
-              feed this element already-sanitized HTML — never raw remote content. */}
-          <div class="article-body" innerHTML={articleBody() || (loadingArticle() ? "<p style='color:var(--muted)'>Loading article...</p>" : "<p style='color:var(--muted)'>No content available. Click below to read on minecraft.net.</p>")} />
+          {/* Patch notes have a full in-app HTML body; general news only has a
+              short excerpt + an external link. */}
+          <Show
+            when={selectedArticle()!.body}
+            fallback={
+              <div class="article-body">
+                {/* Escaped text — never innerHTML for feed-supplied excerpts. */}
+                <p>{selectedArticle()!.excerpt || "Read the full article on minecraft.net."}</p>
+              </div>
+            }
+          >
+            {/* innerHTML is safe here: the article body is sanitized server-side
+                with ammonia::clean() in get_article_body (strips <script>/<iframe>/
+                on*= handlers/javascript: URLs) before it crosses IPC. Only ever
+                feed this element already-sanitized HTML — never raw remote content. */}
+            <div class="article-body" innerHTML={articleBody() || (loadingArticle() ? "<p style='color:var(--muted)'>Loading article...</p>" : "<p style='color:var(--muted)'>No content available.</p>")} />
+          </Show>
           <Show when={selectedArticle()!.url}>
             <button class="btn" style="margin-top:12px" onClick={() => openUrl(selectedArticle()!.url)}>
               Read on minecraft.net ↗

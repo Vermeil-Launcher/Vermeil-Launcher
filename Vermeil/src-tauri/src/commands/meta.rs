@@ -59,6 +59,10 @@ pub struct NewsArticle {
     /// `contentPath` for in-app patch notes; empty for general news (which
     /// open externally via `url`).
     pub body: String,
+    /// Short plain-text summary. Patch notes carry a `shortText`; general news
+    /// carries `text`. Shown in the reader when there's no in-app HTML body
+    /// (general news) or as a fallback if the body fetch fails.
+    pub excerpt: String,
 }
 
 #[tauri::command]
@@ -113,6 +117,8 @@ async fn fetch_patch_notes() -> Result<Vec<NewsArticle>, String> {
         image: PatchImage,
         #[serde(default)]
         date: String,
+        #[serde(rename = "shortText", default)]
+        short_text: String,
         #[serde(rename = "contentPath")] content_path: Option<String>,
     }
     #[derive(serde::Deserialize)]
@@ -132,6 +138,7 @@ async fn fetch_patch_notes() -> Result<Vec<NewsArticle>, String> {
             // link empty rather than fabricate a guess that 404s.
             url: String::new(),
             body: e.content_path.clone().unwrap_or_default(),
+            excerpt: e.short_text.clone(),
         }
     }).collect())
 }
@@ -158,6 +165,8 @@ async fn fetch_general_news() -> Result<Vec<NewsArticle>, String> {
         category: String,
         #[serde(default)]
         date: String,
+        #[serde(default)]
+        text: String,
         #[serde(rename = "readMoreLink", default)]
         read_more_link: String,
         #[serde(rename = "newsType", default)]
@@ -194,6 +203,7 @@ async fn fetch_general_news() -> Result<Vec<NewsArticle>, String> {
             image_url: format!("https://launchercontent.mojang.com{}", image_path),
             url: e.read_more_link,
             body: String::new(),
+            excerpt: e.text,
         })
     }).collect())
 }

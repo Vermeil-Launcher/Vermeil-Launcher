@@ -213,6 +213,8 @@ export interface NewsArticle {
   image_url: string;
   url: string;
   body: string;
+  /** Short plain-text summary shown in the reader when there's no in-app HTML. */
+  excerpt: string;
 }
 export const getJavaNews = () => invoke<NewsArticle[]>("get_java_news");
 export const getArticleBody = (contentUrl: string) => invoke<string>("get_article_body", { contentUrl });

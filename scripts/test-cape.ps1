@@ -21,6 +21,9 @@
   # Test in the dev client launched by `gradlew runClient`:
   ./scripts/test-cape.ps1 -Res 8 -Target dev
 
+  # Target the Forge 1.8.9 dev client specifically:
+  ./scripts/test-cape.ps1 -Res 8 -Target dev -DevLoader forge -DevProject 1.8.9
+
   # Other options:
   ./scripts/test-cape.ps1 -Res 32 -FrameMs 50
   ./scripts/test-cape.ps1 -Res 16 -Source "$env:USERPROFILE\Downloads\my.png"
@@ -33,11 +36,14 @@ param(
   [int]$MaxFrames = 64,
   # Where the cape files go:
   #   launcher = %LOCALAPPDATA%\Vermeil\companion  (your installed instance)
-  #   dev      = companion-mod\fabric\<DevProject>\run\vermeil  (a `gradlew runClient` dev client)
+  #   dev      = companion-mod\<DevLoader>\<DevProject>\run\vermeil  (a `gradlew runClient` dev client)
   [ValidateSet('launcher', 'dev')]
   [string]$Target = 'launcher',
+  # Which loader family's dev client to target when -Target dev.
+  [ValidateSet('fabric', 'forge')]
+  [string]$DevLoader = 'fabric',
   # Which mod project's dev client to target when -Target dev (the folder name,
-  # e.g. 26.1-26.2, 1.21-1.21.1, 1.21.11).
+  # e.g. fabric: 26.1-26.2, 1.21-1.21.1, 1.21.11; forge: 1.8.9).
   [string]$DevProject = '26.1-26.2'
 )
 
@@ -50,7 +56,7 @@ if ($Target -eq 'dev') {
   # The runClient dev client's game dir is the project's run/ folder, and the
   # mod falls back to <gameDir>/vermeil/ when no -Dvermeil.dataDir is set.
   $repo = Split-Path $PSScriptRoot -Parent
-  $companion = Join-Path $repo "companion-mod\fabric\$DevProject\run\vermeil"
+  $companion = Join-Path $repo "companion-mod\$DevLoader\$DevProject\run\vermeil"
 } else {
   $companion = Join-Path $env:LOCALAPPDATA "Vermeil\companion"
 }

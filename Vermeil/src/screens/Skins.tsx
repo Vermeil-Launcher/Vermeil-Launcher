@@ -23,7 +23,7 @@ import {
 } from "../ipc/commands";
 import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
 import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
-import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
+import { IconUpload, IconReload, IconTrash2, IconPlus, IconMinus, IconEdit } from "../components/Icons";
 import CapeChipThumb from "../components/CapeChipThumb";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
@@ -178,6 +178,31 @@ const Skins: Component = () => {
   let heroEl: HTMLDivElement | undefined;
   let stageEl: HTMLDivElement | undefined;
 
+  // Manual zoom for the player model. skinview3d's `zoom` is a camera-distance
+  // factor (higher = closer / bigger model). We keep wheel-zoom off the
+  // built-in OrbitControls and drive a single signal instead, so the +/-
+  // buttons and the scroll wheel share one clamped source of truth. 0.62 is
+  // the default framing that fits the model + pedestal at every idle angle.
+  const ZOOM_MIN = 0.4;
+  const ZOOM_MAX = 1.8;
+  const ZOOM_STEP = 0.16;
+  const ZOOM_DEFAULT = 0.62;
+  const [zoomLevel, setZoomLevel] = createSignal(ZOOM_DEFAULT);
+  const applyZoom = (z: number) => {
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    setZoomLevel(clamped);
+    if (viewer) viewer.zoom = clamped;
+    wakeChrome();
+  };
+  const zoomIn = () => applyZoom(zoomLevel() + ZOOM_STEP);
+  const zoomOut = () => applyZoom(zoomLevel() - ZOOM_STEP);
+  const onStageWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    // deltaY > 0 = scroll down = zoom out. Scale by a small factor for a
+    // smooth feel regardless of the device's wheel granularity.
+    applyZoom(zoomLevel() - e.deltaY * 0.0012);
+  };
+
   // Animated custom capes drive a live frame loop instead of a static texture.
   // We keep one animator for the main viewer and track which cape it's playing
   // so the display effect can re-run (e.g. on elytra toggle) without restarting
@@ -255,9 +280,10 @@ const Skins: Component = () => {
     // Zoom out from the default (0.9) so the full model — plus the pedestal
     // below the feet — fits with margin. At 0.9 the model nearly fills the
     // canvas height, so rotating it (arms/legs swinging out) or the added
-    // platform clipped at the frame edges. 0.62 leaves comfortable headroom
-    // at every angle.
-    viewer.zoom = 0.62;
+    // platform clipped at the frame edges. The manual zoom controls let the
+    // user push in past this; ZOOM_DEFAULT leaves comfortable headroom at
+    // every angle as the starting framing.
+    viewer.zoom = zoomLevel();
 
     // Hexagonal figurine pedestal under the model. Two stacked discs:
     // a chunky dark base and a thinner accent rim sitting on top.
@@ -854,11 +880,30 @@ const Skins: Component = () => {
             </div>
 
             {/* Model stage — flex middle, holds the canvas. */}
-            <div class="skins-stage" ref={stageEl}>
+            <div class="skins-stage" ref={stageEl} onWheel={onStageWheel}>
               <canvas
                 ref={viewerCanvas}
                 class={`skins-hero-canvas ${canvasFading() ? "fading" : ""}`}
               />
+              {/* Zoom controls — scroll the model or use the buttons. */}
+              <div class="skins-zoom skins-fade-on-idle">
+                <button
+                  class="skins-zoom-btn"
+                  onClick={zoomIn}
+                  disabled={zoomLevel() >= ZOOM_MAX}
+                  title="Zoom in"
+                >
+                  <IconPlus />
+                </button>
+                <button
+                  class="skins-zoom-btn"
+                  onClick={zoomOut}
+                  disabled={zoomLevel() <= ZOOM_MIN}
+                  title="Zoom out"
+                >
+                  <IconMinus />
+                </button>
+              </div>
             </div>
 
             {/* Right side dock — capes (Mojang + local custom). */}

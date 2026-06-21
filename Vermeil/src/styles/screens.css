@@ -154,7 +154,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
+
+/* Zoom controls — stacked +/- buttons anchored bottom-right of the stage,
+   fading out with the rest of the chrome when the hero is idle. */
+.skins-zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+}
+.skins-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.skins-zoom-btn:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.skins-zoom-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.skins-zoom-btn svg { width: 15px; height: 15px; }
 
 /* Generic fade-on-idle helper. Any element with this class fades to
    invisible when .skins-hero is idle. Distinct from .skins-floating so

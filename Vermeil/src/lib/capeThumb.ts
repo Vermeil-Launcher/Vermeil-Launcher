@@ -40,6 +40,12 @@ function ensureViewer(): void {
   (viewer as unknown as { renderPaused: boolean }).renderPaused = true;
   // Show only the back equipment (cape / elytra), not the body.
   viewer.playerObject.skin.visible = false;
+  // Flat, even lighting for icons: the camera-following point light brightens
+  // surfaces that face it and gets *closer* when we frame the smaller elytra,
+  // which made the elytra render blown-out vs the cape. Drop it and keep only
+  // the ambient global light so both render at the same texture-accurate
+  // brightness regardless of how close the camera is.
+  viewer.cameraLight.intensity = 0;
 
   canvas = document.createElement("canvas");
   canvas.width = SIZE;
@@ -79,8 +85,10 @@ function snapshot(mode: "cape" | "elytra"): string {
   cam.fov = FOV_DEG;
   // Distance that makes `span / FILL` fit vertically in the FOV.
   const dist = (span / FILL) / (2 * Math.tan((FOV_DEG * Math.PI) / 360));
-  // Camera sits on the +z side, where the cape's decorated face points.
-  cam.position.set(center.x, center.y, center.z + dist + size.z);
+  // The cape's decorated face points away from the player's front (world -z) —
+  // its design faces outward from the back — so we view it from the -z side.
+  // (Viewing from +z showed the plain inner/back face.)
+  cam.position.set(center.x, center.y, center.z - dist - size.z);
   cam.lookAt(center);
   cam.updateProjectionMatrix();
 

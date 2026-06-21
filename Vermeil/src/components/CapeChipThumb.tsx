@@ -15,6 +15,7 @@ const CapeChipThumb: Component<{ texture: string; withElytra?: boolean }> = (pro
   const [capeImg, setCapeImg] = createSignal<string | null>(null);
   const [elytraImg, setElytraImg] = createSignal<string | null>(null);
   const [showElytra, setShowElytra] = createSignal(false);
+  const [errored, setErrored] = createSignal(false);
 
   // Render snapshot(s) whenever the texture changes.
   createEffect(() => {
@@ -23,8 +24,11 @@ const CapeChipThumb: Component<{ texture: string; withElytra?: boolean }> = (pro
     setCapeImg(null);
     setElytraImg(null);
     setShowElytra(false);
+    setErrored(false);
     let alive = true;
-    renderCapeModel(tex, "cape").then((u) => alive && setCapeImg(u)).catch(() => {});
+    renderCapeModel(tex, "cape")
+      .then((u) => alive && setCapeImg(u))
+      .catch(() => alive && setErrored(true));
     if (wantElytra) {
       renderCapeModel(tex, "elytra").then((u) => alive && setElytraImg(u)).catch(() => {});
     }
@@ -38,16 +42,18 @@ const CapeChipThumb: Component<{ texture: string; withElytra?: boolean }> = (pro
     onCleanup(() => window.clearInterval(id));
   });
 
-  // Active image: the chosen model snapshot, falling back to the raw texture
-  // until the first render lands.
-  const current = () =>
-    showElytra() && elytraImg() ? elytraImg()! : capeImg() ?? props.texture;
+  // The model snapshot once it's ready; while rendering we show nothing (so the
+  // raw UV texture never flashes); only if rendering fails do we fall back to
+  // the raw texture so the chip isn't permanently blank.
+  const modelImg = () => (showElytra() && elytraImg() ? elytraImg()! : capeImg());
+  const src = () => modelImg() ?? (errored() ? props.texture : null);
+  const isModel = () => !!modelImg();
 
   return (
     <div
       class="skins-cape-chip-thumb"
-      classList={{ "skins-cape-chip-thumb--model": !!capeImg() }}
-      style={{ "background-image": `url(${current()})` }}
+      classList={{ "skins-cape-chip-thumb--model": isModel() }}
+      style={src() ? { "background-image": `url(${src()})` } : {}}
     />
   );
 };

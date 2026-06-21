@@ -82,10 +82,13 @@ jobs:
         with:
           projectPath: Vermeil
           tagName: ${{ github.ref_name }}
-          releaseName: 'Vermeil ${{ github.ref_name }} EXPERIMENTAL'
+          # Full release by default. A tag with a pre-release suffix (a hyphen,
+          # e.g. v0.6.8-experimental / -beta / -rc.1) ships as an EXPERIMENTAL
+          # pre-release instead; a plain vX.Y.Z tag is a normal latest release.
+          releaseName: ${{ contains(github.ref_name, '-') && format('Vermeil {0} EXPERIMENTAL', github.ref_name) || format('Vermeil {0}', github.ref_name) }}
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
-          prerelease: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
 

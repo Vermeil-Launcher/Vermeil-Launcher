@@ -125,9 +125,10 @@ While in pre-1.0 development, anything goes — use MINOR for any meaningful cha
 5. Push: `git push`
 6. Tag: `git tag vX.Y.Z`
 7. Push tag: `git push origin vX.Y.Z`
-8. The release workflow publishes it as a pre-release titled `Vermeil vX.Y.Z
-   EXPERIMENTAL` automatically (standing policy — see below). Promote to a full
-   "latest" release only when the user explicitly says to.
+8. The release workflow publishes a plain `vX.Y.Z` tag as a **full latest
+   release** automatically (drops nothing, marked latest, served by the
+   auto-updater). To ship an **experimental** build that the updater won't push
+   to users, tag it with a pre-release suffix instead — see below.
 
 **After pushing the tag, stop.** Do not poll or monitor the CI run (`gh run list`,
 `gh run watch`, re-opening the release, etc.) — the user watches the workflow and
@@ -177,21 +178,31 @@ Replace file contents on each release. Don't prepend.
 - Never bump/tag without explicit user approval (the `release:` commit requires confirmation)
 - Tags are immutable — never reuse a tag once pushed
 
-## Experimental Releases — standing policy
+## Release type — full by default, experimental on request
 
-**Until the user explicitly says to fully release, every `v*` tag ships as a
-pre-release.** `release.yml` does this automatically: each release is published as
-a pre-release titled `Vermeil vX.Y.Z EXPERIMENTAL` (`prerelease: true`). No manual
-step after the tag push.
+**A plain `vX.Y.Z` tag ships as a full release** (not a pre-release, marked
+"latest"). `release.yml` decides from the tag name: a tag with a **pre-release
+suffix** (any hyphen — `vX.Y.Z-experimental`, `-beta`, `-rc.1`) is published as a
+pre-release titled `Vermeil <tag> EXPERIMENTAL` (`prerelease: true`); a plain
+`vX.Y.Z` is a full release titled `Vermeil vX.Y.Z`. No manual step after the tag
+push either way.
 
-Why: a non-prerelease release becomes "latest" and the auto-updater serves its
-`latest.json` to every user. Pre-release is excluded from `releases/latest`, so
-the updater skips it.
+Why the distinction matters: a full (non-prerelease) release becomes "latest" and
+the auto-updater serves its `latest.json` to every user. A pre-release is excluded
+from `releases/latest`, so the updater skips it — that's what an experimental build
+wants.
 
-Promote a version to a full release only on the user's say-so (drops EXPERIMENTAL,
-removes the pre-release label, makes it latest):
+- **Full release (default):** `git tag vX.Y.Z` → push. Done.
+- **Experimental build:** tag with a pre-release suffix, e.g.
+  `git tag v0.6.8-experimental` → push. Ships as a pre-release; the updater
+  ignores it.
 
-- `gh release edit vX.Y.Z --prerelease=false --latest --title "Vermeil vX.Y.Z"`
+The version in `package.json` / `tauri.conf.json` / `Cargo.toml` stays the plain
+`X.Y.Z`; only the **git tag** carries the optional `-experimental` suffix.
+
+To flip an already-published release after the fact:
+- Pre-release → full: `gh release edit <tag> --prerelease=false --latest --title "Vermeil <tag>"`
+- Full → pre-release: `gh release edit <tag> --prerelease=true --title "Vermeil <tag> EXPERIMENTAL"`
 
 Mod releases (`mod-v*`): the launcher fetches the latest **non-draft** `mod-v*`
 release (it does not skip prereleases). For a build you don't want the launcher to

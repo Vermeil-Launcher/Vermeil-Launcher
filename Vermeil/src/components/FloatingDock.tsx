@@ -289,28 +289,11 @@ const FloatingDock: Component = () => {
         {/* PIN SELECTOR MODE */}
         <Show when={pinSelectorOpen()}>
           <div class="dock-pin-carousel">
-            {/* Manage is anchored on the left; the remaining space holds the
-                pinned tiles, or — when nothing is pinned yet — a centered hint
-                explaining the feature and the pin cap. A right-side spacer
-                mirrors the Manage tile so the middle stays truly centered.
-                The carousel keeps a fixed width, so the pill never changes
-                size between the empty and populated states. */}
+            {/* Pinned tiles fill the left, ordered left-to-right; the Manage
+                action sits at the right end. When nothing is pinned yet, a
+                centered hint explains the feature and the pin cap. The carousel
+                keeps a fixed width so the pill never resizes between states. */}
             <div class="dock-pin-track">
-              <button
-                type="button"
-                class="dock-pin-tile dock-pin-tile-manage"
-                onClick={() => {
-                  setPinSelectorOpen(false);
-                  openPinInstancesModal();
-                }}
-                title="Manage pinned instances"
-              >
-                <div class="dock-pin-tile-img">
-                  <IconPlus />
-                </div>
-                <span class="dock-pin-tile-name">Manage</span>
-              </button>
-
               <div class="dock-pin-items">
                 <Show
                   when={pinnedInstances().length > 0}
@@ -353,7 +336,20 @@ const FloatingDock: Component = () => {
                 </Show>
               </div>
 
-              <div class="dock-pin-spacer" aria-hidden="true" />
+              <button
+                type="button"
+                class="dock-pin-tile dock-pin-tile-manage"
+                onClick={() => {
+                  setPinSelectorOpen(false);
+                  openPinInstancesModal();
+                }}
+                title="Manage pinned instances"
+              >
+                <div class="dock-pin-tile-img">
+                  <IconPlus />
+                </div>
+                <span class="dock-pin-tile-name">Manage</span>
+              </button>
             </div>
           </div>
         </Show>

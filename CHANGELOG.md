@@ -1,20 +1,14 @@
-## 0.6.7
+## 0.6.8
 
 ### Added
 
-- In-game custom capes: your local custom cape now renders in-game through the Vermeil companion mod, installed automatically for supported instances.
-- Cape support across Minecraft 1.8.9 (Forge), 1.21–1.21.1, 1.21.11, and 26.1–26.2.
-- Animated custom capes (GIF/APNG/WebP) play both in the cape editor and in-game.
-- Custom cape editor: position and scale your art, pick a resolution up to HD, set a background color, and preview the cape as an unfolded net.
-- A single in-game cape toggle that stays in sync across supported instances, with click-to-equip from the Skins screen.
-- Instance cards show a badge when the companion mod supports that instance.
-
-### Changed
-
-- Launcher data is now stored in your local app data directory instead of the roaming profile.
+- Sort the Library by recently played, most played, recently created, or name — with pinned instances kept on top.
+- Instances show a Vermeil companion-mod badge in their header, and the instance creator marks which Minecraft versions support in-game capes.
 
 ### Fixed
 
-- Custom capes render crisp at the resolution you choose, matching the editor preview.
-- Browse search retries transient network failures instead of showing an error.
-- The game window reliably comes to the front on launch, even when it isn't maximized.
+- Modrinth and CurseForge browse no longer hangs on a cold start — a stalled request now recovers instead of leaving the list empty until you restart the launcher.
+- Maximized games on Windows now restore to a proper window instead of getting stuck fullscreen when you use the window's maximize button.
+- The version dropdown in the instance creator no longer gets cut off by the modal, and gained a search box to quickly find a version.
+- The dock's pin selector lays pins out from the left with Manage as the next slot, at a consistent size.
+- Dock icons no longer render bold on Linux.

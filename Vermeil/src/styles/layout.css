@@ -20,6 +20,10 @@
 [data-tip]:hover::after { opacity: 1; }
 .tip-below[data-tip]::after { bottom: auto; top: calc(100% + 6px); }
 .tip-left[data-tip]::after { left: 0; transform: none; }
+/* Right-anchored variant — pins the tooltip's right edge to the element so it
+   extends leftward. For affordances at the right edge of the window (e.g. the
+   "Official" news badge) where a centered tooltip would clip off-screen. */
+.tip-right[data-tip]::after { left: auto; right: 0; transform: none; white-space: normal; max-width: 280px; }
 
 /* Main area — fills the window now that the sidebar is gone. The warm
    radial vignette gives the app depth (a lit scene, not a flat fill). */
@@ -165,6 +169,51 @@
   border-bottom: 1px solid var(--border);
   display: block;
 }
+
+/* Row variant — keeps the caps label on the left and lets a trailing badge
+   (e.g. the "Official · Mojang" mark on the news header) sit at the right. */
+.section-label--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+/* Trailing group on a row label — page counter + badge sit together at the
+   right edge. */
+.section-label-aside {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.news-page-count {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: none;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* "Official" verified badge — signals the news comes from Mojang's own feed.
+   Letter-spacing reset because the parent .section-label is heavily tracked
+   caps; the badge reads better tight. */
+.official-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: default;
+}
+.official-badge svg { width: 12px; height: 12px; }
 
 /* Page title — big display heading, sharp, no shadow ornament. */
 .page-title {

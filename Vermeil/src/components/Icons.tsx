@@ -319,3 +319,13 @@ export const IconRotateCcw: Component = () => (
     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
   </svg>
 );
+
+// Shield-check — based on Feather Icons' shield (MIT). https://github.com/feathericons/feather
+// Used for the "Official" badge on the Java Edition News header to signal the
+// patch notes come straight from Mojang's official feed.
+export const IconShieldCheck: Component = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <polyline points="9 12 11 14 15 10"/>
+  </svg>
+);

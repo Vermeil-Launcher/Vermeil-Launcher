@@ -208,6 +208,8 @@ export const getQuiltGameVersions = () => invoke<string[]>("get_quilt_game_versi
 export interface NewsArticle {
   title: string;
   version: string;
+  /** ISO-8601 publish date from Mojang's feed. */
+  date: string;
   image_url: string;
   url: string;
   body: string;

@@ -48,14 +48,52 @@ pub async fn get_fabric_loader_versions() -> Result<Vec<FabricVersionInfo>, Stri
 #[derive(Serialize)]
 pub struct NewsArticle {
     pub title: String,
+    /// Patch-note version (e.g. `26.2-snapshot-8`). Empty for general news
+    /// articles, which have no version.
     pub version: String,
+    /// ISO-8601 publish date from the feed. Both the patch-notes feed
+    /// (`...T15:39:47Z`) and the news feed (`2024-01-16`) carry one.
+    pub date: String,
     pub image_url: String,
     pub url: String,
+    /// `contentPath` for in-app patch notes; empty for general news (which
+    /// open externally via `url`).
     pub body: String,
 }
 
 #[tauri::command]
 pub async fn get_java_news() -> Result<Vec<NewsArticle>, String> {
+    // Two official Mojang launcher feeds make up "Java Edition News":
+    //   • javaPatchNotes.json — snapshot/release patch notes (rich in-app body)
+    //   • news.json — general Minecraft news (articles open on minecraft.net)
+    // We fetch both concurrently and merge. If only one responds we still
+    // return what we got, so a hiccup on one feed never blanks the section.
+    let (patch, news) = tokio::join!(fetch_patch_notes(), fetch_general_news());
+
+    let mut articles: Vec<NewsArticle> = Vec::new();
+    let mut had_ok = false;
+    match patch {
+        Ok(mut v) => { had_ok = true; articles.append(&mut v); }
+        Err(e) => tracing::warn!("Patch-notes feed failed: {}", e),
+    }
+    match news {
+        Ok(mut v) => { had_ok = true; articles.append(&mut v); }
+        Err(e) => tracing::warn!("News feed failed: {}", e),
+    }
+    if !had_ok {
+        return Err("Both Mojang news feeds were unreachable.".to_string());
+    }
+
+    // Newest first. Both feeds use ISO-8601, which sorts correctly as plain
+    // strings (date-only entries sort just before same-day timestamped ones,
+    // which is acceptable for display ordering).
+    articles.sort_by(|a, b| b.date.cmp(&a.date));
+
+    Ok(articles)
+}
+
+/// Fetch and map the Java patch-notes feed (snapshots + releases).
+async fn fetch_patch_notes() -> Result<Vec<NewsArticle>, String> {
     let resp = crate::util::http::HTTP
         .get("https://launchercontent.mojang.com/v2/javaPatchNotes.json")
         .send()
@@ -69,47 +107,95 @@ pub async fn get_java_news() -> Result<Vec<NewsArticle>, String> {
     #[derive(serde::Deserialize)]
     struct PatchNotes { entries: Vec<PatchEntry> }
     #[derive(serde::Deserialize)]
-    struct PatchEntry { title: String, version: String, image: PatchImage, #[serde(rename = "contentPath")] content_path: Option<String> }
+    struct PatchEntry {
+        title: String,
+        version: String,
+        image: PatchImage,
+        #[serde(default)]
+        date: String,
+        #[serde(rename = "contentPath")] content_path: Option<String>,
+    }
     #[derive(serde::Deserialize)]
     struct PatchImage { url: String }
 
     let data: PatchNotes = resp.json().await.map_err(|e| format!("Parse news: {}", e))?;
 
-    let articles: Vec<NewsArticle> = data.entries.iter().map(|e| {
+    Ok(data.entries.iter().map(|e| {
         NewsArticle {
             title: e.title.clone(),
             version: e.version.clone(),
+            date: e.date.clone(),
             image_url: format!("https://launchercontent.mojang.com{}", e.image.url),
-            url: format!(
-                "https://www.minecraft.net/en-us/article/minecraft-{}",
-                article_slug(&e.version)
-            ),
+            // Patch notes have no canonical minecraft.net article URL in the
+            // feed (the website's slugs aren't derivable from the version), and
+            // the full body is shown in-app anyway — so we leave the external
+            // link empty rather than fabricate a guess that 404s.
+            url: String::new(),
             body: e.content_path.clone().unwrap_or_default(),
         }
-    }).collect();
-
-    Ok(articles)
+    }).collect())
 }
 
-/// Build the minecraft.net article slug from Mojang's `version` field.
-///
-/// The patch-notes feed uses short forms (`-rc-1`, `-pre-2`) while the website
-/// uses long forms (`-release-candidate-1`, `-pre-release-2`). Snapshots are
-/// already correct (`-snapshot-N`). Examples observed in the live feed:
-///
-///     26.2-snapshot-8     → minecraft-26-2-snapshot-8
-///     26.1.2-rc-1         → minecraft-26-1-2-release-candidate-1
-///     1.21.11-pre-3       → minecraft-1-21-11-pre-release-3
-///     1.21                → minecraft-1-21
-fn article_slug(version: &str) -> String {
-    // Order matters: replace `-rc-` and `-pre-` BEFORE the `.` → `-` swap so
-    // we're matching against the original short form, not a partially-mangled
-    // string. Each match anchors on the surrounding `-` so we don't false-
-    // positive on a release version that happens to contain "rc" or "pre".
-    let expanded = version
-        .replace("-rc-", "-release-candidate-")
-        .replace("-pre-", "-pre-release-");
-    expanded.replace('.', "-")
+/// Fetch the general Minecraft news feed and keep only Java Edition articles.
+/// These have no in-app body — clicking them opens `readMoreLink` externally.
+async fn fetch_general_news() -> Result<Vec<NewsArticle>, String> {
+    let resp = crate::util::http::HTTP
+        .get("https://launchercontent.mojang.com/v2/news.json")
+        .send()
+        .await
+        .map_err(|e| format!("News fetch failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("News HTTP {}", resp.status()));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct NewsFeed { entries: Vec<NewsEntry> }
+    #[derive(serde::Deserialize)]
+    struct NewsEntry {
+        title: String,
+        #[serde(default)]
+        category: String,
+        #[serde(default)]
+        date: String,
+        #[serde(rename = "readMoreLink", default)]
+        read_more_link: String,
+        #[serde(rename = "newsType", default)]
+        news_type: Vec<String>,
+        #[serde(rename = "newsPageImage")]
+        news_page_image: Option<NewsImage>,
+        #[serde(rename = "playPageImage")]
+        play_page_image: Option<NewsImage>,
+    }
+    #[derive(serde::Deserialize)]
+    struct NewsImage { url: String }
+
+    let data: NewsFeed = resp.json().await.map_err(|e| format!("Parse news: {}", e))?;
+
+    Ok(data.entries.into_iter().filter_map(|e| {
+        // Java Edition only — the feed is mostly Bedrock/Marketplace promos that
+        // don't belong under "Java Edition News". Keep anything tagged "Java" or
+        // categorised as Java Edition.
+        let is_java = e.news_type.iter().any(|t| t.eq_ignore_ascii_case("java"))
+            || e.category == "Minecraft: Java Edition";
+        if !is_java {
+            return None;
+        }
+        // Skip anything without a working external link — a card you can't open
+        // is worse than no card.
+        if e.read_more_link.is_empty() {
+            return None;
+        }
+        let image_path = e.news_page_image.or(e.play_page_image).map(|i| i.url)?;
+        Some(NewsArticle {
+            title: e.title,
+            version: String::new(),
+            date: e.date,
+            image_url: format!("https://launchercontent.mojang.com{}", image_path),
+            url: e.read_more_link,
+            body: String::new(),
+        })
+    }).collect())
 }
 
 #[tauri::command]

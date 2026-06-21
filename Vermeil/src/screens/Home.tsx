@@ -1,7 +1,7 @@
 import { Component, createSignal, createEffect, createResource, createMemo, For, Show, onCleanup } from "solid-js";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination, clearGameLogs } from "../App";
 import { launchInstance, listInstanceWorlds, getJavaNews, getArticleBody, NewsArticle } from "../ipc/commands";
-import { IconPlay, IconGlobe } from "../components/Icons";
+import { IconPlay, IconGlobe, IconShieldCheck } from "../components/Icons";
 import PlayerHead from "../components/PlayerHead";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -44,6 +44,12 @@ const Home: Component = () => {
   const [loadingArticle, setLoadingArticle] = createSignal(false);
 
   const openArticle = async (article: NewsArticle) => {
+    // General news articles have no in-app body — open them on minecraft.net
+    // directly. Patch notes (with a contentPath body) open in the reader.
+    if (!article.body) {
+      if (article.url) openUrl(article.url);
+      return;
+    }
     setSelectedArticle(article);
     setArticleBody("");
     setLoadingArticle(true);
@@ -52,6 +58,15 @@ const Home: Component = () => {
       setArticleBody(body);
     } catch { setArticleBody(""); }
     finally { setLoadingArticle(false); }
+  };
+
+  /** Format an ISO-8601 date to a short, locale-aware label (e.g. "May 19, 2026").
+   *  Returns "" for missing/unparseable dates so the caller can omit it. */
+  const formatArticleDate = (iso: string): string => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   };
 
   const totalNewsPages = () => Math.ceil((news()?.length || 0) / NEWS_PER_PAGE);
@@ -127,7 +142,9 @@ const Home: Component = () => {
             <img class="article-hero" src={selectedArticle()!.image_url} />
             <div class="article-title-section">
               <h2 class="article-title">{selectedArticle()!.title}</h2>
-              <span class="article-version">{selectedArticle()!.version}</span>
+              <span class="article-version">
+                {[selectedArticle()!.version, formatArticleDate(selectedArticle()!.date)].filter(Boolean).join(" · ")}
+              </span>
             </div>
           </div>
           {/* innerHTML is safe here: the article body is sanitized server-side
@@ -135,9 +152,11 @@ const Home: Component = () => {
               on*= handlers/javascript: URLs) before it crosses IPC. Only ever
               feed this element already-sanitized HTML — never raw remote content. */}
           <div class="article-body" innerHTML={articleBody() || (loadingArticle() ? "<p style='color:var(--muted)'>Loading article...</p>" : "<p style='color:var(--muted)'>No content available. Click below to read on minecraft.net.</p>")} />
-          <button class="btn" style="margin-top:12px" onClick={() => openUrl(selectedArticle()!.url)}>
-            Read on minecraft.net ↗
-          </button>
+          <Show when={selectedArticle()!.url}>
+            <button class="btn" style="margin-top:12px" onClick={() => openUrl(selectedArticle()!.url)}>
+              Read on minecraft.net ↗
+            </button>
+          </Show>
         </div>
       </Show>
 
@@ -221,7 +240,21 @@ const Home: Component = () => {
         </Show>
 
         {/* News section */}
-        <div class="section-label">Java Edition News</div>
+        <div class="section-label section-label--row">
+          <span>Minecraft: Java Edition News</span>
+          <div class="section-label-aside">
+            <Show when={totalNewsPages() > 1}>
+              <span class="news-page-count">Page {newsPage()} / {totalNewsPages()}</span>
+            </Show>
+            <span
+              class="official-badge tip-below tip-right"
+              data-tip="News pulled straight from Mojang's official launcher feed."
+            >
+              <IconShieldCheck />
+              Official · Mojang
+            </span>
+          </div>
+        </div>
         <Show when={news() && news()!.length > 0} fallback={
           <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border)">
             Loading news...
@@ -234,7 +267,9 @@ const Home: Component = () => {
                   <div class="news-thumb" style={`background-image:url(${article.image_url})`} />
                   <div class="card-body">
                     <div class="card-title">{article.title}</div>
-                    <div class="card-sub">{article.version}</div>
+                    <div class="card-sub">
+                      {[article.version, formatArticleDate(article.date)].filter(Boolean).join(" · ")}
+                    </div>
                   </div>
                 </div>
               )}

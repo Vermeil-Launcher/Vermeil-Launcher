@@ -1,14 +1,23 @@
-## 0.6.8
+# Changelog
+
+## 0.6.9
 
 ### Added
 
-- Sort the Library by recently played, most played, recently created, or name — with pinned instances kept on top.
-- Instances show a Vermeil companion-mod badge in their header, and the instance creator marks which Minecraft versions support in-game capes.
+- World cards on Home now show the world's icon, the modpack icon, and loader/version badges, and reflect in-game world renames.
+- The news section pulls Minecraft: Java Edition articles from Mojang's official feed, with publish dates, an "Official" badge, and a page counter in the header.
+- Update checking now covers CurseForge content, not just Modrinth.
+- Zoom controls (buttons and scroll wheel) for the player model in the skin changer.
+- Colour-coded category filter buttons in the mods Browse and Installed tabs, with the content count shown inside the search bar.
+- Cape chips render as 3D models with a cape/elytra slideshow.
+
+### Changed
+
+- Redesigned the news article reader with a blurred-backdrop hero so low-resolution images stay sharp and uncropped, and added a "Read on minecraft.net" link to every article.
+- Reduced the floating dock clearance so pages no longer scroll past their content.
 
 ### Fixed
 
-- Modrinth and CurseForge browse no longer hangs on a cold start — a stalled request now recovers instead of leaving the list empty until you restart the launcher.
-- Maximized games on Windows now restore to a proper window instead of getting stuck fullscreen when you use the window's maximize button.
-- The version dropdown in the instance creator no longer gets cut off by the modal, and gained a search box to quickly find a version.
-- The dock's pin selector lays pins out from the left with Manage as the next slot, at a consistent size.
-- Dock icons no longer render bold on Linux.
+- Manually-added mod jars now appear in the Installed list.
+- Corrected content version-range ordering and recovered CurseForge loader/version badges in Browse.
+- Cape chips now show the front face with even elytra lighting and no texture flash while loading.

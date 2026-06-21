@@ -305,12 +305,10 @@
 .dock-pin-carousel {
   display: flex;
   align-items: center;
-  /* Size to content so the pill grows tile-by-tile as pins are added, with the
-     Manage tile as the trailing "next slot". Capped so the full set of pins +
-     Manage still fits on small windows. The empty-state hint gives it a sane
-     minimum width when nothing is pinned yet. */
-  width: auto;
-  max-width: min(540px, calc(100vw - 80px));
+  /* Fixed width so the pill stays a consistent size regardless of pin count.
+     Pins fill from the left with the Manage tile as the trailing "next slot"
+     right after them; any leftover space sits to the right. */
+  width: min(540px, calc(100vw - 80px));
   animation: pinCarouselIn 0.25s ease-out;
 }
 @keyframes pinCarouselIn {
@@ -325,12 +323,13 @@
    sits above the pill (see .dock-wrap.pin-mode .dock-center) so the row needs
    no center gap. */
 /* Pin selector row: pinned tiles ordered left-to-right, with the Manage tile
-   as the trailing "next slot" immediately after them. The row sizes to its
-   content (see .dock-pin-carousel) so the pill grows as pins are added. */
+   as the trailing "next slot" immediately after them. Fills the fixed-width
+   carousel; any leftover space falls to the right. */
 .dock-pin-track {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
 }
 
 /* Pinned tiles, ordered left-to-right. Sizes to content so the Manage tile

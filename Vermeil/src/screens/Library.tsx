@@ -1,7 +1,28 @@
-import { Component, For, Show, createSignal, onMount, onCleanup } from "solid-js";
-import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, refetchInstances, refreshPinnedInstanceIds } from "../App";
+import { Component, For, Show, createSignal, createMemo, onMount, onCleanup } from "solid-js";
+import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, refetchInstances, refreshPinnedInstanceIds, pinnedInstanceIds } from "../App";
 import { Instance, deleteInstance, renameInstance, getSettings } from "../ipc/commands";
 import { IconPlus, IconModrinth, IconCurseForge, IconX } from "../components/Icons";
+import Dropdown from "../components/Dropdown";
+
+/** Library sort modes. Persisted in localStorage so the choice sticks between
+ *  sessions (a pure view preference — kept out of the launcher settings file to
+ *  avoid a full settings round-trip / clobber risk from this screen). */
+type LibrarySort = "played" | "mostPlayed" | "created" | "name";
+const SORT_STORAGE_KEY = "vermeil.librarySort";
+const SORT_OPTIONS: { value: LibrarySort; label: string }[] = [
+  { value: "played", label: "Recently played" },
+  { value: "mostPlayed", label: "Most played" },
+  { value: "created", label: "Recently created" },
+  { value: "name", label: "Name (A–Z)" },
+];
+
+/** Epoch ms from an ISO date string, or 0 when absent/unparseable (so
+ *  never-played / missing dates sort last in a descending order). */
+function epoch(dateStr: string | null | undefined): number {
+  if (!dateStr) return 0;
+  const t = new Date(dateStr).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
 
 function loaderBadgeClass(loader: string): string {
   switch (loader) {
@@ -66,6 +87,42 @@ const Library: Component = () => {
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [renameValue, setRenameValue] = createSignal("");
 
+  // Sort mode, seeded from localStorage so it persists across sessions.
+  const storedSort = (typeof localStorage !== "undefined" && localStorage.getItem(SORT_STORAGE_KEY)) as LibrarySort | null;
+  const [sortBy, setSortBy] = createSignal<LibrarySort>(
+    SORT_OPTIONS.some(o => o.value === storedSort) ? (storedSort as LibrarySort) : "played"
+  );
+  const changeSort = (v: string) => {
+    setSortBy(v as LibrarySort);
+    try { localStorage.setItem(SORT_STORAGE_KEY, v); } catch { /* private mode / quota — non-fatal */ }
+  };
+
+  // Comparator for the active sort mode.
+  const compare = (a: Instance, b: Instance): number => {
+    switch (sortBy()) {
+      case "mostPlayed": return (b.total_play_seconds || 0) - (a.total_play_seconds || 0);
+      case "created": return epoch(b.created_at) - epoch(a.created_at);
+      case "name": return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      case "played":
+      default: return epoch(b.last_played) - epoch(a.last_played);
+    }
+  };
+
+  // Pinned instances always float to the top (matching the sidebar pins), then
+  // everything else — each group ordered by the chosen sort. Memoized so it only
+  // recomputes when the instance list, sort, or pins change.
+  const sortedInstances = createMemo(() => {
+    const list = [...(instances() ?? [])];
+    const pinned = new Set(pinnedInstanceIds());
+    list.sort((a, b) => {
+      const ap = pinned.has(a.id) ? 0 : 1;
+      const bp = pinned.has(b.id) ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return compare(a, b);
+    });
+    return list;
+  });
+
   // Transient drag-select state. We need to distinguish a plain click (toggle)
   // from a drag (additive — original card + every card entered). Without this,
   // a drag that doesn't leave the start card would behave as an unwanted
@@ -107,7 +164,13 @@ const Library: Component = () => {
     <div class="screen-enter">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
         <div class="page-title">Library</div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <Dropdown
+            value={sortBy()}
+            options={SORT_OPTIONS}
+            onChange={changeSort}
+            width="150px"
+          />
           <Show when={selectMode()}>
             <button class="btn btn--danger btn--sm" disabled={selected().size === 0} onClick={async () => {
               const settings = await getSettings();
@@ -139,7 +202,7 @@ const Library: Component = () => {
       </Show>
 
       <div class="card-grid" style="margin-bottom:80px">
-          <For each={instances()}>
+          <For each={sortedInstances()}>
             {(inst) => (
               <div
                 class={`card card--inst ${selectMode() && selected().has(inst.id) ? "inst-card-selected" : ""}`}

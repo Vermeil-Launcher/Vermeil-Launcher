@@ -364,6 +364,7 @@ pub fn run() {
             launch::install_mod_to_instance,
             launch::install_cf_mod_to_instance,
             launch::remove_mod_from_instance,
+            launch::sync_instance_mods,
             launch::remove_all_content,
             launch::check_mod_updates,
             launch::apply_mod_update,

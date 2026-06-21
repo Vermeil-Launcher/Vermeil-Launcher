@@ -746,3 +746,93 @@ pub async fn toggle_mod(instance_id: &str, entry_id: &str) -> Result<bool, Strin
 
     Ok(new_enabled)
 }
+
+/// Reconcile manually-added mod jars under the instance's `mods/` folder into
+/// the tracked mod list, so files the user dropped in by hand appear in the
+/// Installed tab (and can be toggled / removed there like any other mod).
+///
+/// Launcher-installed entries (`source != "manual"`) are never touched. The
+/// companion mod's managed jar (`vermeil-<ver>+<mc>.jar`) is ignored since it's
+/// launcher-managed and intentionally invisible. Manual entries whose file has
+/// since been deleted by hand are pruned. `instance.json` is rewritten only
+/// when something actually changed.
+///
+/// Filenames are compared as they sit on disk — a disabled mod is stored as
+/// `*.jar.disabled`, matching how [`toggle_mod`] records the name — so a
+/// toggled manual mod isn't re-added as a duplicate.
+pub async fn sync_manual_mods(instance_id: &str) -> Result<(), String> {
+    let instance_dir = paths::instances_dir().join(instance_id);
+    let meta_path = instance_dir.join("instance.json");
+    let content = fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
+    let mut instance: Instance = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    let mods_dir = instance_dir.join(".minecraft").join("mods");
+
+    // Actual on-disk mod filenames (".jar" or the disabled ".jar.disabled").
+    let mut disk: Vec<String> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&mods_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !(name.ends_with(".jar") || name.ends_with(".jar.disabled")) {
+                continue;
+            }
+            // Skip the companion mod's managed jar — naming `vermeil-<ver>+<mc>.jar`.
+            let base = name.trim_end_matches(".disabled");
+            if base.starts_with("vermeil-") && base.contains('+') && base.ends_with(".jar") {
+                continue;
+            }
+            disk.push(name);
+        }
+    }
+
+    let mut changed = false;
+
+    // Add disk files not already tracked (by actual filename) as manual mods.
+    let tracked: HashSet<String> = instance
+        .mods
+        .iter()
+        .filter(|m| m.category == "mod")
+        .map(|m| m.filename.clone())
+        .collect();
+    for name in &disk {
+        if tracked.contains(name) {
+            continue;
+        }
+        let base = name.trim_end_matches(".disabled");
+        let title = base.strip_suffix(".jar").unwrap_or(base).to_string();
+        instance.mods.push(ModEntry {
+            // Stable id independent of enabled/disabled state so toggling
+            // (which rewrites `filename` to add/strip `.disabled`) keeps working.
+            id: format!("manual:{}", base),
+            source: "manual".to_string(),
+            project_id: String::new(),
+            version_id: String::new(),
+            filename: name.clone(),
+            enabled: !name.ends_with(".disabled"),
+            pinned: false,
+            title: Some(title),
+            icon_url: None,
+            local_icon_path: None,
+            description: None,
+            category: "mod".to_string(),
+            author: None,
+        });
+        changed = true;
+    }
+
+    // Prune manual entries whose file the user has since deleted by hand.
+    let on_disk: HashSet<&String> = disk.iter().collect();
+    let before = instance.mods.len();
+    instance
+        .mods
+        .retain(|m| !(m.source == "manual" && m.category == "mod" && !on_disk.contains(&m.filename)));
+    if instance.mods.len() != before {
+        changed = true;
+    }
+
+    if changed {
+        let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
+        fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

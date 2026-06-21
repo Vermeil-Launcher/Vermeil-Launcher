@@ -197,6 +197,15 @@ pub async fn remove_mod_from_instance(
     crate::services::mod_install::remove_mod(&instance_id, &entry_id).await
 }
 
+/// Reconcile mod jars the user dropped into the instance's `mods/` folder by
+/// hand into the tracked list, so they show up in the Installed tab. Called by
+/// the Mods screen when an instance opens. Best-effort; launcher-managed and
+/// companion entries are left alone.
+#[tauri::command]
+pub async fn sync_instance_mods(instance_id: String) -> Result<(), String> {
+    crate::services::mod_install::sync_manual_mods(&instance_id).await
+}
+
 /// Detect available Modrinth updates for every Modrinth-sourced mod in the
 /// given instance. Returned map is keyed by `project_id` so the frontend can
 /// look up update info per card without scanning a list.

@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -337,6 +337,16 @@ const InstanceMods: Component = () => {
     if (!list || !id) return list?.[0] || null;
     return list.find(i => i.id === id) || list[0] || null;
   };
+
+  // Reconcile mods the user dropped into the instance's mods/ folder by hand
+  // into the tracked list so they show up in the Installed tab. Runs whenever
+  // the open instance changes; refetchInstances surfaces any newly-found mods.
+  // (refetchInstances doesn't change activeInstanceId, so this can't loop.)
+  createEffect(() => {
+    const id = activeInstanceId();
+    if (!id) return;
+    syncInstanceMods(id).then(() => refetchInstances()).catch(() => {});
+  });
 
   // Optimistic local mirror of the per-instance memory value so the slider
   // label and fill update synchronously while the user drags. Without this

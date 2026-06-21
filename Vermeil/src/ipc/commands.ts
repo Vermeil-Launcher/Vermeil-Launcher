@@ -242,6 +242,10 @@ export const installCfModToInstance = (instanceId: string, modId: string, loader
   invoke<string>("install_cf_mod_to_instance", { instanceId, modId, loader, gameVersion, category });
 export const removeModFromInstance = (instanceId: string, entryId: string) =>
   invoke<void>("remove_mod_from_instance", { instanceId, entryId });
+/** Reconcile manually-added mod jars in the instance's mods/ folder into the
+ *  tracked list so they appear in the Installed tab. */
+export const syncInstanceMods = (instanceId: string) =>
+  invoke<void>("sync_instance_mods", { instanceId });
 export const removeAllContent = (instanceId: string, category: string) =>
   invoke<number>("remove_all_content", { instanceId, category });
 

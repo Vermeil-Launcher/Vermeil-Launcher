@@ -24,6 +24,7 @@ import {
 import { SkinViewer, IdleAnimation, PlayerObject } from "skinview3d";
 import { CylinderGeometry, MeshBasicMaterial, Mesh, Group } from "three";
 import { IconUpload, IconReload, IconTrash2, IconPlus, IconEdit } from "../components/Icons";
+import CapeChipThumb from "../components/CapeChipThumb";
 import SkinAvatar from "../components/SkinAvatar";
 import CustomCapeEditor from "../modals/CustomCapeEditor";
 import { CapeAnimator, FrameSource, bakeModCapeStrip, clampRes, ANIMATED_MAX_RES } from "../lib/cape";
@@ -887,10 +888,7 @@ const Skins: Component = () => {
                     disabled={busy() !== null}
                     title={cape.alias}
                   >
-                    <div
-                      class="skins-cape-chip-thumb"
-                      style={{ "background-image": `url(${cape.texture})` }}
-                    />
+                    <CapeChipThumb texture={cape.texture} withElytra={true} />
                   </button>
                 )}
               </For>
@@ -909,10 +907,7 @@ const Skins: Component = () => {
                       onClick={() => handleEquipCustomCape(cape.id)}
                       disabled={busy() !== null || ingameBusy()}
                     >
-                      <div
-                        class="skins-cape-chip-thumb"
-                        style={{ "background-image": `url(${cape.texture})` }}
-                      />
+                      <CapeChipThumb texture={cape.texture} />
                     </button>
                     <button
                       class="skins-cape-chip-edit"

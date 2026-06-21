@@ -229,6 +229,13 @@
   background-position: center;
   image-rendering: pixelated;
 }
+/* Rendered 3D-model thumbnail (cape/elytra) — show the whole model, centered,
+   not cropped like the raw UV swatch. The render is transparent so the chip
+   background shows behind the model's silhouette. */
+.skins-cape-chip-thumb--model {
+  background-size: contain;
+  background-repeat: no-repeat;
+}
 .skins-cape-empty-glyph {
   font-size: 18px;
   color: var(--text-faint);

@@ -1033,6 +1033,13 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
 
     // 5. Build classpath string
     let natives_dir = paths::instances_dir().join(&instance.id).join("natives");
+
+    // Legacy LWJGL 2 (MC ≤ 1.12.2) crashes on Linux/Wayland in
+    // LinuxDisplay.getAvailableDisplayModes (MC-97823). On Linux, swap the stock
+    // LWJGL 2 for Legacy Fabric's patched build before the classpath is frozen.
+    // No-op off Linux, on LWJGL 3, or when the patched build is already present.
+    crate::services::lwjgl_compat::apply(&mut classpath_entries, &natives_dir).await?;
+
     let cp_sep = crate::util::platform::classpath_separator();
     let classpath = classpath_entries.iter()
         .map(|p| p.to_string_lossy().to_string())

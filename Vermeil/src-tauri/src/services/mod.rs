@@ -13,6 +13,7 @@ pub mod instance_service;
 pub mod java;
 pub mod launch;
 pub mod loader_scan;
+pub mod lwjgl_compat;
 pub mod memory;
 pub mod meta;
 pub mod mod_install;

@@ -27,6 +27,8 @@
  * animating).
  */
 
+import { parseGIF, decompressFrames, type DecompressedFrame } from "gifuct-js";
+
 export const PANEL = { x: 1, y: 1, w: 10, h: 16 };
 export const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };
 
@@ -262,6 +264,11 @@ function gifFrameCount(b: Uint8Array): number {
   return frames;
 }
 
+/** Whether the bytes are a GIF (magic "GIF87a"/"GIF89a"). */
+function isGif(bytes: Uint8Array): boolean {
+  return bytes.length >= 3 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46;
+}
+
 /** Whether image bytes are animated: multi-frame GIF, APNG, or animated WebP. */
 export function detectAnimated(bytes: Uint8Array): boolean {
   if (bytes.length < 12) return false;
@@ -327,9 +334,11 @@ type ImageDecoderCtor = new (init: { data: Uint8Array; type: string }) => {
  * present time so callers just bake whatever it hands back each tick.
  *
  * Cross-platform: `ImageDecoder` is present on WebView2 (Windows) and recent
- * WebKitGTK. When it's absent (older WebKitGTK on Linux) we fall back to a
- * static first frame — the cape shows but doesn't animate. That gap is a
- * documented Linux limitation to revisit, not a silent failure.
+ * WebKitGTK. When it's absent (older WebKitGTK on Linux) an animated GIF is
+ * decoded by a pure-JS fallback ({@link decodeGif}, via `gifuct-js`) so capes
+ * still animate there. Animated APNG/WebP have no JS fallback yet, so on a
+ * WebKitGTK build without `ImageDecoder` they degrade to a static first frame —
+ * a documented, narrowing limitation rather than a silent failure.
  */
 export class FrameSource {
   width = 0;
@@ -361,11 +370,22 @@ export class FrameSource {
         this.disposeFrames(); // decoder failed — fall through to a still frame
       }
     }
+    // No WebCodecs frames (absent or failed) but the source is an animated GIF:
+    // decode it with the pure-JS fallback so it still animates on WebKitGTK.
+    if (this.frames.length <= 1 && isGif(bytes) && detectAnimated(bytes)) {
+      this.disposeFrames();
+      try {
+        this.decodeGif(bytes);
+      } catch {
+        this.disposeFrames(); // malformed GIF — fall through to a still frame
+      }
+    }
     if (this.frames.length > 1) {
       this.animated = true;
-      const f0 = this.frames[0] as unknown as { displayWidth: number; displayHeight: number };
-      this.width = f0.displayWidth;
-      this.height = f0.displayHeight;
+      // VideoFrame exposes display{Width,Height}; a canvas frame uses {width,height}.
+      const f0 = this.frames[0] as unknown as { displayWidth?: number; displayHeight?: number; width: number; height: number };
+      this.width = f0.displayWidth ?? f0.width;
+      this.height = f0.displayHeight ?? f0.height;
       return;
     }
     // Static, or animated with no usable decoder → a single still frame.
@@ -393,6 +413,66 @@ export class FrameSource {
     }
     this.total = this.durations.reduce((a, b) => a + b, 0);
     decoder.close();
+  }
+
+  /**
+   * Pure-JS GIF decoding fallback for when WebCodecs `ImageDecoder` is absent
+   * (older WebKitGTK). gifuct-js hands back each frame as a patch over a
+   * sub-rectangle; we composite the patches onto a logical-screen-sized canvas,
+   * honouring the disposal method, and snapshot each composited frame so every
+   * stored frame is a full-size, ready-to-bake image (matching the VideoFrame
+   * path's contract that all frames share one `width`/`height`).
+   */
+  private decodeGif(bytes: Uint8Array): void {
+    const gif = parseGIF(bytes);
+    const raw = decompressFrames(gif, true);
+    if (raw.length === 0) return;
+
+    const W = gif.lsd.width || raw[0].dims.width;
+    const H = gif.lsd.height || raw[0].dims.height;
+
+    const full = document.createElement("canvas");
+    full.width = W;
+    full.height = H;
+    const fctx = full.getContext("2d");
+    const patch = document.createElement("canvas");
+    const pctx = patch.getContext("2d");
+    if (!fctx || !pctx) return;
+
+    let prev: DecompressedFrame | null = null;
+    let restore: ImageData | null = null;
+    const count = Math.min(raw.length, MAX_FRAMES);
+    for (let i = 0; i < count; i++) {
+      const fr = raw[i];
+      // Apply the previous frame's disposal before compositing this one.
+      if (prev) {
+        if (prev.disposalType === 2) {
+          fctx.clearRect(prev.dims.left, prev.dims.top, prev.dims.width, prev.dims.height);
+        } else if (prev.disposalType === 3 && restore) {
+          fctx.putImageData(restore, 0, 0);
+        }
+      }
+      // "Restore to previous" needs the pre-draw canvas snapshotted now.
+      if (fr.disposalType === 3) restore = fctx.getImageData(0, 0, W, H);
+
+      // Composite via drawImage so the patch's transparent pixels keep the
+      // underlying canvas — putImageData would overwrite them instead.
+      patch.width = fr.dims.width;
+      patch.height = fr.dims.height;
+      pctx.putImageData(new ImageData(fr.patch, fr.dims.width, fr.dims.height), 0, 0);
+      fctx.drawImage(patch, fr.dims.left, fr.dims.top);
+
+      // Snapshot the full composited frame; the running canvas keeps mutating.
+      const snap = document.createElement("canvas");
+      snap.width = W;
+      snap.height = H;
+      const sctx = snap.getContext("2d");
+      if (sctx) sctx.drawImage(full, 0, 0);
+      this.frames.push(snap);
+      this.durations.push(fr.delay > 0 ? fr.delay : 100);
+      prev = fr;
+    }
+    this.total = this.durations.reduce((a, b) => a + b, 0);
   }
 
   /** The frame to draw for the current moment in the loop. */

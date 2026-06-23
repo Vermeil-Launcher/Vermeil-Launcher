@@ -145,3 +145,12 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Manifest carries `FMLCorePlugin` + `FMLCorePluginContainsFMLMod`; dev runClient gets the coremod via `-Dfml.coreMods.load` (set in build.gradle).
 - **Verified in `runClient`**: coremod loaded, `Vermeil mod initialized.`, player entity joined a world with **no VerifyError** (transform is valid), and a test cape loaded — `Loaded custom cape texture (64x32, 1 frame(s) @ 100ms)`. Eyes-on third-person render still pending (needs the cape model part on).
 - Launcher wiring: `instance_cape::is_supported` is now loader-aware (`fabric_version_supported` for Fabric/Quilt, `forge_version_supported` = 1.8.9 for Forge); `companion_mod` already matches loaders generically. CI `mod-release.yml` adds JDK 8 + the Forge build (strips the java.home pin, `--no-daemon`) and the manifest builder globs `forge/*/` too, emitting `loaders:["forge"]`.
+
+
+## Animated GIF cape now animates on Linux (WebKitGTK)
+- Symptom: animated-GIF cape showed a single static frame in the launcher viewer + in-game on Linux; fine on Windows.
+- Root cause (`lib/cape.ts` `FrameSource`): frames were decoded only via WebCodecs `ImageDecoder`, absent on the WebKitGTK build → fell back to one still frame. Not a mod/bake bug.
+- Fix (Option A): added pure-JS GIF fallback `decodeGif` (`gifuct-js` 2.1.2, MIT) used only when `ImageDecoder` is missing/fails *and* bytes are a GIF. Composites each frame's patch onto a logical-screen canvas honouring disposal types (2 = restore-bg, 3 = restore-prev), snapshots each as a full-size canvas frame → same `frames`/`durations` contract the VideoFrame path uses, so animator + `bakeModCapeStrip` are unchanged.
+- Windows path untouched (WebView2 has `ImageDecoder`, so `decodeGif` never runs there) → zero regression risk on the platform we can test.
+- APNG/animated-WebP still have no JS fallback → static on a WebKitGTK build without `ImageDecoder` (narrowed, documented in the `FrameSource` doc comment).
+- Verified: `pnpm build` clean (tsc + Vite, gifuct-js bundles fine). **Needs a Linux smoke-test**: upload an animated GIF cape on WebKitGTK, confirm it animates in the 3D viewer and in-game.

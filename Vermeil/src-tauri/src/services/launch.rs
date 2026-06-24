@@ -1374,76 +1374,20 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         game_args.push(win_height.to_string());
     }
 
-    // 7b. Patch options.txt with global video settings (if any are configured)
+    // 7b. Patch options.txt with global video settings. Every mirrored key is
+    // written with a concrete value (the user's setting, or the vanilla default
+    // when unset) — the launcher is authoritative at launch time. In-game
+    // changes flow back after the session via services::video_options::read_back
+    // (see the exit handler below). The single key map lives in video_options so
+    // the write and read directions can't drift apart.
     {
         let options_path = game_dir.join("options.txt");
         if let Ok(settings) = crate::services::settings_service::load().await {
-            let vs = &settings.video_settings;
-            let has_overrides = vs.max_fps.is_some()
-                || vs.vsync.is_some()
-                || vs.view_bobbing.is_some()
-                || vs.gui_scale.is_some()
-                || vs.fov.is_some()
-                || vs.fov_effects.is_some()
-                || vs.master_volume.is_some()
-                || vs.music_volume.is_some();
-
-            if has_overrides {
-                let mut content = fs::read_to_string(&options_path).unwrap_or_default();
-
-                let patch = |content: &mut String, key: &str, value: &str| {
-                    let line = format!("{}:{}", key, value);
-                    let prefix = format!("{}:", key);
-                    if let Some(pos) = content.find(&prefix) {
-                        // Replace existing line
-                        let end = content[pos..].find('\n').map(|i| pos + i).unwrap_or(content.len());
-                        content.replace_range(pos..end, &line);
-                    } else {
-                        // Append new line
-                        if !content.is_empty() && !content.ends_with('\n') {
-                            content.push('\n');
-                        }
-                        content.push_str(&line);
-                        content.push('\n');
-                    }
-                };
-
-                if let Some(fps) = vs.max_fps {
-                    patch(&mut content, "maxFps", &fps.to_string());
-                }
-                if let Some(vsync) = vs.vsync {
-                    patch(&mut content, "enableVsync", if vsync { "true" } else { "false" });
-                }
-                if let Some(bob) = vs.view_bobbing {
-                    patch(&mut content, "bobView", if bob { "true" } else { "false" });
-                }
-                if let Some(scale) = vs.gui_scale {
-                    patch(&mut content, "guiScale", &scale.to_string());
-                }
-                if let Some(fov) = vs.fov {
-                    patch(&mut content, "fov", &format!("{:.6}", fov));
-                }
-                if let Some(fov_effects) = vs.fov_effects {
-                    // fovEffectScale was added in Minecraft 1.16 (Accessibility
-                    // menu redesign). Older versions silently drop the key on
-                    // save, so writing it on pre-1.16 instances is a wasted op
-                    // that makes the launcher look like an override applies
-                    // when it can't. Gate the write to honest versions.
-                    if mc_version_at_least(&instance.game_version, 1, 16) {
-                        patch(&mut content, "fovEffectScale", &format!("{:.6}", fov_effects));
-                    }
-                }
-                if let Some(master) = vs.master_volume {
-                    patch(&mut content, "soundCategory_master", &format!("{:.6}", master));
-                }
-                if let Some(music) = vs.music_volume {
-                    patch(&mut content, "soundCategory_music", &format!("{:.6}", music));
-                }
-
-                let _ = fs::create_dir_all(&game_dir);
-                if let Err(e) = fs::write(&options_path, &content) {
-                    tracing::error!("Failed to write options.txt: {}", e);
-                }
+            let existing = fs::read_to_string(&options_path).unwrap_or_default();
+            let patched = crate::services::video_options::apply(&existing, &settings.video_settings);
+            let _ = fs::create_dir_all(&game_dir);
+            if let Err(e) = fs::write(&options_path, &patched) {
+                tracing::error!("Failed to write options.txt: {}", e);
             }
         }
 
@@ -1624,6 +1568,35 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         // natural crashes are still detected.
         let user_stopped = crate::commands::launch::take_user_stopped();
 
+        // Sync any in-game video-settings changes back into the launcher. The
+        // game rewrites options.txt on quit; read the mirrored keys and merge
+        // them into stored settings so the launcher's sliders reflect what the
+        // user changed in-game. Best-effort — never blocks or fails the exit
+        // path. The emit below tells an open Settings screen to refresh live.
+        let synced_video = {
+            let options_path = paths::instances_dir()
+                .join(&instance_id)
+                .join(".minecraft")
+                .join("options.txt");
+            match (
+                std::fs::read_to_string(&options_path),
+                crate::services::settings_service::load().await,
+            ) {
+                (Ok(content), Ok(mut settings)) => {
+                    let from_game = crate::services::video_options::read_back(&content);
+                    crate::services::video_options::merge_into(&mut settings.video_settings, from_game);
+                    match crate::services::settings_service::save(&settings).await {
+                        Ok(()) => Some(settings.video_settings),
+                        Err(e) => {
+                            tracing::error!("Failed to save video settings synced from options.txt: {}", e);
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            }
+        };
+
         // Game exited — restore window and notify frontend
         if let Some(win) = window {
             // Close the logs popout if it's open — the session is over, so the
@@ -1637,6 +1610,11 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
             }
             let _ = win.show();
             let _ = win.set_focus();
+            // Push any in-game video-settings changes to the frontend so an open
+            // Settings screen reflects them without a manual reload.
+            if let Some(vs) = &synced_video {
+                let _ = win.emit("video-settings-synced", vs);
+            }
             if crashed && !user_stopped {
                 let crash_dir = paths::instances_dir()
                     .join(&instance_id)

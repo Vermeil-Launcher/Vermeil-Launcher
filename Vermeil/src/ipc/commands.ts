@@ -163,6 +163,17 @@ export interface LauncherSettings {
    */
   keybinds: Record<string, string>;
   /**
+   * In-game custom cape (companion mod). Master switch for whether the
+   * Vermeil companion jar gets installed on supported instances and the
+   * cape rendered. `cape_id` is the library cape that's been baked into
+   * the companion dir; null means nothing's set yet.
+   */
+  ingame_cape: {
+    enabled: boolean;
+    cape_id: string | null;
+    frame_time_ms: number | null;
+  };
+  /**
    * Adaptive RAM allocation. When `true`, the launcher computes `-Xmx` per
    * instance from a tier-calibrated formula instead of using the slider's
    * `memory_max_mb`. Each instance can opt out via

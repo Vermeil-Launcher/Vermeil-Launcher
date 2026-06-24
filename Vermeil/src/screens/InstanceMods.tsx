@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -1200,40 +1200,6 @@ const InstanceMods: Component = () => {
               </div>
             </div>
           </div>
-
-          {/* Vermeil companion mod (in-game cape) — per-instance toggle. Only
-              shown on instances whose (loader, MC version) the companion mod
-              supports; the launcher gates the install AND of this toggle, the
-              global cape master switch, and the support set. */}
-          <Show when={(instance() as any)?.ingame_cape_supported}>
-            <div class="settings-group" style="margin-bottom:16px">
-              <div class="settings-row">
-                <div style="display:flex;gap:14px;align-items:center;flex:1;min-width:0">
-                  <div class="instance-icon-preview" style="background:transparent">
-                    <img src="/logo.png" alt="" draggable={false} style="width:24px;height:24px;object-fit:contain" />
-                  </div>
-                  <div style="min-width:0">
-                    <div class="settings-key">Vermeil companion mod</div>
-                    <div class="settings-val">Renders your in-game cape on this instance. Auto-installed at launch when on.</div>
-                  </div>
-                </div>
-                <div
-                  class={`toggle ${instance()?.companion_enabled !== false ? "on" : ""}`}
-                  onClick={async () => {
-                    const inst = instance();
-                    if (!inst) return;
-                    const next = !(inst.companion_enabled !== false);
-                    try {
-                      await setInstanceCompanionEnabled(inst.id, next);
-                      await refetchInstances();
-                    } catch (e) {
-                      showToast({ title: "Couldn't update", message: String(e), type: "error" });
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </Show>
 
           {/* Memory.
               When global adaptive RAM is on (and this instance hasn't opted

@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, Show, For, onMount, onCleanup, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, setIngameCapeEnabled, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -368,6 +368,40 @@ const Settings: Component = () => {
                   <div class="settings-key">Discord Rich Presence</div>
                 </div>
                 <div class={`toggle ${settings()!.discord_rpc ? "on" : ""}`} onClick={() => updateSetting("discord_rpc", !settings()!.discord_rpc)} />
+              </div>
+              {/* Vermeil companion mod (in-game cape today, more features later).
+                  Master switch — the launcher installs / removes the matching
+                  companion jar on every supported instance based on this flag.
+                  The toggle is only interactive once a cape has been set in
+                  Skins, because the backend command requires one (the cape
+                  files are what the mod renders); without one, point the user
+                  there instead. */}
+              <div class="settings-row">
+                <div>
+                  <div class="settings-key">Vermeil companion mod</div>
+                  <div class="settings-val">
+                    <Show
+                      when={settings()!.ingame_cape.cape_id}
+                      fallback={<>Renders your in-game cape on supported instances. <a href="#" onClick={(e) => { e.preventDefault(); setActiveScreen("skins"); }}>Set a cape in Skins</a> to enable.</>}
+                    >
+                      Renders your in-game cape on supported instances.
+                    </Show>
+                  </div>
+                </div>
+                <div
+                  class={`toggle ${settings()!.ingame_cape.enabled ? "on" : ""}`}
+                  style={settings()!.ingame_cape.cape_id ? "" : "opacity:0.35;pointer-events:none"}
+                  onClick={async () => {
+                    const s = settings()!;
+                    if (!s.ingame_cape.cape_id) return;
+                    try {
+                      await setIngameCapeEnabled(!s.ingame_cape.enabled);
+                      await refetch();
+                    } catch (e) {
+                      showToast({ title: "Couldn't update", message: String(e), type: "error" });
+                    }
+                  }}
+                />
               </div>
               <div class="settings-row">
                 <div>

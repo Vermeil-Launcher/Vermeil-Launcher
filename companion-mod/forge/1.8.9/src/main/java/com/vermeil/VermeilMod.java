@@ -37,7 +37,7 @@ public class VermeilMod {
 	 * from {@code gradle.properties} {@code mod_version} at build time; keep this
 	 * in sync with it.
 	 */
-	public static final String VERSION = "0.1.6";
+	public static final String VERSION = "0.1.7";
 	public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
 
 	@Mod.EventHandler

@@ -671,7 +671,7 @@ const Settings: Component = () => {
               }}>Reset All</button>
             </div>
             <div style="font-size:10px;color:var(--muted);margin:-4px 0 8px;font-style:italic">
-              Max FPS is capped by VSync — set VSync to Off for true Unlimited. FOV Effects requires Minecraft 1.16+.
+              Max FPS is capped by VSync — set VSync to Off for true Unlimited. FOV Effects requires Minecraft 1.16+ (or 1.8.9 with the Vermeil companion mod).
             </div>
             <div class="vs-grid">
               {/* Max Framerate — slider */}

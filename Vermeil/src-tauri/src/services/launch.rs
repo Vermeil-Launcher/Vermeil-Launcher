@@ -1212,6 +1212,22 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         jvm_args.push(cape_arg);
     }
 
+    // FOV-effects scale backport for pre-1.16 instances. Section 7b below gates
+    // the vanilla `fovEffectScale` options.txt write to >=1.16, because the key
+    // didn't exist before then. To still honour the user's slider on legacy
+    // versions (1.8.9 etc.), pipe the value to the companion mod via a JVM
+    // system property — its bytecode hook on
+    // `AbstractClientPlayer.getFovModifier()` applies the scale at the source.
+    // Re-reading settings here is cheap (a small JSON file) and keeps this
+    // self-contained next to the cape arg.
+    if !mc_version_at_least(&instance.game_version, 1, 16) {
+        if let Ok(settings) = crate::services::settings_service::load().await {
+            if let Some(scale) = settings.video_settings.fov_effects {
+                jvm_args.push(format!("-Dvermeil.fovEffectsScale={:.6}", scale));
+            }
+        }
+    }
+
     // 7. Build game arguments — parse from version.json with rules
     let game_dir = paths::instances_dir().join(&instance.id).join(".minecraft");
     // Always true — every instance has an explicit resolution configured (default 1280x720).

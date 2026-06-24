@@ -517,6 +517,18 @@ const App: Component = () => {
 
       // Customizable shortcuts. Each lookup resolves to either the user's
       // override or the action's default.
+
+      // Don't fire app shortcuts while the user is typing in a text field — a
+      // keybind like "T" or "P" must type the character, not toggle a feature.
+      // Escape (handled above) still works so users can back out of an input.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable
+        || target.tagName === "INPUT"
+        || target.tagName === "TEXTAREA"
+        || target.tagName === "SELECT")) {
+        return;
+      }
+
       if (matchesKeybind(e, resolveBinding("create_instance", userBindings))) {
         e.preventDefault();
         setActiveScreen("create-choose");

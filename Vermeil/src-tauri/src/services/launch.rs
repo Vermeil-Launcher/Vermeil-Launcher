@@ -868,6 +868,52 @@ pub async fn ensure_java_public(mc_version: &str) -> Result<PathBuf, String> {
     Err("Java downloaded but executable not found in extracted files".to_string())
 }
 
+/// Returns `true` if the Minecraft release `version` (e.g. "1.8.9", "1.21.1",
+/// "26.2") is at least `target_major.target_minor`. Used by the options.txt
+/// patcher to gate keys that don't exist on older versions, so the launcher
+/// doesn't pretend an override applies where Minecraft will silently drop the
+/// line on save.
+///
+/// Unparseable versions (snapshots like "23w12a", weird strings) fall through
+/// to `true` — modern is the safe default because the worst case is a wasted
+/// write that the game ignores anyway.
+fn mc_version_at_least(version: &str, target_major: u32, target_minor: u32) -> bool {
+    let leading_u32 = |s: &str| -> Option<u32> {
+        s.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse().ok()
+    };
+    let mut parts = version.split('.');
+    let major = parts.next().and_then(leading_u32);
+    let minor = parts.next().and_then(leading_u32).unwrap_or(0);
+    match major {
+        Some(m) => (m, minor) >= (target_major, target_minor),
+        None => true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mc_version_at_least;
+
+    #[test]
+    fn version_gate_recognises_pre_and_post_cutoffs() {
+        // The actual case that motivated this helper: 1.8.9 must not get
+        // fovEffectScale writes (key didn't exist then).
+        assert!(!mc_version_at_least("1.8.9", 1, 16));
+        assert!(!mc_version_at_least("1.14.4", 1, 16));
+        assert!(!mc_version_at_least("1.15.2", 1, 16));
+        // 1.16+ does get them.
+        assert!(mc_version_at_least("1.16", 1, 16));
+        assert!(mc_version_at_least("1.16.5", 1, 16));
+        assert!(mc_version_at_least("1.21.1", 1, 16));
+        // New Mojang version scheme ("26.x") is modern by definition.
+        assert!(mc_version_at_least("26.2", 1, 16));
+        // Pre-release suffix on the minor part still parses out the digit.
+        assert!(mc_version_at_least("1.16-pre1", 1, 16));
+        // Unparseable strings (snapshots, malformed) default to modern.
+        assert!(mc_version_at_least("23w12a", 1, 16));
+    }
+}
+
 /// Launch Minecraft for an instance
 pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_token: &str, window: Option<tauri::WebviewWindow>) -> Result<u32, String> {
     // Create log file early so the frontend poller can show progress
@@ -1362,7 +1408,14 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                     patch(&mut content, "fov", &format!("{:.6}", fov));
                 }
                 if let Some(fov_effects) = vs.fov_effects {
-                    patch(&mut content, "fovEffectScale", &format!("{:.6}", fov_effects));
+                    // fovEffectScale was added in Minecraft 1.16 (Accessibility
+                    // menu redesign). Older versions silently drop the key on
+                    // save, so writing it on pre-1.16 instances is a wasted op
+                    // that makes the launcher look like an override applies
+                    // when it can't. Gate the write to honest versions.
+                    if mc_version_at_least(&instance.game_version, 1, 16) {
+                        patch(&mut content, "fovEffectScale", &format!("{:.6}", fov_effects));
+                    }
                 }
                 if let Some(master) = vs.master_volume {
                     patch(&mut content, "soundCategory_master", &format!("{:.6}", master));

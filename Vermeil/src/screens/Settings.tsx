@@ -670,6 +670,9 @@ const Settings: Component = () => {
                 updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null, window_width: null, window_height: null, start_maximized: null });
               }}>Reset All</button>
             </div>
+            <div style="font-size:10px;color:var(--muted);margin:-4px 0 8px;font-style:italic">
+              Max FPS is capped by VSync — set VSync to Off for true Unlimited. FOV Effects requires Minecraft 1.16+.
+            </div>
             <div class="vs-grid">
               {/* Max Framerate — slider */}
               <div class="vs-cell">

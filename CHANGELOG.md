@@ -1,12 +1,15 @@
 # Changelog
 
-## 0.7.0
+## 0.7.1
 
-### Changed
+### Added
 
-- Updated the in-app website link to vermeillauncher.app.
+- FOV Effects setting now applies on Minecraft 1.8.9 instances, via the Vermeil companion mod (auto-downloaded).
 
 ### Fixed
 
-- Animated GIF capes now animate on Linux instead of showing a single static frame.
-- Legacy Minecraft versions (1.12.2 and older) no longer crash on launch on Linux/Wayland.
+- FOV Effects slider no longer silently does nothing on Minecraft versions that don't natively support the option — the launcher now only writes the value where the game actually reads it.
+
+### Changed
+
+- Settings: Video section shows a hint that VSync caps Max FPS and notes which Minecraft versions support FOV Effects.

@@ -1,4 +1,4 @@
-import { Component, createSignal, createResource, Show, For, onMount, createEffect } from "solid-js";
+import { Component, createSignal, createResource, Show, For, onMount, onCleanup, createEffect } from "solid-js";
 import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
@@ -11,6 +11,7 @@ import JavaChooserModal from "../modals/JavaChooserModal";
 import Dropdown from "../components/Dropdown";
 import KeybindCapture from "../components/KeybindCapture";
 import { KEYBINDS, resolveBinding } from "../lib/keybinds";
+import { listen } from "@tauri-apps/api/event";
 
 type SettingsTab = "general" | "resources" | "instances" | "keybinds";
 
@@ -39,6 +40,18 @@ const Settings: Component = () => {
     if (s && vsLocal() === null) setVsLocal(s.video_settings);
   });
   const vs = (): VS => vsLocal() ?? settings()!.video_settings;
+
+  // When the game exits, the backend reads options.txt back and emits the
+  // merged video settings. Adopt them immediately so an open Settings screen
+  // reflects in-game changes live, and refetch so the resource stays in sync.
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    listen<VS>("video-settings-synced", (e) => {
+      setVsLocal(e.payload);
+      void refetch();
+    }).then((fn) => { unlisten = fn; });
+    onCleanup(() => unlisten?.());
+  });
 
   // Same optimistic-display pattern for the concurrency sliders. Without
   // these, the displayed number lags the thumb because the read source
@@ -667,7 +680,7 @@ const Settings: Component = () => {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
               <div class="section-label" style="margin-bottom:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Video</div>
               <button class="btn" style="font-size:9px;padding:3px 10px" onClick={() => {
-                updateVideoSettings({ max_fps: null, vsync: null, view_bobbing: null, gui_scale: null, fov: null, fov_effects: null, master_volume: null, music_volume: null, window_width: null, window_height: null, start_maximized: null });
+                updateVideoSettings({ max_fps: 120, vsync: true, view_bobbing: true, gui_scale: 0, fov: 0.0, fov_effects: 1.0, master_volume: 1.0, music_volume: 1.0, window_width: null, window_height: null, start_maximized: null });
               }}>Reset All</button>
             </div>
             <div style="font-size:10px;color:var(--muted);margin:-4px 0 8px;font-style:italic">
@@ -691,7 +704,7 @@ const Settings: Component = () => {
                     updateVideoSettings({ max_fps: val });
                   }}
                 />
-                <div class="vs-val">{vs().max_fps === null ? "Default" : vs().max_fps === 260 ? "Unlimited" : `${vs().max_fps} FPS`}</div>
+                <div class="vs-val">{(vs().max_fps ?? 120) === 260 ? "Unlimited" : `${vs().max_fps ?? 120} FPS`}</div>
               </div>
 
               {/* VSync */}
@@ -699,14 +712,13 @@ const Settings: Component = () => {
                 <div class="vs-key">VSync</div>
                 <div style="flex:1" />
                 <Dropdown
-                  value={vs().vsync === null ? "default" : vs().vsync ? "true" : "false"}
+                  value={(vs().vsync ?? true) ? "true" : "false"}
                   options={[
-                    { value: "default", label: "Default" },
                     { value: "true", label: "On" },
                     { value: "false", label: "Off" },
                   ]}
                   onChange={(val) => {
-                    updateVideoSettings({ vsync: val === "default" ? null : val === "true" });
+                    updateVideoSettings({ vsync: val === "true" });
                   }}
                 />
               </div>
@@ -716,14 +728,13 @@ const Settings: Component = () => {
                 <div class="vs-key">View Bobbing</div>
                 <div style="flex:1" />
                 <Dropdown
-                  value={vs().view_bobbing === null ? "default" : vs().view_bobbing ? "true" : "false"}
+                  value={(vs().view_bobbing ?? true) ? "true" : "false"}
                   options={[
-                    { value: "default", label: "Default" },
                     { value: "true", label: "On" },
                     { value: "false", label: "Off" },
                   ]}
                   onChange={(val) => {
-                    updateVideoSettings({ view_bobbing: val === "default" ? null : val === "true" });
+                    updateVideoSettings({ view_bobbing: val === "true" });
                   }}
                 />
               </div>
@@ -733,9 +744,8 @@ const Settings: Component = () => {
                 <div class="vs-key">GUI Scale</div>
                 <div style="flex:1" />
                 <Dropdown
-                  value={vs().gui_scale === null ? "default" : String(vs().gui_scale)}
+                  value={String(vs().gui_scale ?? 0)}
                   options={[
-                    { value: "default", label: "Default" },
                     { value: "0", label: "Auto" },
                     { value: "1", label: "Small" },
                     { value: "2", label: "Normal" },
@@ -743,7 +753,7 @@ const Settings: Component = () => {
                     { value: "4", label: "Huge" },
                   ]}
                   onChange={(val) => {
-                    updateVideoSettings({ gui_scale: val === "default" ? null : parseInt(val) });
+                    updateVideoSettings({ gui_scale: parseInt(val) });
                   }}
                 />
               </div>
@@ -766,7 +776,7 @@ const Settings: Component = () => {
                     updateVideoSettings({ fov: fovValue });
                   }}
                 />
-                <div class="vs-val">{vs().fov === null ? "Default" : `${Math.round(40 * vs().fov! + 70)}°`}</div>
+                <div class="vs-val">{`${Math.round(40 * (vs().fov ?? 0) + 70)}°`}</div>
               </div>
 
               {/* FOV Effects */}
@@ -786,7 +796,7 @@ const Settings: Component = () => {
                     updateVideoSettings({ fov_effects: pct / 100 });
                   }}
                 />
-                <div class="vs-val">{vs().fov_effects === null ? "Default" : `${Math.round(vs().fov_effects! * 100)}%`}</div>
+                <div class="vs-val">{`${Math.round((vs().fov_effects ?? 1) * 100)}%`}</div>
               </div>
             </div>
           </div>
@@ -812,7 +822,7 @@ const Settings: Component = () => {
                     updateVideoSettings({ master_volume: pct / 100 });
                   }}
                 />
-                <div class="vs-val">{vs().master_volume === null ? "Default" : `${Math.round(vs().master_volume! * 100)}%`}</div>
+                <div class="vs-val">{`${Math.round((vs().master_volume ?? 1) * 100)}%`}</div>
               </div>
 
               {/* Music Volume */}
@@ -832,7 +842,7 @@ const Settings: Component = () => {
                     updateVideoSettings({ music_volume: pct / 100 });
                   }}
                 />
-                <div class="vs-val">{vs().music_volume === null ? "Default" : `${Math.round(vs().music_volume! * 100)}%`}</div>
+                <div class="vs-val">{`${Math.round((vs().music_volume ?? 1) * 100)}%`}</div>
               </div>
             </div>
             <div class="settings-val" style="margin-top:8px;font-size:9px">Applied to all instances on launch. "Default" keeps whatever is set in-game.</div>

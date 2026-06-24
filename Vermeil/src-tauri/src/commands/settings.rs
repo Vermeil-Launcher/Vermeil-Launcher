@@ -15,6 +15,15 @@ pub async fn save_settings(settings: LauncherSettings) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// The launcher's root data directory as a display string for the current
+/// platform (Windows `%LOCALAPPDATA%\Vermeil`, Linux `~/.local/share/Vermeil`,
+/// macOS `~/Library/Application Support/Vermeil`). The Resources tab shows this
+/// so the path matches reality instead of a hardcoded Windows string.
+#[tauri::command]
+pub async fn get_app_directory() -> Result<String, String> {
+    Ok(paths::data_dir().to_string_lossy().to_string())
+}
+
 use crate::util::paths;
 use std::fs;
 

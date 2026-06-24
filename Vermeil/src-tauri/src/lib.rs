@@ -399,6 +399,7 @@ pub fn run() {
             // Settings
             settings::get_settings,
             settings::save_settings,
+            settings::get_app_directory,
             settings::get_cache_size,
             settings::purge_cache,
             settings::get_system_memory,

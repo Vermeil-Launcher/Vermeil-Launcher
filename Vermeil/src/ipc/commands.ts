@@ -339,6 +339,7 @@ export const getEffectiveMemory = (instanceId: string) =>
 // Settings commands
 export const getSettings = () => invoke<LauncherSettings>("get_settings");
 export const saveSettings = (settings: LauncherSettings) => invoke<void>("save_settings", { settings });
+export const getAppDirectory = () => invoke<string>("get_app_directory");
 export const getCacheSize = () => invoke<number>("get_cache_size");
 export const purgeCache = () => invoke<number>("purge_cache");
 export const getSystemMemory = () => invoke<number>("get_system_memory");

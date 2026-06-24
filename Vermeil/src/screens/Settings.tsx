@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, Show, For, onMount, onCleanup, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -25,6 +25,7 @@ const Settings: Component = () => {
   const [tab, setTab] = createSignal<SettingsTab>("general");
   const [settings, { refetch }] = createResource(getSettings);
   const [appVersion] = createResource(getVersion);
+  const [appDirectory] = createResource(getAppDirectory);
   const [systemMemoryMb] = createResource(getSystemMemory);
   const [cacheSize, setCacheSize] = createSignal(0);
   const [purging, setPurging] = createSignal(false);
@@ -435,7 +436,7 @@ const Settings: Component = () => {
               <div class="settings-row">
                 <div>
                   <div class="settings-key">App directory</div>
-                  <div class="settings-val" style="font-family:var(--font-mono);font-size:10px">%LOCALAPPDATA%/Vermeil</div>
+                  <div class="settings-val" style="font-family:var(--font-mono);font-size:10px">{appDirectory() ?? "…"}</div>
                 </div>
               </div>
               <div class="settings-row">

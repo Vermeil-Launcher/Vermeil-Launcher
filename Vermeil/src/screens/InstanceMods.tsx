@@ -1715,8 +1715,8 @@ const InstanceMods: Component = () => {
                     <button
                       class="btn btn--ghost"
                       style="font-size:10px;padding:3px 8px"
-                      title="Toggle in Instance Options"
-                      onClick={() => setMainTab("settings")}
+                      title="Manage in Settings → General"
+                      onClick={() => setActiveScreen("settings")}
                     >Manage</button>
                   </div>
                 </div>

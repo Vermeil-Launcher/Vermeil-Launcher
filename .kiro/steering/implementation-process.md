@@ -4,7 +4,7 @@ inclusion: always
 
 # Implementation Process
 
-Follow these steps in order for every change. Do not skip or merge steps.
+Scale this process to the size of the change (see `ponytail.md` — the base philosophy). A trivial change (typo, one-liner, rename) climbs the ponytail ladder, makes the fix, and stops. A non-trivial change (new feature, multi-file refactor, anything touching the IPC contract or a parallel surface) runs the full steps below, in order, without skipping or merging them. When in doubt about which a change is, treat it as non-trivial.
 
 ## 1. Clarify Intent
 
@@ -204,7 +204,8 @@ Write them to be **token-cheap**. This is mandatory, not a preference:
 
 ## Shell Commands
 
-- The workspace shell is **PowerShell** (Windows). Use `;` to chain commands if needed, or run each as a separate call. Do not use `&&` (PowerShell does not support it the same way).
+- The workspace shell is **PowerShell** (Windows) or **bash** (Linux) depending on which machine this repo is being edited on — this is a dual-platform checkout. On PowerShell use `;` to chain commands (not `&&`); on bash `&&` is fine. Run one command per call when unsure.
 - Always use `git -C <path>` for git operations — never `cd` into a directory.
 - Run tools directly: `pnpm`, `npx`, `cargo` — no wrapper needed.
 - The project root is the workspace directory. Code lives in `Vermeil/`.
+- **Linux output-capture bug.** On Linux, Kiro's `execute_bash` currently swallows stdout/stderr (returns exit 0 with empty output) due to a known shell-integration/OSC-marker bug (kirodotdev/Kiro issues #8744, #4833). When you need to *read* a command's output on Linux, redirect it to a workspace file and read that file back, then delete it — e.g. `cmd > .probe.txt 2>&1` then read `.probe.txt`. Fire-and-forget commands (installs, git, builds you don't need to parse) don't need this. A fresh Kiro reload with shell integration disabled may restore direct capture.

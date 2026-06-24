@@ -102,3 +102,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.ref_name }}" install.sh --clobber --repo "${{ github.repository }}"
+
+      # Explicitly claim the "Latest" badge for non-experimental launcher
+      # releases. GitHub's default behaviour (`make_latest: legacy`) hands the
+      # badge to the most recently published non-prerelease — which means a
+      # mod release published seconds after a launcher release can steal it,
+      # breaking the updater (the updater follows
+      # `releases/latest/download/latest.json` and the mod release has no
+      # `latest.json`). The mod workflow now explicitly opts out of the badge
+      # via `--latest=false`; this step opts the launcher release in. Skipped
+      # for tags with a pre-release suffix (e.g. `-experimental`).
+      - name: Mark launcher release as latest
+        if: matrix.target == 'linux' && !contains(github.ref_name, '-')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --latest --repo "${{ github.repository }}"

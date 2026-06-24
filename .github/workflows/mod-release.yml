@@ -136,6 +136,7 @@ jobs:
             gh release create "$TAG" \
               --repo "${{ github.repository }}" \
               --title "Vermeil companion mod ${TAG#mod-}" \
+              --latest=false \
               --notes "Companion mod jars for the in-game cape feature. Installed automatically by the launcher; not meant to be downloaded by hand."
           fi
           gh release upload "$TAG" dist/* --clobber --repo "${{ github.repository }}"

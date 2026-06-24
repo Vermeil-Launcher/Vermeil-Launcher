@@ -350,6 +350,7 @@ pub async fn install_from_mrpack_file(
         mods: mod_entries,
         source_project_id,
         source_platforms: vec!["modrinth".to_string()],
+        companion_enabled: true,
     };
 
     let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;

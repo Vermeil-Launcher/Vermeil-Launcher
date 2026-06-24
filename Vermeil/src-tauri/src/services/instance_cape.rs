@@ -203,7 +203,7 @@ pub fn is_supported(instance: &Instance) -> bool {
 /// it's running.
 pub fn jvm_property(instance: &Instance) -> Option<String> {
     migrate_legacy_dir();
-    if !is_supported(instance) || !global_cape_png().is_file() {
+    if !instance.companion_enabled || !is_supported(instance) || !global_cape_png().is_file() {
         return None;
     }
     Some(format!("-Dvermeil.dataDir={}", companion_dir().display()))

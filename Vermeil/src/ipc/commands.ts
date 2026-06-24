@@ -31,6 +31,9 @@ export interface Instance {
   created_at: string;
   source_project_id: string | null;
   source_platforms: string[];
+  /** Per-instance toggle for the Vermeil companion mod (in-game cape).
+   *  ANDed at launch with the global cape toggle and `ingame_cape_supported`. */
+  companion_enabled: boolean;
   /** Whether the Vermeil companion mod (in-game capes) runs on this instance's
    *  loader + MC version. Computed by the backend on list (not persisted);
    *  drives the companion badge on instance cards. */
@@ -543,6 +546,11 @@ export const setIngameCape = (
 /** Toggle the in-game cape on/off without re-baking. */
 export const setIngameCapeEnabled = (enabled: boolean) =>
   invoke<void>("set_ingame_cape_enabled", { enabled });
+
+/** Per-instance toggle for whether the Vermeil companion mod runs on this
+ *  instance. ANDed at launch with the global cape toggle + support gate. */
+export const setInstanceCompanionEnabled = (id: string, enabled: boolean) =>
+  invoke<void>("set_instance_companion_enabled", { id, enabled });
 
 /** Remove the in-game cape entirely. */
 export const clearIngameCape = () => invoke<void>("clear_ingame_cape");

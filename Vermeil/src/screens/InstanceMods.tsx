@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -1201,6 +1201,40 @@ const InstanceMods: Component = () => {
             </div>
           </div>
 
+          {/* Vermeil companion mod (in-game cape) — per-instance toggle. Only
+              shown on instances whose (loader, MC version) the companion mod
+              supports; the launcher gates the install AND of this toggle, the
+              global cape master switch, and the support set. */}
+          <Show when={(instance() as any)?.ingame_cape_supported}>
+            <div class="settings-group" style="margin-bottom:16px">
+              <div class="settings-row">
+                <div style="display:flex;gap:14px;align-items:center;flex:1;min-width:0">
+                  <div class="instance-icon-preview" style="background:transparent">
+                    <img src="/logo.png" alt="" draggable={false} style="width:24px;height:24px;object-fit:contain" />
+                  </div>
+                  <div style="min-width:0">
+                    <div class="settings-key">Vermeil companion mod</div>
+                    <div class="settings-val">Renders your in-game cape on this instance. Auto-installed at launch when on.</div>
+                  </div>
+                </div>
+                <div
+                  class={`toggle ${instance()?.companion_enabled !== false ? "on" : ""}`}
+                  onClick={async () => {
+                    const inst = instance();
+                    if (!inst) return;
+                    const next = !(inst.companion_enabled !== false);
+                    try {
+                      await setInstanceCompanionEnabled(inst.id, next);
+                      await refetchInstances();
+                    } catch (e) {
+                      showToast({ title: "Couldn't update", message: String(e), type: "error" });
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </Show>
+
           {/* Memory.
               When global adaptive RAM is on (and this instance hasn't opted
               out via `java.adaptive_override`), the slider is read-only and
@@ -1684,6 +1718,44 @@ const InstanceMods: Component = () => {
             </div>
           </Show>
           <div class="card-grid card-grid--compact" ref={installedAdaptive.setEl}>
+            {/* Managed-mod entry for the Vermeil companion mod. Shown when the
+                instance supports it AND the user enabled it on this instance;
+                read-only (toggle lives in the General tab) so users can see
+                "yes, the jar is there" without an affordance that would let
+                them delete a launcher-managed file. */}
+            <Show when={(instance() as any)?.ingame_cape_supported && instance()?.companion_enabled !== false && (installedFilter() === "all" || installedFilter() === "mod")}>
+              <div class="mod-card" title="Managed by Vermeil — toggle in Instance Options.">
+                <div class="mod-card-header">
+                  <div class="mod-card-icon" style="background:#251a35;display:flex;align-items:center;justify-content:center">
+                    <img src="/logo.png" alt="" draggable={false} style="width:24px;height:24px;object-fit:contain" />
+                  </div>
+                  <div class="mod-card-name-wrap">
+                    <div class="mod-card-name">Vermeil companion mod</div>
+                    <div class="mod-card-author">by Vermeil</div>
+                  </div>
+                </div>
+                <div class="mod-card-desc">Renders your in-game cape and other Vermeil-only features on this instance. Auto-installed and updated by the launcher.</div>
+                <Show when={instance()}>
+                  <div class="mod-card-tags">
+                    <span class={`mod-tag mod-tag-loader loader-${instance()!.loader.type}`}>
+                      {instance()!.loader.type === "vanilla" ? "Vanilla" : instance()!.loader.type.charAt(0).toUpperCase() + instance()!.loader.type.slice(1)}
+                    </span>
+                    <span class="mod-tag">{instance()!.game_version}</span>
+                  </div>
+                </Show>
+                <div class="mod-card-footer">
+                  <div class="mod-card-meta">mod · Managed</div>
+                  <div class="mod-card-actions">
+                    <button
+                      class="btn btn--ghost"
+                      style="font-size:10px;padding:3px 8px"
+                      title="Toggle in Instance Options"
+                      onClick={() => setMainTab("settings")}
+                    >Manage</button>
+                  </div>
+                </div>
+              </div>
+            </Show>
             <For each={installedPaged()}>
               {(mod) => (
                 <div class="mod-card" style={mod.enabled ? "" : "opacity:0.5"}>

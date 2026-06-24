@@ -132,7 +132,20 @@ pub struct Instance {
     /// cross-platform match is found.
     #[serde(default)]
     pub source_platforms: Vec<String>,
+    /// Per-instance toggle for the Vermeil companion mod (in-game cape). When
+    /// true, the launcher installs the matching companion jar and points the
+    /// mod at the global cape dir on launch; when false, any managed jar is
+    /// removed and the cape doesn't render here. Combined with the global
+    /// `IngameCapeSettings.enabled` (master switch): both must be on, and
+    /// the instance must be on the support list, for the cape to render.
+    /// Defaults to true so the field is opt-out — every existing instance
+    /// loaded without it keeps today's "cape on every supported instance"
+    /// behaviour.
+    #[serde(default = "default_true")]
+    pub companion_enabled: bool,
 }
+
+fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateInstanceConfig {

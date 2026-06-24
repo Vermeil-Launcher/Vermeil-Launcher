@@ -95,7 +95,11 @@ pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
         .await
         .map(|s| s.ingame_cape.enabled)
         .unwrap_or(false);
-    let want = enabled && instance_cape::is_supported(instance);
+    // Both must be on: the global toggle (master switch / "a cape is set up")
+    // and the per-instance toggle (user chose to render it here). Default for
+    // existing instances without the field is true, so behaviour matches the
+    // pre-toggle status quo (cape on every supported instance).
+    let want = enabled && instance.companion_enabled && instance_cape::is_supported(instance);
     let mods = mods_dir(&instance.id);
 
     if !want {

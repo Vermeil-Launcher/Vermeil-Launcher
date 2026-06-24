@@ -300,6 +300,24 @@ pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
     instance_cape::set_ingame_cape_enabled(enabled).await
 }
 
+/// Per-instance toggle for whether the Vermeil companion mod runs on this
+/// instance. ANDed at launch with the global cape toggle and the support gate
+/// (`is_supported`). Persists into the instance's `instance.json`.
+#[tauri::command]
+pub async fn set_instance_companion_enabled(id: String, enabled: bool) -> Result<(), String> {
+    let mut instance = instance_service::get_by_id(&id)
+        .await
+        .map_err(|e| e.to_string())?;
+    if instance.companion_enabled == enabled {
+        return Ok(());
+    }
+    instance.companion_enabled = enabled;
+    let meta_path = crate::util::paths::instances_dir().join(&id).join("instance.json");
+    let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
+    std::fs::write(&meta_path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Remove the in-game cape entirely.
 #[tauri::command]
 pub async fn clear_ingame_cape() -> Result<(), String> {

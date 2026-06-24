@@ -353,6 +353,7 @@ pub fn run() {
             instances::prepare_instance,
             instances::set_ingame_cape,
             instances::set_ingame_cape_enabled,
+            instances::set_instance_companion_enabled,
             instances::clear_ingame_cape,
             instances::get_ingame_cape,
             instances::companion_supported_versions,

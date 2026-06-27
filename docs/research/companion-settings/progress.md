@@ -135,3 +135,25 @@
   us; non-destructive if so.)
 - Verified: gradlew build (JDK 8) BUILD SUCCESSFUL; runClient smoke-tested in-game
   (button + logo render on both screens, settings screen opens/closes).
+
+
+## 2026-06-27 · Phase 4 (1.8.9) — custom themed UI + DM Sans (baseline)
+
+- `VermeilFont`: custom TTF renderer for 1.8.9 (no native TTF pre-1.13). Loads
+  bundled DM Sans (OFL), rasterizes printable-ASCII glyphs via AWT into a GL
+  texture atlas (linear filtered), draws batched textured quads per glyph tinted
+  by colour. `drawString` / `width` / `lineHeight`; falls back to vanilla font if
+  load fails. Verified in-game: crisp, correct spacing/colour.
+- DM Sans Regular TTF + OFL.txt bundled at assets/vermeil/font/ (from
+  googlefonts/dm-fonts; downscaled launcher logo already at textures/gui/logo.png).
+- `VermeilSettingsScreen` rebuilt as a fully custom-drawn UI in the launcher
+  palette (panel #1d1b24 / border #322f3d / accent #8b5cf6, sharp edges): logo +
+  VERMEIL header w/ accent underline, Cosmetics/Visuals tabs, square cape toggle,
+  purple-fill FOV slider w/ % readout, Done button. No vanilla widgets; manual
+  hit-testing (mouseClicked/ClickMove/Released, Esc→parent). Writes live to
+  vermeil-settings.json. Removed VermeilSlider (GuiButton-based, now unused).
+- Verified: gradlew build (JDK 8) BUILD SUCCESSFUL; runClient smoke-tested.
+  Baseline design — polish/layout iteration to follow (hover states, spacing,
+  possible sidebar+content layout as features grow).
+- Still TODO: port to the 3 Fabric projects (DM Sans via vanilla font provider
+  there; cape toggle only).

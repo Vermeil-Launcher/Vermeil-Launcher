@@ -1390,9 +1390,11 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 tracing::error!("Failed to write options.txt: {}", e);
             }
             // Write the companion mod's own settings file from the same stored
-            // state (cape on/off, FOV effects). Authoritative at launch, like
-            // options.txt; the mod reads it, and changes flow back on exit.
-            crate::services::companion_settings::write_for_launch(&settings);
+            // state (cape on/off; FOV effects only on pre-1.16, where the mod
+            // backports it). Authoritative at launch, like options.txt; the mod
+            // reads it, and changes flow back on exit.
+            let include_fov = !mc_version_at_least(&instance.game_version, 1, 16);
+            crate::services::companion_settings::write_for_launch(&settings, include_fov);
         }
 
         // Always sync the fullscreen state from the global settings
@@ -1598,8 +1600,10 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                     // stale value.
                     if let Some(vs) = crate::services::companion_settings::read_back() {
                         settings.ingame_cape.enabled = vs.cape_enabled;
-                        if !mc_version_at_least(&instance_version, 1, 16) {
-                            settings.video_settings.fov_effects = Some(vs.fov_effects_scale);
+                        if let Some(scale) = vs.fov_effects_scale {
+                            if !mc_version_at_least(&instance_version, 1, 16) {
+                                settings.video_settings.fov_effects = Some(scale);
+                            }
                         }
                     }
                     match crate::services::settings_service::save(&settings).await {

@@ -33,35 +33,40 @@ pub struct VermeilSettings {
     /// Whether the custom cape renders (when a texture is present). Default true.
     #[serde(rename = "capeEnabled", default = "default_true")]
     pub cape_enabled: bool,
-    /// FOV-effects scale in `[0.0, 1.0]` for the versions where the mod owns it
-    /// (pre-1.16; 1.16+ uses the vanilla key). `1.0` = vanilla. Default `1.0`.
-    #[serde(rename = "fovEffectsScale", default = "default_scale")]
-    pub fov_effects_scale: f64,
+    /// FOV-effects scale in `[0.0, 1.0]`. Only present for **pre-1.16** instances,
+    /// where the mod backports it — 1.16+ has the setting natively and ignores
+    /// ours, so the key is omitted there (its presence marks it as the legacy
+    /// 1.8.9-era feature). `1.0` = vanilla.
+    #[serde(rename = "fovEffectsScale", default, skip_serializing_if = "Option::is_none")]
+    pub fov_effects_scale: Option<f64>,
 }
 
 fn default_true() -> bool {
     true
-}
-fn default_scale() -> f64 {
-    1.0
 }
 
 impl Default for VermeilSettings {
     fn default() -> Self {
         Self {
             cape_enabled: true,
-            fov_effects_scale: 1.0,
+            fov_effects_scale: None,
         }
     }
 }
 
 /// Write `vermeil-settings.json` from the launcher's stored settings, before
 /// launch. The launcher is authoritative at launch time (same model as
-/// `options.txt`). Best-effort — never blocks a launch.
-pub fn write_for_launch(settings: &LauncherSettings) {
+/// `options.txt`). `include_fov_effects` is true only for pre-1.16 instances,
+/// where the mod owns the FOV-effects backport; on newer versions the key is
+/// omitted entirely. Best-effort — never blocks a launch.
+pub fn write_for_launch(settings: &LauncherSettings, include_fov_effects: bool) {
     let vs = VermeilSettings {
         cape_enabled: settings.ingame_cape.enabled,
-        fov_effects_scale: settings.video_settings.fov_effects.unwrap_or(1.0),
+        fov_effects_scale: if include_fov_effects {
+            Some(settings.video_settings.fov_effects.unwrap_or(1.0))
+        } else {
+            None
+        },
     };
     let path = settings_path();
     if let Some(parent) = path.parent() {

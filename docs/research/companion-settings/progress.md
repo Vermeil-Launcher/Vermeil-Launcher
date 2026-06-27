@@ -119,3 +119,19 @@
 - Next: Fabric projects (1.21-1.21.1, 1.21.11, 26.1-26.2) — cape-toggle screen
   only (1.16+ FOV is native). No Fabric API in these, so the pause-menu button is
   a Mixin into the pause screen, not an event.
+
+## 2026-06-27 · Phase 4 (1.8.9) — button polish
+
+- Pause-menu button replaced with a compact 20×20 logo button anchored right of
+  the quit button (found by vanilla id: 1 on pause, 4 on title), added to BOTH
+  GuiIngameMenu and GuiMainMenu. Closing returns to the originating screen.
+- Real Vermeil logo: launcher `public/logo.png` downscaled to 64×64 →
+  `assets/vermeil/textures/gui/logo.png` (the copied mod-icon was a placeholder).
+  Rendered via drawScaledCustomSizeModalRect into a centred 16×16.
+- Compatibility: we only append our button (never touch others'); anchor follows
+  the quit button's live position; if the quit button is absent we skip. Added
+  `freeY` collision avoidance — nudges our button down past any button already in
+  the list so it won't overlap another mod's. (Can't cover a mod that adds after
+  us; non-destructive if so.)
+- Verified: gradlew build (JDK 8) BUILD SUCCESSFUL; runClient smoke-tested in-game
+  (button + logo render on both screens, settings screen opens/closes).

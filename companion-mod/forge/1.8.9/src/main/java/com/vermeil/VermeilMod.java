@@ -46,6 +46,8 @@ public class VermeilMod {
 		// client tick. The render swap itself is done by the coremod transformer
 		// on AbstractClientPlayer.getLocationCape (see com.vermeil.asm).
 		MinecraftForge.EVENT_BUS.register(VermeilCape.INSTANCE);
+		// Pause-menu "Vermeil" button + in-game settings screen.
+		MinecraftForge.EVENT_BUS.register(com.vermeil.client.VermeilSettingsHook.INSTANCE);
 		LOGGER.info("Vermeil mod initialized.");
 	}
 }

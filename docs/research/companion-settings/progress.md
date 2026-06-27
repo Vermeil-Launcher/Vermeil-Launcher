@@ -97,3 +97,25 @@
   no clobber. `write_for_launch` no longer takes/needs the version flag.
 - Launcher-only change; mod readers unaffected (fovEffectsScale still top-level,
   cape object unchanged). `cargo check` clean.
+
+
+## 2026-06-27 · Phase 4 (1.8.9) — in-game settings screen (done)
+
+- Forge 1.8.9: pause-menu "Vermeil" button via Forge GUI events (no ASM) —
+  `VermeilSettingsHook` (InitGuiEvent.Post adds the button to GuiIngameMenu;
+  ActionPerformedEvent.Pre opens the screen), registered on the event bus in
+  VermeilMod.init.
+- `VermeilSettingsScreen` (GuiScreen): categories Cosmetics (cape ON/OFF toggle)
+  + Visuals (FOV-effects slider). `VermeilSlider` is a self-contained GuiButton
+  subclass (classic 1.8.9 handle-render pattern; no GuiResponder wiring).
+- `VermeilSettingsStore`: read-modify-write of vermeil-settings.json (preserves
+  unknown keys); cape toggle writes immediately (cape watcher live-reloads), FOV
+  persists on screen close. Launcher reads both back on exit.
+- Button placed top-left corner (collision-free at any GUI scale); closing returns
+  to the pause menu, vanilla menu untouched.
+- Verified: `gradlew build` (JDK 8) BUILD SUCCESSFUL — compiles against MCP
+  mappings (validates GuiButton/GuiScreen/GuiScreenEvent names). In-game visual
+  check pending via runClient / a mod release.
+- Next: Fabric projects (1.21-1.21.1, 1.21.11, 26.1-26.2) — cape-toggle screen
+  only (1.16+ FOV is native). No Fabric API in these, so the pause-menu button is
+  a Mixin into the pause screen, not an event.

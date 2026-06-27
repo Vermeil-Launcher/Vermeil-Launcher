@@ -1,72 +1,73 @@
 package com.vermeil.client.gui;
 
+import com.vermeil.VermeilMod;
 import com.vermeil.client.VermeilSettingsStore;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
+import org.lwjgl.input.Keyboard;
 
 /**
- * The in-game Vermeil settings screen on Minecraft 1.8.9 — a fully custom-drawn
- * UI in the launcher's visual language (dark panel + purple accent, sharp edges,
- * DM Sans via {@link VermeilFont}), opened from the pause/title logo button.
+ * The in-game Vermeil settings screen on Minecraft 1.8.9 — a gamey, pixel-font
+ * client-settings UI: left category sidebar (brand + version, text categories
+ * with a solid-accent active button), a search bar, and a list of setting rows
+ * (name + description + a pill toggle or slider) in the launcher's dark/purple
+ * palette with sharp edges.
  *
- * <p>Nothing here uses vanilla widgets; the panel, category tabs, square toggle,
- * and purple-fill slider are all drawn with {@code drawRect} + the custom font,
- * matching the launcher's design tokens. Each control writes the mod's settings
- * file ({@link VermeilSettingsStore}) so changes apply live (cape watcher / FOV
- * hook poll the file) and the launcher reads them back on exit. Esc or Done
- * returns to whichever screen opened it.
+ * <p>Uses the vanilla pixel font (scaled with GL for sizes) so it reads as part
+ * of the game. Each control writes the mod's settings file ({@link
+ * VermeilSettingsStore}) so changes apply live and the launcher reads them back
+ * on exit. Esc returns to the opening screen.
  */
 public class VermeilSettingsScreen extends GuiScreen {
-	// Launcher design tokens (base.css), as ARGB.
-	private static final int C_PANEL = 0xFF1D1B24;
-	private static final int C_RAISED = 0xFF28252F;
-	private static final int C_BORDER = 0xFF322F3D;
-	private static final int C_ACCENT = 0xFF8B5CF6;
-	private static final int C_ACCENT_STRONG = 0xFF7C4DDE;
-	private static final int C_TEXT = 0xFFECE9F2;
-	private static final int C_MUTED = 0xFFA6A1B5;
-	private static final int C_TRACK = 0xFF15141A;
-	private static final int C_SCRIM = 0xC014121A;
+	private static final int PANEL = 0xF2131119;
+	private static final int SIDEBAR = 0xF20F0E13;
+	private static final int CARD = 0xFF1C1A23;
+	private static final int BORDER = 0xFF322F3D;
+	private static final int ACCENT = 0xFF8B5CF6;
+	private static final int ACCENT_DK = 0xFF7C4DDE;
+	private static final int OFF = 0xFF3A3744;
+	private static final int FIELD = 0xFF15141A;
+	private static final int HOVER = 0x18FFFFFF;
+	private static final int TEXT = 0xFFECE9F2;
+	private static final int MUTED = 0xFFA6A1B5;
+	private static final int FAINT = 0xFF6F6A7E;
 
 	private static final ResourceLocation LOGO = new ResourceLocation("vermeil", "textures/gui/logo.png");
-
-	private static final float TITLE_SCALE = 0.52F;
-	private static final float TAB_SCALE = 0.44F;
-	private static final float LABEL_SCALE = 0.44F;
-	private static final float SMALL_SCALE = 0.40F;
-
-	private static final int PANEL_W = 300;
-	private static final int PANEL_H = 196;
+	private static final String[] CATEGORIES = {"Cosmetics", "Visuals"};
 
 	private final GuiScreen parent;
+	private int tab;
+	private String search = "";
+	private boolean searchFocused;
 
-	private int panelX;
-	private int panelY;
-	private int tab; // 0 = Cosmetics, 1 = Visuals
-
-	// Hit rects (computed in initGui).
-	private int tabCosX;
-	private int tabCosW;
-	private int tabVisX;
-	private int tabVisW;
-	private int tabsY;
-	private int tabsH;
-	private int toggleX;
-	private int toggleY;
-	private int toggleW;
-	private int toggleH;
-	private int sliderX;
-	private int sliderY;
-	private int sliderW;
-	private int doneX;
-	private int doneY;
-	private int doneW;
-	private int doneH;
+	private int x0;
+	private int y0;
+	private int x1;
+	private int y1;
+	private int sidebarRight;
+	private int contentX;
+	private int contentRight;
+	private int searchY;
+	private int searchH;
+	private int listTop;
+	private final int[] navY = new int[CATEGORIES.length];
+	private int navH;
 
 	private boolean capeEnabled;
 	private float fovValue;
 	private boolean draggingFov;
+
+	// One row's live geometry, rebuilt each frame so click + draw agree.
+	private static final class Row {
+		String key;
+		int y;
+		int h;
+	}
+
+	private final List<Row> rows = new ArrayList<Row>();
 
 	public VermeilSettingsScreen(final GuiScreen parent) {
 		this.parent = parent;
@@ -74,32 +75,43 @@ public class VermeilSettingsScreen extends GuiScreen {
 
 	@Override
 	public void initGui() {
-		this.panelX = (this.width - PANEL_W) / 2;
-		this.panelY = (this.height - PANEL_H) / 2;
+		Keyboard.enableRepeatEvents(true);
+		int mx = clamp(this.width / 7, 44, 170);
+		int my = clamp(this.height / 8, 34, 120);
+		this.x0 = mx;
+		this.y0 = my;
+		this.x1 = this.width - mx;
+		this.y1 = this.height - my;
+		this.sidebarRight = x0 + 150;
+		this.contentX = sidebarRight + 18;
+		this.contentRight = x1 - 18;
+
+		this.searchY = y0 + 18;
+		this.searchH = 22;
+		this.listTop = searchY + searchH + 14;
+
+		this.navH = 30;
+		int ny = y0 + 64;
+		for (int i = 0; i < CATEGORIES.length; i++) {
+			this.navY[i] = ny;
+			ny += navH + 4;
+		}
+
 		this.capeEnabled = VermeilSettingsStore.isCapeEnabled();
 		this.fovValue = VermeilSettingsStore.getFovEffectsScale();
+	}
 
-		this.tabsY = panelY + 42;
-		this.tabsH = (int) Math.ceil(lineHeight(TAB_SCALE)) + 6;
-		this.tabCosX = panelX + 16;
-		this.tabCosW = (int) Math.ceil(textWidth("Cosmetics", TAB_SCALE));
-		this.tabVisX = tabCosX + tabCosW + 18;
-		this.tabVisW = (int) Math.ceil(textWidth("Visuals", TAB_SCALE));
+	@Override
+	public void onGuiClosed() {
+		Keyboard.enableRepeatEvents(false);
+	}
 
-		int rowY = panelY + 80;
-		this.toggleW = 30;
-		this.toggleH = 16;
-		this.toggleX = panelX + PANEL_W - 16 - toggleW;
-		this.toggleY = rowY - 2;
+	private static int clamp(final int v, final int lo, final int hi) {
+		return v < lo ? lo : (v > hi ? hi : v);
+	}
 
-		this.sliderX = panelX + 16;
-		this.sliderW = PANEL_W - 32;
-		this.sliderY = panelY + 104;
-
-		this.doneW = 60;
-		this.doneH = 20;
-		this.doneX = panelX + PANEL_W - 16 - doneW;
-		this.doneY = panelY + PANEL_H - 14 - doneH;
+	private boolean matches(final String name) {
+		return search.isEmpty() || name.toLowerCase().contains(search.toLowerCase());
 	}
 
 	// ───────────────────────── Input ─────────────────────────
@@ -110,28 +122,29 @@ public class VermeilSettingsScreen extends GuiScreen {
 		if (mouseButton != 0) {
 			return;
 		}
-		// Tabs
-		if (inRect(mouseX, mouseY, tabCosX, tabsY, tabCosW, tabsH)) {
-			tab = 0;
+		// Search focus: clicking the field focuses it (blinking caret); clicking
+		// anywhere else unfocuses.
+		searchFocused = inRect(mouseX, mouseY, contentX, searchY, contentRight - contentX, searchH);
+		if (searchFocused) {
 			return;
 		}
-		if (inRect(mouseX, mouseY, tabVisX, tabsY, tabVisW, tabsH)) {
-			tab = 1;
-			return;
+		for (int i = 0; i < CATEGORIES.length; i++) {
+			if (inRect(mouseX, mouseY, x0 + 10, navY[i], 130, navH)) {
+				tab = i;
+				return;
+			}
 		}
-		// Done
-		if (inRect(mouseX, mouseY, doneX, doneY, doneW, doneH)) {
-			this.mc.displayGuiScreen(parent);
-			return;
-		}
-		if (tab == 0 && inRect(mouseX, mouseY, toggleX, toggleY, toggleW, toggleH)) {
-			capeEnabled = !capeEnabled;
-			VermeilSettingsStore.setCapeEnabled(capeEnabled);
-			return;
-		}
-		if (tab == 1 && inRect(mouseX, mouseY, sliderX, sliderY - 7, sliderW, 18)) {
-			draggingFov = true;
-			fovValue = valueFromMouse(mouseX);
+		for (Row row : rows) {
+			if ("cape".equals(row.key) && inRect(mouseX, mouseY, contentRight - 44, row.y + 8, 44, 20)) {
+				capeEnabled = !capeEnabled;
+				VermeilSettingsStore.setCapeEnabled(capeEnabled);
+				return;
+			}
+			if ("fov".equals(row.key) && inRect(mouseX, mouseY, contentX + 12, row.y + row.h - 20, contentRight - contentX - 24, 18)) {
+				draggingFov = true;
+				fovValue = valueFromMouse(mouseX);
+				return;
+			}
 		}
 	}
 
@@ -153,15 +166,32 @@ public class VermeilSettingsScreen extends GuiScreen {
 
 	@Override
 	protected void keyTyped(final char typedChar, final int keyCode) throws java.io.IOException {
-		if (keyCode == 1) { // Esc → back to the opening screen, not out to the world
-			this.mc.displayGuiScreen(parent);
+		if (keyCode == Keyboard.KEY_ESCAPE) {
+			if (searchFocused) {
+				searchFocused = false; // Esc first defocuses the search, then closes
+			} else {
+				this.mc.displayGuiScreen(parent);
+			}
 			return;
 		}
-		super.keyTyped(typedChar, keyCode);
+		if (!searchFocused) {
+			return;
+		}
+		if (keyCode == Keyboard.KEY_BACK) {
+			if (!search.isEmpty()) {
+				search = search.substring(0, search.length() - 1);
+			}
+			return;
+		}
+		if (typedChar >= 32 && typedChar < 127 && search.length() < 32) {
+			search += typedChar;
+		}
 	}
 
 	private float valueFromMouse(final int mouseX) {
-		float v = (float) (mouseX - sliderX) / (float) sliderW;
+		int sx = contentX + 12;
+		int sw = contentRight - contentX - 24;
+		float v = (float) (mouseX - sx) / (float) sw;
 		return v < 0.0F ? 0.0F : (v > 1.0F ? 1.0F : v);
 	}
 
@@ -169,107 +199,153 @@ public class VermeilSettingsScreen extends GuiScreen {
 
 	@Override
 	public void drawScreen(final int mouseX, final int mouseY, final float partialTicks) {
-		// Dim the game behind the panel.
-		drawRect(0, 0, this.width, this.height, C_SCRIM);
+		// Vanilla menu backdrop: tiled dirt on the title screen, dimmed gradient
+		// in-world — so the panel sits on the matching background.
+		this.drawDefaultBackground();
+		drawRect(x0, y0, x1, y1, PANEL);
+		drawRect(x0, y0, sidebarRight, y1, SIDEBAR);
+		drawRect(sidebarRight, y0, sidebarRight + 1, y1, BORDER);
+		drawRect(x0, y0, x1, y0 + 1, BORDER);
+		drawRect(x0, y1 - 1, x1, y1, BORDER);
+		drawRect(x0, y0, x0 + 1, y1, BORDER);
+		drawRect(x1 - 1, y0, x1, y1, BORDER);
 
-		// Panel: 1px border, then inset fill.
-		drawRect(panelX - 1, panelY - 1, panelX + PANEL_W + 1, panelY + PANEL_H + 1, C_BORDER);
-		drawRect(panelX, panelY, panelX + PANEL_W, panelY + PANEL_H, C_PANEL);
+		// Sidebar brand.
+		drawIcon(LOGO, x0 + 14, y0 + 16, 18);
+		text("Vermeil", x0 + 38, y0 + 18, TEXT, 1.4F, true);
+		text("v" + VermeilMod.VERSION, x0 + 38, y0 + 34, MUTED, 1.0F, false);
 
-		// Header: logo + wordmark + accent underline.
-		drawLogo(panelX + 14, panelY + 12, 18);
-		text("VERMEIL", panelX + 38, panelY + 14, C_TEXT, TITLE_SCALE);
-		drawRect(panelX + 14, panelY + 34, panelX + PANEL_W - 14, panelY + 35, C_ACCENT);
+		// Categories.
+		for (int i = 0; i < CATEGORIES.length; i++) {
+			drawNav(i, mouseX, mouseY);
+		}
 
-		// Tabs.
-		drawTab("Cosmetics", tabCosX, tabCosW, 0);
-		drawTab("Visuals", tabVisX, tabVisW, 1);
+		// Search bar.
+		drawSearch(mouseX, mouseY);
 
-		// Active tab content.
+		// Setting list for the active tab.
+		rows.clear();
+		int y = listTop;
 		if (tab == 0) {
-			drawCosmetics(mouseX, mouseY);
+			y = drawCapeRow(y);
 		} else {
-			drawVisuals();
+			y = drawFovRow(y);
 		}
-
-		// Done button.
-		boolean doneHover = inRect(mouseX, mouseY, doneX, doneY, doneW, doneH);
-		drawRect(doneX, doneY, doneX + doneW, doneY + doneH, doneHover ? C_ACCENT_STRONG : C_ACCENT);
-		float dtw = textWidth("Done", LABEL_SCALE);
-		text("Done", doneX + (doneW - dtw) / 2.0F, doneY + (doneH - lineHeight(LABEL_SCALE)) / 2.0F + 1, C_TEXT, LABEL_SCALE);
 	}
 
-	private void drawTab(final String label, final int x, final int w, final int index) {
-		boolean active = tab == index;
-		text(label, x, tabsY, active ? C_TEXT : C_MUTED, TAB_SCALE);
+	private void drawNav(final int i, final int mouseX, final int mouseY) {
+		int x = x0 + 10;
+		int y = navY[i];
+		int w = 130;
+		boolean active = tab == i;
+		boolean hover = inRect(mouseX, mouseY, x, y, w, navH);
 		if (active) {
-			int underY = tabsY + (int) Math.ceil(lineHeight(TAB_SCALE)) + 1;
-			drawRect(x, underY, x + w, underY + 1, C_ACCENT);
+			drawRect(x, y, x + w, y + navH, ACCENT);
+		} else if (hover) {
+			drawRect(x, y, x + w, y + navH, HOVER);
+		}
+		text(CATEGORIES[i], x + 12, y + (navH - lineH(1.1F)) / 2, active ? 0xFFFFFFFF : MUTED, 1.1F, active);
+	}
+
+	private void drawSearch(final int mouseX, final int mouseY) {
+		drawRect(contentX, searchY, contentRight, searchY + searchH, FIELD);
+		int edge = searchFocused ? ACCENT : BORDER;
+		drawRect(contentX, searchY, contentRight, searchY + 1, edge);
+		drawRect(contentX, searchY + searchH - 1, contentRight, searchY + searchH, edge);
+		drawRect(contentX, searchY, contentX + 1, searchY + searchH, edge);
+		drawRect(contentRight - 1, searchY, contentRight, searchY + searchH, edge);
+
+		boolean empty = search.isEmpty();
+		boolean showPlaceholder = empty && !searchFocused;
+		String shown = showPlaceholder ? "Search modules..." : search;
+		int ty = searchY + (searchH - lineH(1.0F)) / 2;
+		text(shown, contentX + 10, ty, showPlaceholder ? FAINT : TEXT, 1.0F, false);
+
+		// Blinking caret when focused, so it's clear the field accepts typing.
+		if (searchFocused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
+			int cx = contentX + 10 + textW(search, 1.0F);
+			drawRect(cx, searchY + 6, cx + 1, searchY + searchH - 6, TEXT);
 		}
 	}
 
-	private void drawCosmetics(final int mouseX, final int mouseY) {
-		int rowY = panelY + 80;
-		text("Custom cape", panelX + 18, rowY, C_TEXT, LABEL_SCALE);
-		text("Show your Vermeil cape in-game", panelX + 18, rowY + 13, C_MUTED, SMALL_SCALE);
-		drawToggle(toggleX, toggleY, toggleW, toggleH, capeEnabled);
+	private int drawCapeRow(final int top) {
+		if (!matches("Custom cape")) {
+			return top;
+		}
+		int h = 42;
+		newRow("cape", top, h);
+		drawRect(contentX, top, contentRight, top + h, CARD);
+		text("Custom cape", contentX + 12, top + 9, TEXT, 1.2F, true);
+		text("Show your Vermeil cape in-game", contentX + 12, top + 25, MUTED, 1.0F, false);
+		drawPill(contentRight - 44, top + 11, 32, 18, capeEnabled);
+		return top + h + 8;
 	}
 
-	private void drawVisuals() {
-		int rowY = panelY + 80;
-		text("FOV Effects", panelX + 18, rowY, C_TEXT, LABEL_SCALE);
+	private int drawFovRow(final int top) {
+		if (!matches("FOV Effects")) {
+			return top;
+		}
+		int h = 56;
+		newRow("fov", top, h);
+		drawRect(contentX, top, contentRight, top + h, CARD);
+		text("FOV Effects", contentX + 12, top + 9, TEXT, 1.2F, true);
 		String pct = Math.round(fovValue * 100.0F) + "%";
-		float pw = textWidth(pct, LABEL_SCALE);
-		text(pct, panelX + PANEL_W - 18 - pw, rowY, C_ACCENT, LABEL_SCALE);
-		text("How much speed, sprint and other effects warp your FOV", panelX + 18, rowY + 13, C_MUTED, SMALL_SCALE);
+		text(pct, contentRight - 12 - textW(pct, 1.1F), top + 9, ACCENT, 1.1F, true);
+		text("How much sprint, speed and bow-draw warp your view", contentX + 12, top + 25, MUTED, 1.0F, false);
 
-		// Track: filled portion (accent) + remainder (dark).
-		int handleW = 6;
-		int fillEnd = sliderX + (int) (fovValue * (sliderW - handleW));
-		drawRect(sliderX, sliderY, sliderX + sliderW, sliderY + 4, C_TRACK);
-		drawRect(sliderX, sliderY, fillEnd, sliderY + 4, C_ACCENT);
-		// Square handle.
-		drawRect(fillEnd, sliderY - 5, fillEnd + handleW, sliderY + 9, C_TEXT);
+		int sx = contentX + 12;
+		int sw = contentRight - contentX - 24;
+		int sy = top + h - 14;
+		int handle = 6;
+		int fillEnd = sx + (int) (fovValue * (sw - handle));
+		drawRect(sx, sy, sx + sw, sy + 4, FIELD);
+		drawRect(sx, sy, fillEnd, sy + 4, ACCENT);
+		drawRect(fillEnd, sy - 5, fillEnd + handle, sy + 9, TEXT);
+		return top + h + 8;
 	}
 
-	/** A square on/off toggle: accent fill when on, raised+border when off, with a square knob. */
-	private void drawToggle(final int x, final int y, final int w, final int h, final boolean on) {
-		drawRect(x - 1, y - 1, x + w + 1, y + h + 1, C_BORDER);
-		drawRect(x, y, x + w, y + h, on ? C_ACCENT : C_RAISED);
-		int knob = h - 4;
-		int knobX = on ? x + w - 2 - knob : x + 2;
-		drawRect(knobX, y + 2, knobX + knob, y + 2 + knob, C_TEXT);
+	private Row newRow(final String key, final int y, final int h) {
+		Row row = new Row();
+		row.key = key;
+		row.y = y;
+		row.h = h;
+		rows.add(row);
+		return row;
 	}
 
-	private void drawLogo(final int x, final int y, final int size) {
+	/** Simple ON/OFF pill — solid accent on, dark gray off. */
+	private void drawPill(final int x, final int y, final int w, final int h, final boolean on) {
+		drawRect(x, y, x + w, y + h, on ? ACCENT : OFF);
+		String s = on ? "ON" : "OFF";
+		text(s, x + (w - textW(s, 1.0F)) / 2, y + (h - lineH(1.0F)) / 2, on ? 0xFFFFFFFF : MUTED, 1.0F, false);
+	}
+
+	private void drawIcon(final ResourceLocation tex, final int x, final int y, final int size) {
 		GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 		GlStateManager.enableBlend();
-		this.mc.getTextureManager().bindTexture(LOGO);
+		this.mc.getTextureManager().bindTexture(tex);
 		drawScaledCustomSizeModalRect(x, y, 0.0F, 0.0F, 64, 64, size, size, 64.0F, 64.0F);
 	}
 
-	// ───────────────────────── Text helpers (DM Sans, vanilla fallback) ─────
+	// ───────────────────────── Pixel-font helpers (vanilla, GL-scaled) ─────
 
-	private void text(final String s, final float x, final float y, final int color, final float scale) {
-		if (VermeilFont.INSTANCE.isReady()) {
-			VermeilFont.INSTANCE.drawString(s, x, y, color, scale);
-		} else {
-			this.fontRendererObj.drawString(s, (int) x, (int) y, color);
+	private void text(final String s, final int x, final int y, final int color, final float scale, final boolean shadow) {
+		if (scale == 1.0F) {
+			this.fontRendererObj.drawString(s, x, y, color, shadow);
+			return;
 		}
+		GlStateManager.pushMatrix();
+		GlStateManager.scale(scale, scale, 1.0F);
+		this.fontRendererObj.drawString(s, Math.round(x / scale), Math.round(y / scale), color, shadow);
+		GlStateManager.popMatrix();
 	}
 
-	private float textWidth(final String s, final float scale) {
-		if (VermeilFont.INSTANCE.isReady()) {
-			return VermeilFont.INSTANCE.width(s, scale);
-		}
-		return this.fontRendererObj.getStringWidth(s);
+	private int textW(final String s, final float scale) {
+		return (int) (this.fontRendererObj.getStringWidth(s) * scale);
 	}
 
-	private float lineHeight(final float scale) {
-		if (VermeilFont.INSTANCE.isReady()) {
-			return VermeilFont.INSTANCE.lineHeight(scale);
-		}
-		return this.fontRendererObj.FONT_HEIGHT;
+	private int lineH(final float scale) {
+		return (int) (this.fontRendererObj.FONT_HEIGHT * scale);
 	}
 
 	private static boolean inRect(final int mx, final int my, final int x, final int y, final int w, final int h) {

@@ -157,3 +157,22 @@
   possible sidebar+content layout as features grow).
 - Still TODO: port to the 3 Fabric projects (DM Sans via vanilla font provider
   there; cape toggle only).
+
+
+## 2026-06-27 · Phase 4 (1.8.9) — UI redesign locked
+
+- Dropped the custom DM Sans renderer + TTF/OFL + procedural icons (distorted,
+  didn't fit). Use the **vanilla pixel font**, GL-scaled per size — gamey look,
+  no scaling artifacts.
+- Redesigned VermeilSettingsScreen to a client-settings layout: left sidebar
+  (logo + "Vermeil v<ver>" + text categories, active = solid-accent button),
+  a **search bar** (click-to-focus, blinking caret, filters rows), and setting
+  rows (name + desc + ON/OFF pill toggle, or slider+% for FOV). Sharp, dark,
+  purple; sized to ~70% of screen with margins.
+- Background uses `drawDefaultBackground()` — vanilla dirt on the title screen,
+  dimmed gradient in-world. (1.8.9 shows dirt behind sub-screens, not the live
+  panorama, same as vanilla Options; live panorama would need re-rendering the
+  skybox — deferred.)
+- Verified via runClient across iterations; build clean (JDK 8).
+- Next: port this layout to the 3 Fabric projects (pixel font there too; cape
+  toggle only — 1.16+ FOV is native; pause/title button via Mixin, no Fabric API).

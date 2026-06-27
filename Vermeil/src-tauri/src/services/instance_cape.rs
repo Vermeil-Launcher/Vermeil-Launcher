@@ -2,20 +2,20 @@
 //!
 //! This is a **global, single-toggle** feature. The state (on/off, which library
 //! cape, frame timing) lives in the launcher settings (`config.json` →
-//! `ingame_cape`), and the cape itself is stored **once** in the launcher's
-//! companion-mod data directory — `<data>/companion/` holding `cape.png` (the
-//! baked texture) and `cape.json` (`{enabled, frameTimeMs}`, mirrored from
-//! settings for the mod to read). There are no per-instance copies. The
-//! `companion` dir is the mod's data home generally (capes are its first
-//! feature); future mod data slots in alongside the cape files.
+//! `ingame_cape`), and the cape texture is stored **once** at
+//! `<data>/companion/cape/cape.png`. The on/off + frame timing are mirrored into
+//! the mod's settings file `<data>/companion/vermeil-settings.json` (see
+//! [`crate::services::companion_settings`]), which the mod reads — there's no
+//! separate `cape.json`. There are no per-instance copies. The `companion` dir is
+//! the mod's data home generally; per-feature data lives in its own subfolder
+//! (`cape/`).
 //!
 //! The companion mod reads its data dir from the `vermeil.dataDir` system
 //! property. At launch we inject `-Dvermeil.dataDir=<that dir>` for **supported**
-//! instances (the loaders + Minecraft versions the mod runs on) when a cape has
-//! been set — see [`jvm_property`]. So every instance (custom, modpack, imported,
-//! pre-existing or new) is pointed at the same global data dir uniformly, and a
-//! running supported instance live-reloads when the files change. Unsupported
-//! instances get no property, so they're never touched.
+//! instances with the companion enabled — see [`jvm_property`]. So every instance
+//! (custom, modpack, imported, pre-existing or new) is pointed at the same global
+//! data dir uniformly, and a running supported instance live-reloads when the
+//! files change. Unsupported instances get no property, so they're never touched.
 //!
 //! The cape PNG is baked **by the frontend** (canvas — the backend has no image
 //! library) into the mod's texture layout: a square 64×64 cape frame, or a
@@ -23,9 +23,8 @@
 
 use crate::models::instance::{Instance, LoaderType};
 use crate::models::settings::IngameCapeSettings;
-use crate::services::{instance_service, settings_service};
+use crate::services::{companion_settings, instance_service, settings_service};
 use crate::util::paths;
-use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 
@@ -36,26 +35,16 @@ const MAX_FRAME_SIZE: u32 = 2048;
 /// Largest frame count we'll accept in a strip.
 const MAX_FRAMES: u32 = 300;
 
-/// The `cape.json` the mod reads (`capeId` is launcher-only and omitted).
-#[derive(Debug, Serialize)]
-struct CapeMeta {
-    enabled: bool,
-    #[serde(rename = "frameTimeMs", skip_serializing_if = "Option::is_none")]
-    frame_time_ms: Option<u32>,
-}
-
 /// The launcher's data directory for the companion mod (`vermeil.dataDir`). Holds
-/// the cape files now; the mod's data home for future features too.
+/// the mod's settings file and the per-feature data subfolders (e.g. `cape/`).
 fn companion_dir() -> PathBuf {
     paths::data_dir().join("companion")
 }
 
+/// The cape texture lives in its own subfolder under the companion dir; on/off
+/// and frame timing are settings in `vermeil-settings.json`, not next to it.
 fn global_cape_png() -> PathBuf {
-    companion_dir().join("cape.png")
-}
-
-fn global_cape_meta() -> PathBuf {
-    companion_dir().join("cape.json")
+    companion_dir().join("cape").join("cape.png")
 }
 
 /// One-time rename of an earlier companion dir name (`<data>/ingame-cape/` or
@@ -75,15 +64,6 @@ fn migrate_legacy_dir() {
     }
 }
 
-/// Write the mod-facing `cape.json` mirroring the launcher's toggle state.
-fn write_global_meta(enabled: bool, frame_time_ms: Option<u32>) -> Result<(), String> {
-    fs::create_dir_all(companion_dir()).map_err(|e| format!("create companion dir: {}", e))?;
-    let meta = CapeMeta { enabled, frame_time_ms };
-    let json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
-    paths::atomic_write(global_cape_meta(), json.as_bytes())
-        .map_err(|e| format!("write cape.json: {}", e))
-}
-
 // ───────────────────────── Toggle / store (settings-backed) ─────────────
 
 /// Set the in-game cape: store the baked strip + meta in the companion dir and
@@ -95,9 +75,14 @@ pub async fn set_ingame_cape(
 ) -> Result<(), String> {
     validate_strip(strip_png)?;
     migrate_legacy_dir();
-    fs::create_dir_all(companion_dir()).map_err(|e| format!("create companion dir: {}", e))?;
-    paths::atomic_write(global_cape_png(), strip_png).map_err(|e| format!("write cape.png: {}", e))?;
-    write_global_meta(true, frame_time_ms)?;
+    let png_path = global_cape_png();
+    if let Some(parent) = png_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create cape dir: {}", e))?;
+    }
+    paths::atomic_write(&png_path, strip_png).map_err(|e| format!("write cape.png: {}", e))?;
+    // Mirror on/off + frame timing into vermeil-settings.json so a running
+    // instance live-reloads (the mod polls that file).
+    companion_settings::update_cape(true, frame_time_ms);
 
     let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
     settings.ingame_cape = IngameCapeSettings { enabled: true, cape_id, frame_time_ms };
@@ -117,17 +102,23 @@ pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
     let frame_time_ms = settings.ingame_cape.frame_time_ms;
     settings_service::save(&settings).await.map_err(|e| e.to_string())?;
 
-    // Mirror into the global cape.json so running instances live-reload.
+    // Mirror into vermeil-settings.json so running instances live-reload.
     migrate_legacy_dir();
-    write_global_meta(enabled, frame_time_ms)?;
+    companion_settings::update_cape(enabled, frame_time_ms);
     Ok(())
 }
 
-/// Remove the in-game cape entirely (global files + settings).
+/// Remove the in-game cape entirely (texture + cape settings), leaving the rest
+/// of `vermeil-settings.json` (e.g. FOV) intact.
 pub async fn clear_ingame_cape() -> Result<(), String> {
-    if companion_dir().exists() {
-        let _ = fs::remove_dir_all(companion_dir());
+    let cape_subdir = companion_dir().join("cape");
+    if cape_subdir.exists() {
+        let _ = fs::remove_dir_all(&cape_subdir);
     }
+    // Record the cape as off in the mod's settings file without disturbing other
+    // feature settings stored alongside it.
+    companion_settings::update_cape(false, None);
+
     let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
     settings.ingame_cape = IngameCapeSettings::default();
     settings_service::save(&settings).await.map_err(|e| e.to_string())

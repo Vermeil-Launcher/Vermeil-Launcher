@@ -17,9 +17,11 @@
 //! round-trip for that setting).
 //!
 //! `fovEffectScale` is special: it only exists natively from Minecraft 1.16. On
-//! older versions the companion mod owns the key (reads it from `options.txt`,
-//! writes it back from its in-game control), so the launcher mirrors it on every
-//! version and leaves the per-version interpretation to the game or the mod.
+//! older versions the companion mod backports it, reading the value from its own
+//! `vermeil-settings.json` (see [`crate::services::companion_settings`]) — not
+//! from `options.txt`. The launcher still writes the `fovEffectScale` line here
+//! for 1.16+ (where the game reads it natively); on older versions vanilla
+//! ignores the unknown key.
 
 use crate::models::settings::GlobalVideoSettings;
 
@@ -73,9 +75,9 @@ fn bool_str(b: bool) -> &'static str {
 /// `options.txt`), replacing existing lines in place or appending new ones, and
 /// return the updated text. Always writes concrete values.
 ///
-/// `fovEffectScale` is written on every version: 1.16+ reads it natively, and
-/// the companion mod reads it on older versions (it's an inert unknown key to
-/// vanilla pre-1.16, so writing it there is harmless even without the mod).
+/// `fovEffectScale` is written on every version: 1.16+ reads it natively. On
+/// pre-1.16 it's an inert unknown key to vanilla (harmless); the companion mod
+/// reads its own `vermeil-settings.json` for that value instead, not this file.
 pub fn apply(content: &str, vs: &GlobalVideoSettings) -> String {
     let r = resolved(vs);
     let mut out = content.to_string();

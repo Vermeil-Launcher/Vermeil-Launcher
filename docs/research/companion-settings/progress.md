@@ -62,3 +62,26 @@
 - Verified: `cargo check` clean (0 warnings). Backend-only, no frontend change.
 - Next: Phase 3 — mod reads vermeil-settings.json across the 4 projects
   (cape `capeEnabled`; 1.8.9 FOV live from `fovEffectsScale`).
+
+## 2026-06-27 · Phase 3 — mod consumes vermeil-settings.json + dir reorg (done)
+
+- Schema regrouped: `{ cape: { enabled, frameTimeMs }, fovEffectsScale? }`. Cape
+  texture moved to `companion/cape/cape.png`; `cape.json` dropped. New
+  `companion_settings::update_cape` does live (non-launch) cape writes for Skins
+  toggles; `clear_ingame_cape` now removes only `cape/` + cape settings, leaving
+  FOV intact.
+- instance_cape.rs: cape png path → `cape/cape.png`; cape on/off + frame timing
+  mirrored into vermeil-settings.json (not cape.json) for live reload.
+- All 4 mod projects: VermeilCape reads cape on/off + frameTimeMs from
+  vermeil-settings.json (`cape` object) and texture from `cape/cape.png`; polls
+  the settings file. 1.8.9 VermeilFovEffects reads `fovEffectsScale` from the file,
+  re-read ~1×/s (live) — replaces the frozen JVM-prop read; `-Dvermeil.fovEffectsScale`
+  removed from launch.rs. video_options comments fixed (mod reads its own file now).
+- Verified: `cargo check` clean (0 warnings); all 4 mod projects `gradlew build`
+  → BUILD SUCCESSFUL (1.21.11 / 1.21-1.21.1 JDK 21, 26.1-26.2 JDK 25, forge/1.8.9 JDK 8).
+- No migration (per decision): existing flat `companion/cape.png` / `cape.json`
+  are orphaned; user re-sets the cape. Archived 1.21.x projects still use the old
+  cape.json format — out of build path; update them only if restored.
+- End-to-end cape/FOV behaviour needs a new mod release (Phase 5) or dev runClient,
+  since the launcher installs the *released* jar.
+- Next: Phase 4 — in-game settings screen (pause-menu button) across the projects.

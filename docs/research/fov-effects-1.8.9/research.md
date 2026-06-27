@@ -58,12 +58,16 @@ guards those upstream, but the hook doesn't introduce new NaN paths either.
 
 ## Value plumbing
 
-JVM system property `vermeil.fovEffectsScale`, set by the launcher's `launch.rs`
-JVM-args block — same channel pattern as `vermeil.dataDir` (capes). Only emitted
-for pre-1.16 instances (1.16+ uses the vanilla options.txt key directly).
-`VermeilFovEffects` reads it once on first use, clamps to `[0.0, 1.0]` to match
-the 1.16+ vanilla range, and caches. Missing / malformed / non-finite → default
-`1.0` (vanilla).
+Read from the mod's settings file `<vermeil.dataDir>/vermeil-settings.json`,
+top-level `fovEffectsScale` (written by the launcher only for pre-1.16 instances;
+1.16+ uses the vanilla options.txt key directly). `VermeilFovEffects` re-reads the
+file at most once per second (throttled — the hook is called per frame), clamps to
+`[0.0, 1.0]`, and caches between reads, so an in-game or launcher change applies
+live without a restart. Missing / malformed / non-finite → default `1.0` (vanilla).
+
+(Superseded the earlier `-Dvermeil.fovEffectsScale` JVM-property channel, which
+was read once and frozen — removed from `launch.rs` in the companion-settings
+overhaul. See `docs/research/companion-settings/`.)
 
 ## Files
 

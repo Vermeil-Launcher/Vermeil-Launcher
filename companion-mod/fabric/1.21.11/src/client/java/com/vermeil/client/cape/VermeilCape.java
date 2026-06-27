@@ -19,13 +19,13 @@ import net.minecraft.resources.Identifier;
 /**
  * Manages the launcher's in-game custom cape on the client.
  *
- * <p>The launcher controls the cape through two files in a cape directory:
+ * <p>The launcher controls the cape through its data dir:
  * <ul>
- *   <li>{@code cape.png} — the cape texture (see {@link VermeilCapeTexture}
+ *   <li>{@code cape/cape.png} — the cape texture (see {@link VermeilCapeTexture}
  *       for the static-vs-animated frame-strip format), and</li>
- *   <li>{@code cape.json} (optional) — {@code {"enabled": bool,
- *       "frameTimeMs": int}}. {@code enabled} is the on/off toggle (default true
- *       when absent); {@code frameTimeMs} is the animation speed.</li>
+ *   <li>{@code vermeil-settings.json} — the mod's settings file; the {@code cape}
+ *       object's {@code enabled} (on/off, default true) and {@code frameTimeMs}
+ *       (animation speed) drive this feature.</li>
  * </ul>
  *
  * <p>The cape directory is resolved from the {@code vermeil.dataDir} system
@@ -48,9 +48,11 @@ public final class VermeilCape {
 
 	/** System property the launcher sets to its data directory for this mod. */
 	private static final String DATA_DIR_PROPERTY = "vermeil.dataDir";
-	/** Cape texture and metadata file names, resolved under {@link #capeDir()}. */
+	/** The mod's settings file (cape on/off + frame timing), under {@link #capeDir()}. */
+	private static final String SETTINGS_FILE = "vermeil-settings.json";
+	/** Cape texture, in its own subfolder under {@link #capeDir()}. */
+	private static final String CAPE_SUBDIR = "cape";
 	private static final String CAPE_FILE = "cape.png";
-	private static final String CAPE_META = "cape.json";
 
 	private static final long DEFAULT_FRAME_TIME_MS = 100L;
 	/** Upper bound on decoded animation memory, so a pathological strip can't exhaust the heap. */
@@ -118,7 +120,7 @@ public final class VermeilCape {
 
 	/** Loads or releases the cape texture based on the current files and toggle. */
 	private static void reload(final Minecraft minecraft) {
-		Path capeFile = capeDir().resolve(CAPE_FILE);
+		Path capeFile = capeDir().resolve(CAPE_SUBDIR).resolve(CAPE_FILE);
 		CapeSettings settings = readSettings();
 
 		if (!settings.enabled() || !Files.isRegularFile(capeFile)) {
@@ -201,34 +203,37 @@ public final class VermeilCape {
 		return frame;
 	}
 
-	/** Reads the toggle and animation speed from the optional metadata file. */
+	/** Reads the cape toggle and animation speed from the mod's settings file. */
 	private static CapeSettings readSettings() {
-		Path meta = capeDir().resolve(CAPE_META);
+		Path settings = capeDir().resolve(SETTINGS_FILE);
 		boolean enabled = true;
 		long frameTimeMs = DEFAULT_FRAME_TIME_MS;
-		if (Files.isRegularFile(meta)) {
-			try (Reader reader = Files.newBufferedReader(meta)) {
-				JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
-				if (obj.has("enabled")) {
-					enabled = obj.get("enabled").getAsBoolean();
-				}
-				if (obj.has("frameTimeMs")) {
-					long value = obj.get("frameTimeMs").getAsLong();
-					if (value > 0L) {
-						frameTimeMs = value;
+		if (Files.isRegularFile(settings)) {
+			try (Reader reader = Files.newBufferedReader(settings)) {
+				JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+				JsonObject cape = root.has("cape") ? root.getAsJsonObject("cape") : null;
+				if (cape != null) {
+					if (cape.has("enabled")) {
+						enabled = cape.get("enabled").getAsBoolean();
+					}
+					if (cape.has("frameTimeMs")) {
+						long value = cape.get("frameTimeMs").getAsLong();
+						if (value > 0L) {
+							frameTimeMs = value;
+						}
 					}
 				}
 			} catch (Exception e) {
-				VermeilMod.LOGGER.warn("Failed to read cape metadata {}; using defaults.", meta, e);
+				VermeilMod.LOGGER.warn("Failed to read Vermeil settings {}; using cape defaults.", settings, e);
 			}
 		}
 		return new CapeSettings(enabled, frameTimeMs);
 	}
 
-	/** A short signature of the cape files (path presence + size + mtime) to detect changes. */
+	/** A short signature of the cape texture + settings file (size + mtime) to detect changes. */
 	private static String currentSignature() {
 		Path dir = capeDir();
-		return fileSignature(dir.resolve(CAPE_FILE)) + "|" + fileSignature(dir.resolve(CAPE_META));
+		return fileSignature(dir.resolve(CAPE_SUBDIR).resolve(CAPE_FILE)) + "|" + fileSignature(dir.resolve(SETTINGS_FILE));
 	}
 
 	private static String fileSignature(final Path path) {
@@ -251,7 +256,7 @@ public final class VermeilCape {
 		return (a << 24) | (b << 16) | (g << 8) | r;
 	}
 
-	/** Cape toggle and animation speed, parsed from {@code cape.json}. */
+	/** Cape toggle and animation speed, parsed from {@code vermeil-settings.json}. */
 	private record CapeSettings(boolean enabled, long frameTimeMs) {
 	}
 }

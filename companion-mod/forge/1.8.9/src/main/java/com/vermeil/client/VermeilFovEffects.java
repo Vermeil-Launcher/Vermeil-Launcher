@@ -1,6 +1,13 @@
 package com.vermeil.client;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.vermeil.VermeilMod;
+import java.io.File;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import net.minecraft.client.Minecraft;
 
 /**
  * Runtime configuration for the FOV-effects backport on Minecraft 1.8.9.
@@ -13,28 +20,35 @@ import com.vermeil.VermeilMod;
  * ({@link com.vermeil.asm.VermeilFovTransformer}) can apply it at the method's
  * return site.
  *
- * <p>The scale is supplied by the Vermeil launcher as a JVM system property
- * ({@link #SYSTEM_PROPERTY}) — same channel used for {@code vermeil.dataDir} —
- * read once on first use. Range is clamped to {@code [0.0, 1.0]} to match the
- * 1.16+ vanilla {@code fovEffectScale} range, so a player who later moves to a
- * 1.16+ instance sees the same value behave the same way. {@code 1.0} is
- * vanilla (no change), {@code 0.0} disables FOV effects entirely. Missing,
- * malformed, or out-of-range values fall back to {@code 1.0} — the safe
- * default that preserves vanilla behaviour.
+ * <p>The scale is read from the mod's settings file
+ * {@code <vermeil.dataDir>/vermeil-settings.json} (top-level
+ * {@code fovEffectsScale}), which the Vermeil launcher writes and the in-game
+ * Vermeil settings screen edits. The file is re-read at most once per second
+ * (not every frame), so a change made in-game or in the launcher applies live
+ * without a restart and without hitting disk on the render hot path. Range is
+ * clamped to {@code [0.0, 1.0]} to match the 1.16+ vanilla range. {@code 1.0} is
+ * vanilla (no change), {@code 0.0} disables FOV effects entirely. A missing /
+ * malformed / out-of-range value falls back to {@code 1.0}.
  */
 public final class VermeilFovEffects {
-	/** JVM system property the launcher uses to pipe the user's slider value in. */
-	public static final String SYSTEM_PROPERTY = "vermeil.fovEffectsScale";
-
-	/** Default scale when the property is absent — vanilla behaviour. */
+	/** System property the launcher sets to the mod's shared data dir. */
+	private static final String DATA_DIR_PROPERTY = "vermeil.dataDir";
+	/** The mod's settings file, under the data dir. */
+	private static final String SETTINGS_FILE = "vermeil-settings.json";
+	/** Default scale when the value is absent — vanilla behaviour. */
 	private static final float DEFAULT_SCALE = 1.0F;
-
 	/**
-	 * Cached scale. Volatile so the value is published safely to whichever thread
-	 * the FOV calculation runs on (client thread in practice, but the JIT can
-	 * reorder otherwise).
+	 * Re-read the settings file at most this often (ms). The hook calls
+	 * {@link #applyScale(float)} every frame; throttling the disk read keeps the
+	 * value live (an in-game or launcher change lands within a second) without a
+	 * per-frame file read. ponytail: 1 s poll, same cadence as the cape watcher.
 	 */
-	private static volatile float cachedScale = Float.NaN;
+	private static final long REFRESH_INTERVAL_MS = 1000L;
+
+	/** Cached scale, published across threads (the FOV calc runs on the render thread). */
+	private static volatile float cachedScale = DEFAULT_SCALE;
+	/** When the file was last read (ms), to throttle re-reads. */
+	private static volatile long lastReadMs;
 
 	private VermeilFovEffects() {
 	}
@@ -44,17 +58,14 @@ public final class VermeilFovEffects {
 	 * from bytecode at every {@code FRETURN} site in {@code
 	 * AbstractClientPlayer.getFovModifier()}.
 	 *
-	 * <p>Vanilla returns {@code 1.0F} when the player has no active FOV effect
-	 * (standing still, no potions, no bow). Each effect deviates from that
-	 * baseline (sprint &gt; 1.0, slowness &lt; 1.0, etc.). To preserve the
-	 * baseline and only scale the effect contribution, we centre on 1.0:
-	 * {@code result = 1.0F + (vanilla - 1.0F) * scale}. At {@code scale = 0} the
-	 * method always returns {@code 1.0F}; at {@code scale = 1} it returns the
-	 * vanilla value unchanged.
+	 * <p>Vanilla returns {@code 1.0F} when the player has no active FOV effect.
+	 * Each effect deviates from that baseline (sprint &gt; 1.0, slowness &lt; 1.0,
+	 * etc.). To preserve the baseline and only scale the effect contribution, we
+	 * centre on 1.0: {@code result = 1.0F + (vanilla - 1.0F) * scale}. At
+	 * {@code scale = 0} the method always returns {@code 1.0F}; at {@code scale =
+	 * 1} it returns the vanilla value unchanged.
 	 *
-	 * <p>NaN / infinite inputs fall through unchanged — {@code getFovModifier}
-	 * already guards against those upstream, but the JVM shouldn't be made worse
-	 * by a hook that introduces new NaN paths.
+	 * <p>NaN / infinite inputs fall through unchanged.
 	 */
 	public static float applyScale(final float vanilla) {
 		if (Float.isNaN(vanilla) || Float.isInfinite(vanilla)) {
@@ -67,36 +78,46 @@ public final class VermeilFovEffects {
 		return 1.0F + (vanilla - 1.0F) * scale;
 	}
 
-	/** Returns the current scale, reading and caching the system property on first use. */
+	/** Current scale, re-reading the settings file at most once per interval. */
 	private static float scale() {
-		float value = cachedScale;
-		if (Float.isNaN(value)) {
-			value = readProperty();
-			cachedScale = value;
+		long now = System.currentTimeMillis();
+		if (now - lastReadMs >= REFRESH_INTERVAL_MS) {
+			lastReadMs = now;
+			cachedScale = readScale();
 		}
-		return value;
+		return cachedScale;
 	}
 
-	private static float readProperty() {
-		String raw = System.getProperty(SYSTEM_PROPERTY);
-		if (raw == null || raw.isEmpty()) {
+	private static float readScale() {
+		File settings = new File(dataDir(), SETTINGS_FILE);
+		if (!settings.isFile()) {
 			return DEFAULT_SCALE;
 		}
-		try {
-			float parsed = Float.parseFloat(raw.trim());
-			if (Float.isNaN(parsed) || Float.isInfinite(parsed)) {
-				VermeilMod.LOGGER.warn("Ignoring non-finite {}={}; using vanilla FOV effects.", SYSTEM_PROPERTY, raw);
+		try (Reader reader = Files.newBufferedReader(settings.toPath(), StandardCharsets.UTF_8)) {
+			JsonObject root = new JsonParser().parse(reader).getAsJsonObject();
+			if (!root.has("fovEffectsScale")) {
 				return DEFAULT_SCALE;
 			}
-			float clamped = Math.max(0.0F, Math.min(1.0F, parsed));
-			if (clamped != parsed) {
-				VermeilMod.LOGGER.info("Clamped {}={} to {}.", SYSTEM_PROPERTY, raw, clamped);
+			float parsed = root.get("fovEffectsScale").getAsFloat();
+			if (Float.isNaN(parsed) || Float.isInfinite(parsed)) {
+				return DEFAULT_SCALE;
 			}
-			VermeilMod.LOGGER.info("FOV effects scale = {} (1.0 = vanilla, 0.0 = disabled).", clamped);
-			return clamped;
-		} catch (NumberFormatException e) {
-			VermeilMod.LOGGER.warn("Ignoring unparseable {}={}; using vanilla FOV effects.", SYSTEM_PROPERTY, raw);
+			return Math.max(0.0F, Math.min(1.0F, parsed));
+		} catch (Exception e) {
+			VermeilMod.LOGGER.warn("Failed to read fovEffectsScale from {}; using vanilla FOV effects.", settings, e);
 			return DEFAULT_SCALE;
 		}
+	}
+
+	/**
+	 * The mod's data dir: the launcher-supplied {@code -Dvermeil.dataDir}, or
+	 * {@code <gameDir>/vermeil/} when absent (manual install).
+	 */
+	private static File dataDir() {
+		String override = System.getProperty(DATA_DIR_PROPERTY);
+		if (override != null && !override.trim().isEmpty()) {
+			return new File(override);
+		}
+		return new File(Minecraft.getMinecraft().mcDataDir, "vermeil");
 	}
 }

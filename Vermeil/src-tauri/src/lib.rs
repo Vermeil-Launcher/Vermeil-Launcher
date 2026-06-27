@@ -76,6 +76,11 @@ pub fn run() {
             }
         }))
         .setup(|app| {
+            // Create the companion mod's data scaffold (folders + default
+            // vermeil-settings.json) up front, so the layout and a fully-populated
+            // settings file always exist regardless of whether a cape is set.
+            crate::services::companion_settings::ensure_scaffold();
+
             // Window shadow for native frameless look
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_shadow(true);

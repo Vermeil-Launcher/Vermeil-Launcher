@@ -85,3 +85,15 @@
 - End-to-end cape/FOV behaviour needs a new mod release (Phase 5) or dev runClient,
   since the launcher installs the *released* jar.
 - Next: Phase 4 — in-game settings screen (pause-menu button) across the projects.
+
+## 2026-06-27 · scaffold up front + FOV key always present
+
+- `companion_settings::ensure_scaffold()` runs at launcher startup (lib.rs setup):
+  creates `companion/` + `companion/cape/` and writes a default vermeil-settings.json
+  (full schema) if absent — layout + settings exist before any cape is set.
+- `fovEffectsScale` is now **always present** in the file (f64, default 1.0),
+  reversing the earlier pre-1.16-only omission. Only the 1.8.9 mod reads it and
+  only pre-1.16 syncs it back (1.16+ FOV still round-trips via options.txt), so
+  no clobber. `write_for_launch` no longer takes/needs the version flag.
+- Launcher-only change; mod readers unaffected (fovEffectsScale still top-level,
+  cape object unchanged). `cargo check` clean.

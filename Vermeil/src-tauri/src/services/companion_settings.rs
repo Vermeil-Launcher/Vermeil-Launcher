@@ -34,18 +34,20 @@ fn settings_path() -> PathBuf {
 
 /// The mod-facing settings. JSON keys are camelCase to match the mod's reader.
 /// Settings are grouped by feature; each field carries a default so a partial /
-/// hand-edited file still loads.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// hand-edited file still loads. The launcher creates this file with the full
+/// default schema up front (see [`ensure_scaffold`]), so every feature's settings
+/// are always present.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VermeilSettings {
     /// Custom cape feature settings.
     #[serde(default)]
     pub cape: CapeSettings,
-    /// FOV-effects scale in `[0.0, 1.0]`. Only present for **pre-1.16** instances,
-    /// where the mod backports it — 1.16+ has the setting natively and ignores
-    /// ours, so the key is omitted there (its presence marks it as the legacy
-    /// 1.8.9-era feature). `1.0` = vanilla.
-    #[serde(rename = "fovEffectsScale", default, skip_serializing_if = "Option::is_none")]
-    pub fov_effects_scale: Option<f64>,
+    /// FOV-effects scale in `[0.0, 1.0]`, `1.0` = vanilla. Always present in the
+    /// file, but only the **pre-1.16** mod (1.8.9) reads it and only pre-1.16
+    /// syncs it back to the launcher — 1.16+ has the setting natively and ignores
+    /// this one (its native value round-trips through `options.txt` instead).
+    #[serde(rename = "fovEffectsScale", default = "default_scale")]
+    pub fov_effects_scale: f64,
 }
 
 /// Cape on/off and animation speed. The texture itself lives at
@@ -63,6 +65,18 @@ pub struct CapeSettings {
 fn default_true() -> bool {
     true
 }
+fn default_scale() -> f64 {
+    1.0
+}
+
+impl Default for VermeilSettings {
+    fn default() -> Self {
+        Self {
+            cape: CapeSettings::default(),
+            fov_effects_scale: 1.0,
+        }
+    }
+}
 
 impl Default for CapeSettings {
     fn default() -> Self {
@@ -73,22 +87,32 @@ impl Default for CapeSettings {
     }
 }
 
+/// Create the companion dir scaffold — the `cape/` subfolder and a default
+/// `vermeil-settings.json` — up front so the layout and a fully-populated settings
+/// file always exist, independent of whether a cape has been set. Run once at
+/// launcher startup. Idempotent: never overwrites an existing settings file.
+pub fn ensure_scaffold() {
+    let dir = paths::data_dir().join("companion");
+    if let Err(e) = std::fs::create_dir_all(dir.join("cape")) {
+        tracing::warn!("Could not create companion scaffold: {}", e);
+        return;
+    }
+    if read_back().is_none() {
+        write(&VermeilSettings::default());
+    }
+}
+
 /// Write `vermeil-settings.json` from the launcher's stored settings, before
 /// launch. The launcher is authoritative at launch time (same model as
-/// `options.txt`). `include_fov_effects` is true only for pre-1.16 instances,
-/// where the mod owns the FOV-effects backport; on newer versions the key is
-/// omitted entirely. Best-effort — never blocks a launch.
-pub fn write_for_launch(settings: &LauncherSettings, include_fov_effects: bool) {
+/// `options.txt`). The FOV-effects value is always written; only the pre-1.16
+/// mod reads it. Best-effort — never blocks a launch.
+pub fn write_for_launch(settings: &LauncherSettings) {
     let vs = VermeilSettings {
         cape: CapeSettings {
             enabled: settings.ingame_cape.enabled,
             frame_time_ms: settings.ingame_cape.frame_time_ms,
         },
-        fov_effects_scale: if include_fov_effects {
-            Some(settings.video_settings.fov_effects.unwrap_or(1.0))
-        } else {
-            None
-        },
+        fov_effects_scale: settings.video_settings.fov_effects.unwrap_or(1.0),
     };
     write(&vs);
 }

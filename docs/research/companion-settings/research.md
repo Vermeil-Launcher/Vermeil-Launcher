@@ -65,6 +65,21 @@ In-game settings UI exists nowhere yet.
   `companion_mod::ensure_installed`.
 - **Description copy is feature-agnostic** — "Vermeil's custom in-game features",
   never cape-specific, since features are growing.
+- **Companion dir layout** (folded into Phase 3) → settings live in one file at
+  the root, bulk/asset data in per-feature subfolders:
+  ```
+  companion/
+    vermeil-settings.json   # all settings, grouped by feature
+    cape/cape.png           # texture (the only binary)
+  ```
+  `cape.json` is dropped; its `enabled` + `frameTimeMs` fold into
+  `vermeil-settings.json` under a `cape` object. Schema groups multi-field
+  features into objects, leaves single scalars flat until they grow:
+  `{ "cape": { "enabled", "frameTimeMs" }, "fovEffectsScale" }`. Convention for
+  future features: `companion/<feature>/` for assets + a `"<feature>"` section in
+  the settings file.
+- **No migration** — still in active dev; existing capes may reset on the
+  reorg/upgrade, that's acceptable. Don't add migration code.
 - **`vermeil-settings.json`** in `<data>/companion/` is the single mod-owned
   store for all feature settings. Start: `{ capeEnabled: bool, fovEffectsScale:
   number }`; extensible. Mod reads at startup, applies live, writes on change;

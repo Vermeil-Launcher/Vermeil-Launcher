@@ -3,6 +3,7 @@ pub mod auth;
 pub mod cf_import;
 pub mod cf_mod_install;
 pub mod companion_mod;
+pub mod companion_settings;
 pub mod curseforge;
 pub mod discord;
 pub mod download;

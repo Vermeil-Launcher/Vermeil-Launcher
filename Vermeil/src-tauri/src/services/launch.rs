@@ -1389,6 +1389,10 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
             if let Err(e) = fs::write(&options_path, &patched) {
                 tracing::error!("Failed to write options.txt: {}", e);
             }
+            // Write the companion mod's own settings file from the same stored
+            // state (cape on/off, FOV effects). Authoritative at launch, like
+            // options.txt; the mod reads it, and changes flow back on exit.
+            crate::services::companion_settings::write_for_launch(&settings);
         }
 
         // Always sync the fullscreen state from the global settings
@@ -1467,6 +1471,7 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
 
     // Spawn background task to capture logs and emit them as events
     let instance_id = instance.id.clone();
+    let instance_version = instance.game_version.clone();
     let launch_time = std::time::Instant::now();
 
     tokio::spawn(async move {
@@ -1585,6 +1590,18 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
                 (Ok(content), Ok(mut settings)) => {
                     let from_game = crate::services::video_options::read_back(&content);
                     crate::services::video_options::merge_into(&mut settings.video_settings, from_game);
+                    // Companion mod settings the mod may have changed in-game.
+                    // capeEnabled is cross-version (the mod owns the cape on/off
+                    // everywhere). fovEffectsScale only comes from the mod on
+                    // pre-1.16 — on 1.16+ FOV effects round-trips via options.txt
+                    // above, so reading it here too would clobber that with a
+                    // stale value.
+                    if let Some(vs) = crate::services::companion_settings::read_back() {
+                        settings.ingame_cape.enabled = vs.cape_enabled;
+                        if !mc_version_at_least(&instance_version, 1, 16) {
+                            settings.video_settings.fov_effects = Some(vs.fov_effects_scale);
+                        }
+                    }
                     match crate::services::settings_service::save(&settings).await {
                         Ok(()) => Some(settings.video_settings),
                         Err(e) => {

@@ -43,3 +43,22 @@
 - Card copy made feature-agnostic ("Vermeil's custom in-game features").
 - Verified: `cargo check` clean (0 warnings), `pnpm run build` clean.
 - Next: Phase 2 — `vermeil-settings.json` schema + launcher write/read-back.
+
+## 2026-06-27 · Phase 2 — vermeil-settings.json (launcher side, done)
+
+- New `services/companion_settings.rs`: `VermeilSettings { capeEnabled,
+  fovEffectsScale }` (camelCase JSON, per-field defaults). `write_for_launch`
+  writes `<data>/companion/vermeil-settings.json` from launcher settings;
+  `read_back` parses it after exit. Best-effort, atomic write.
+- launch.rs: writes the file in the pre-launch options.txt block (authoritative
+  at launch, same model as options.txt). Exit handler reads it back —
+  `capeEnabled` → `ingame_cape.enabled` (cross-version); `fovEffectsScale` →
+  `video_settings.fov_effects` **only pre-1.16** (1.16+ FOV round-trips via
+  options.txt; reading both would clobber with a stale value). Captured
+  `instance_version` for the gate.
+- Non-breaking: cape.json (`enabled`) and the `-Dvermeil.fovEffectsScale` JVM
+  prop stay for the current mod; vermeil-settings.json is additive. Phase 3
+  switches the mod to read it, then those two are dropped.
+- Verified: `cargo check` clean (0 warnings). Backend-only, no frontend change.
+- Next: Phase 3 — mod reads vermeil-settings.json across the 4 projects
+  (cape `capeEnabled`; 1.8.9 FOV live from `fovEffectsScale`).

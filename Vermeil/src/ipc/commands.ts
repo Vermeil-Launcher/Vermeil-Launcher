@@ -31,14 +31,14 @@ export interface Instance {
   created_at: string;
   source_project_id: string | null;
   source_platforms: string[];
-  /** Whether the Vermeil companion mod (in-game capes) runs on this instance's
-   *  loader + MC version. Computed by the backend on list (not persisted);
-   *  drives the companion badge on instance cards. */
+  /** Per-instance on/off for the Vermeil companion mod. Default true. When false,
+   *  the managed jar is disabled (renamed `.disabled`, not deleted) on this
+   *  instance. Toggled from the managed-mod card in the Installed tab. */
+  companion_enabled: boolean;
+  /** Whether the Vermeil companion mod runs on this instance's loader + MC
+   *  version. Computed by the backend on list (not persisted); gates whether the
+   *  managed-mod card and companion badge show at all. */
   ingame_cape_supported?: boolean;
-  /** Whether the companion jar is managed on this instance right now: the global
-   *  master switch AND the support gate. Computed on list (not persisted);
-   *  drives the read-only managed-mod card in the Installed tab. */
-  companion_installed?: boolean;
 }
 
 export interface CreateInstanceConfig {
@@ -174,13 +174,6 @@ export interface LauncherSettings {
     cape_id: string | null;
     frame_time_ms: number | null;
   };
-  /**
-   * Global master switch for the Vermeil companion mod. When on, the launcher
-   * installs the jar on supported instances; when off, none get it. Independent
-   * of whether a cape is set (the mod also hosts FOV and the in-game settings
-   * screen). Resolved to a concrete bool by the backend on load.
-   */
-  companion_mod_enabled: boolean;
   /**
    * Adaptive RAM allocation. When `true`, the launcher computes `-Xmx` per
    * instance from a tier-calibrated formula instead of using the slider's
@@ -566,11 +559,10 @@ export const setIngameCape = (
 export const setIngameCapeEnabled = (enabled: boolean) =>
   invoke<void>("set_ingame_cape_enabled", { enabled });
 
-/** Global master switch for installing the Vermeil companion mod on supported
- *  instances. Independent of the cape — the mod also carries FOV and the
- *  in-game settings screen. */
-export const setCompanionModEnabled = (enabled: boolean) =>
-  invoke<void>("set_companion_mod_enabled", { enabled });
+/** Per-instance on/off for the Vermeil companion mod. Default on for supported
+ *  instances; off disables the managed jar in place (no re-download to re-enable). */
+export const setInstanceCompanionEnabled = (id: string, enabled: boolean) =>
+  invoke<void>("set_instance_companion_enabled", { id, enabled });
 
 /** Remove the in-game cape entirely. */
 export const clearIngameCape = () => invoke<void>("clear_ingame_cape");

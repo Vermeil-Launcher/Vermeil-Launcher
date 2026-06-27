@@ -50,16 +50,21 @@ In-game settings UI exists nowhere yet.
 
 ## Decisions (settled)
 
-- **Install gate** → `companion_mod_enabled (global) && is_supported`. New
-  top-level launcher settings field `companion_mod_enabled`. Unsupported never
-  installs (unchanged guarantee).
-- **Migration / default** → seed `companion_mod_enabled` from old
-  `ingame_cape.enabled` on first load (no surprise for existing users);
-  brand-new installs default ON.
-- **Remove dead per-instance code** → delete `instance.companion_enabled`, the
-  `set_instance_companion_enabled` command + `lib.rs` registration +
-  `setInstanceCompanionEnabled` wrapper. Old `instance.json` still loads (serde
-  ignores removed field).
+- **Control = per-instance toggle**, not a global master switch. Lives on the
+  managed-mod card in the Installed tab (the UI that was always missing). Default
+  ON for supported instances. Gate: `instance.companion_enabled && is_supported`.
+  Unsupported never installs (unchanged guarantee). Rationale: matches the rest
+  of the mod list's per-mod on/off; lets a user opt one supported instance out;
+  no global thrash across all instances.
+  - (Considered a global master switch first; rejected — too blunt, churns every
+    instance at once.)
+- **Disable in place, don't delete** → toggling off renames the managed jar
+  `vermeil-…jar` → `…jar.disabled` (loaders ignore it; `sync_manual_mods` already
+  skips both forms). Toggling on renames it back — no re-download. Pruning still
+  deletes *old-version* managed jars. Reconcile happens at launch in
+  `companion_mod::ensure_installed`.
+- **Description copy is feature-agnostic** — "Vermeil's custom in-game features",
+  never cape-specific, since features are growing.
 - **`vermeil-settings.json`** in `<data>/companion/` is the single mod-owned
   store for all feature settings. Start: `{ capeEnabled: bool, fovEffectsScale:
   number }`; extensible. Mod reads at startup, applies live, writes on change;

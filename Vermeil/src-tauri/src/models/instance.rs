@@ -132,7 +132,18 @@ pub struct Instance {
     /// cross-platform match is found.
     #[serde(default)]
     pub source_platforms: Vec<String>,
+    /// Per-instance toggle for the Vermeil companion mod. When true (default),
+    /// the launcher keeps the managed companion jar active on this instance;
+    /// when false, the jar is disabled (renamed `.disabled`, not deleted) so the
+    /// mod's in-game features don't run here. Combined with the support gate
+    /// (`is_supported`) — the instance must be a supported loader + MC version.
+    /// Defaults true so the field is opt-out: every existing instance loaded
+    /// without it keeps the companion on.
+    #[serde(default = "default_true")]
+    pub companion_enabled: bool,
 }
+
+fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateInstanceConfig {

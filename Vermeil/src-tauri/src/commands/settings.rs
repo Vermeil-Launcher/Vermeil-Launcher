@@ -15,16 +15,6 @@ pub async fn save_settings(settings: LauncherSettings) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-/// Global master switch for installing the Vermeil companion mod on supported
-/// instances. Independent of the cape — the mod also carries FOV effects and the
-/// in-game settings screen, so the install no longer requires a cape to be set.
-#[tauri::command]
-pub async fn set_companion_mod_enabled(enabled: bool) -> Result<(), String> {
-    let mut settings = settings_service::load().await.map_err(|e| e.to_string())?;
-    settings.companion_mod_enabled = Some(enabled);
-    settings_service::save(&settings).await.map_err(|e| e.to_string())
-}
-
 /// The launcher's root data directory as a display string for the current
 /// platform (Windows `%LOCALAPPDATA%\Vermeil`, Linux `~/.local/share/Vermeil`,
 /// macOS `~/Library/Application Support/Vermeil`). The Resources tab shows this

@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, Show, For, onMount, onCleanup, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, setCompanionModEnabled, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -368,31 +368,6 @@ const Settings: Component = () => {
                   <div class="settings-key">Discord Rich Presence</div>
                 </div>
                 <div class={`toggle ${settings()!.discord_rpc ? "on" : ""}`} onClick={() => updateSetting("discord_rpc", !settings()!.discord_rpc)} />
-              </div>
-              {/* Vermeil companion mod — global master switch. When on, the
-                  launcher installs the matching companion jar on every supported
-                  instance and points it at the shared companion dir; when off,
-                  none get it. Independent of the cape: the mod also hosts FOV
-                  effects and the in-game Vermeil settings screen, so this no
-                  longer requires a cape to be set. Cape on/off, FOV, and other
-                  feature settings live in the in-game Vermeil settings. */}
-              <div class="settings-row">
-                <div>
-                  <div class="settings-key">Vermeil companion mod</div>
-                  <div class="settings-val">Adds in-game Vermeil features (custom capes, FOV, settings screen) on supported versions. Configure them in the in-game Vermeil settings.</div>
-                </div>
-                <div
-                  class={`toggle ${settings()!.companion_mod_enabled ? "on" : ""}`}
-                  onClick={async () => {
-                    const next = !settings()!.companion_mod_enabled;
-                    try {
-                      await setCompanionModEnabled(next);
-                      await refetch();
-                    } catch (e) {
-                      showToast({ title: "Couldn't update", message: String(e), type: "error" });
-                    }
-                  }}
-                />
               </div>
               <div class="settings-row">
                 <div>

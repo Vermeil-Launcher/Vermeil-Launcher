@@ -2,7 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -1684,13 +1684,13 @@ const InstanceMods: Component = () => {
             </div>
           </Show>
           <div class="card-grid card-grid--compact" ref={installedAdaptive.setEl}>
-            {/* Managed-mod entry for the Vermeil companion mod. Shown when the
-                instance supports it AND the user enabled it on this instance;
-                read-only (toggle lives in the General tab) so users can see
-                "yes, the jar is there" without an affordance that would let
-                them delete a launcher-managed file. */}
-            <Show when={(instance() as any)?.companion_installed && (installedFilter() === "all" || installedFilter() === "mod")}>
-              <div class="mod-card" title="Managed by Vermeil — toggle in Instance Options.">
+            {/* Managed-mod entry for the Vermeil companion mod. Shown on every
+                supported instance; the toggle here turns Vermeil's in-game
+                features on/off for this instance (the jar is disabled in place,
+                not deleted, so re-enabling needs no re-download). The jar itself
+                is launcher-managed, so there's no delete affordance. */}
+            <Show when={(instance() as any)?.ingame_cape_supported && (installedFilter() === "all" || installedFilter() === "mod")}>
+              <div class="mod-card" style={instance()?.companion_enabled === false ? "opacity:0.55" : ""} title="Managed by Vermeil — toggle for this instance.">
                 <div class="mod-card-header">
                   <div class="mod-card-icon" style="background:#251a35;display:flex;align-items:center;justify-content:center">
                     <img src="/logo.png" alt="" draggable={false} style="width:24px;height:24px;object-fit:contain" />
@@ -1700,7 +1700,7 @@ const InstanceMods: Component = () => {
                     <div class="mod-card-author">by Vermeil</div>
                   </div>
                 </div>
-                <div class="mod-card-desc">Renders your in-game cape and other Vermeil-only features on this instance. Auto-installed and updated by the launcher.</div>
+                <div class="mod-card-desc">Vermeil's custom in-game features on supported versions. Auto-installed and managed by the launcher.</div>
                 <Show when={instance()}>
                   <div class="mod-card-tags">
                     <span class={`mod-tag mod-tag-loader loader-${instance()!.loader.type}`}>
@@ -1712,12 +1712,21 @@ const InstanceMods: Component = () => {
                 <div class="mod-card-footer">
                   <div class="mod-card-meta">mod · Managed</div>
                   <div class="mod-card-actions">
-                    <button
-                      class="btn btn--ghost"
-                      style="font-size:10px;padding:3px 8px"
-                      title="Manage in Settings → General"
-                      onClick={() => setActiveScreen("settings")}
-                    >Manage</button>
+                    <div
+                      class={`toggle ${(instance()?.companion_enabled ?? true) ? "on" : ""}`}
+                      title="Use Vermeil's features on this instance"
+                      onClick={async () => {
+                        const inst = instance();
+                        if (!inst) return;
+                        const next = !(inst.companion_enabled ?? true);
+                        try {
+                          await setInstanceCompanionEnabled(inst.id, next);
+                          await refetchInstances();
+                        } catch (e) {
+                          showToast({ title: "Couldn't update", message: String(e), type: "error" });
+                        }
+                      }}
+                    />
                   </div>
                 </div>
               </div>

@@ -5,19 +5,20 @@
 //! version, loaders, URL, SHA-1, and size (see
 //! `.github/workflows/mod-release.yml`).
 //!
-//! At launch, for a **supported** instance with the in-game cape **enabled**, we
-//! ensure the matching jar is present in the instance's `mods/` — fetching and
-//! SHA-1-verifying it the first time it's needed — and we remove our managed jar
-//! when the cape is off or the instance is unsupported. The jar pairs with the
-//! cape files the mod reads from the global `companion/` dir (see
-//! `instance_cape`).
+//! At launch, for a **supported** instance with the companion **enabled** (the
+//! per-instance toggle), we ensure the matching jar is the active build in the
+//! instance's `mods/` — fetching and SHA-1-verifying it the first time it's
+//! needed — and when it's toggled off (or unsupported) we **disable** our jar in
+//! place by renaming it `.disabled` rather than deleting it, so flipping it back
+//! on needs no re-download. The mod reads its data (cape, `vermeil-settings.json`)
+//! from the global `companion/` dir (see `instance_cape`).
 //!
 //! Best-effort throughout: a cosmetic cape must never block or fail a launch, so
 //! every network/IO error is logged and swallowed.
 
 use crate::models::instance::Instance;
 use crate::services::download::{download_file, DownloadTask};
-use crate::services::{instance_cape, settings_service};
+use crate::services::instance_cape;
 use crate::util::{http, paths};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -26,9 +27,12 @@ use std::path::{Path, PathBuf};
 /// Repo that hosts the companion mod releases.
 const REPO: &str = "davekb1976-beep/Vermeil-Launcher";
 /// Filename prefix for jars we manage. Only files matching our published naming
-/// (`vermeil-<modVersion>+<mcVersion>.jar`) are ever added or removed, so a
-/// user's own mods are never touched.
+/// (`vermeil-<modVersion>+<mcVersion>.jar`) are ever added, disabled, or
+/// removed, so a user's own mods are never touched.
 const JAR_PREFIX: &str = "vermeil-";
+/// Suffix used to disable a managed jar in place (loaders ignore `.jar.disabled`),
+/// so toggling the companion off then on needs no re-download.
+const DISABLED_SUFFIX: &str = ".disabled";
 
 #[derive(Debug, Deserialize)]
 struct Manifest {
@@ -68,10 +72,20 @@ fn mods_dir(instance_id: &str) -> PathBuf {
     paths::instances_dir().join(instance_id).join(".minecraft").join("mods")
 }
 
-/// Whether a filename is one of our managed jars (our naming includes a `+`
-/// version separator, so this won't match arbitrary user mods).
+/// Whether a filename is one of our managed jars, active or disabled (our naming
+/// includes a `+` version separator, so this won't match arbitrary user mods).
 fn is_managed(name: &str) -> bool {
+    is_managed_active(name) || is_managed_disabled(name)
+}
+
+/// An active managed jar — our naming, ends `.jar`.
+fn is_managed_active(name: &str) -> bool {
     name.starts_with(JAR_PREFIX) && name.contains('+') && name.ends_with(".jar")
+}
+
+/// A disabled managed jar — our naming with the `.disabled` suffix.
+fn is_managed_disabled(name: &str) -> bool {
+    name.starts_with(JAR_PREFIX) && name.contains('+') && name.ends_with(".jar.disabled")
 }
 
 /// Result of `ensure_installed`. Surfaced as a launch-time event so the user
@@ -88,42 +102,38 @@ pub enum CompanionStatus {
     Failed { reason: String },
 }
 
-/// Ensure the companion mod jar matches the cape state for this instance. Called
+/// Ensure the companion jar matches this instance's per-instance toggle. Called
 /// at launch, before the game starts. Best-effort: never throws.
 pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
-    let enabled = settings_service::load()
-        .await
-        .map(|s| s.companion_mod_enabled.unwrap_or(true))
-        .unwrap_or(false);
-    // The global master switch plus the support gate decide it. The mod is a
-    // feature host (cape, FOV effects, in-game settings), so its install is no
-    // longer tied to a cape being set — only to the user wanting the mod and the
-    // instance being a supported loader + Minecraft version.
-    let want = enabled && instance_cape::is_supported(instance);
+    // The per-instance toggle plus the support gate decide it. The mod is a
+    // feature host (cape, FOV effects, in-game settings), so its presence is
+    // tied to the user wanting it on this instance and the instance being a
+    // supported loader + Minecraft version — not to a cape being set.
+    let want = instance.companion_enabled && instance_cape::is_supported(instance);
     let mods = mods_dir(&instance.id);
 
     if !want {
-        // Cape off or unsupported: drop any managed jar so we don't leave a mod
-        // the user can't see the effect of.
-        remove_managed(&mods, None);
+        // Toggled off (or unsupported): disable the jar by renaming it
+        // `.disabled` rather than deleting it, so flipping it back on needs no
+        // re-download. The game's loader ignores `.jar.disabled`.
+        disable_managed(&mods);
         return CompanionStatus::Skipped;
     }
 
     // Resolve against the latest manifest every launch so an already-installed
     // instance picks up a newer mod build (the expected jar filename embeds the
     // mod version, so a stale `vermeil-0.1.3+…` no longer counts as "installed"
-    // once `0.1.4+…` is published). The fetch is gated to enabled + supported
-    // instances only, and the download itself is skipped when the exact current
-    // jar is already present (see `resolve_and_install`).
+    // once `0.1.4+…` is published). The download itself is skipped when the exact
+    // current jar is already present or sitting disabled (see `resolve_and_install`).
     match resolve_and_install(instance, &mods).await {
         Ok(file) => CompanionStatus::Installed { file },
         Err(e) => {
             // Couldn't reach/parse the manifest (e.g. offline). Don't fail a
-            // launch over an inability to *check* for updates: if a managed jar
-            // is already present, keep using it.
-            if let Some(file) = installed_managed_jar(&mods) {
+            // launch over an inability to *check* for updates: re-enable a
+            // disabled jar or keep an active one if present.
+            if let Some(file) = reenable_existing(&mods) {
                 tracing::warn!(
-                    "Companion update check failed for instance {} ({}); keeping existing jar {}",
+                    "Companion update check failed for instance {} ({}); using existing jar {}",
                     instance.id,
                     e,
                     file
@@ -136,15 +146,14 @@ pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
     }
 }
 
-/// Fetch the manifest, pick the jar for this instance, download + verify it into
-/// `mods/`, then prune any older managed jars. Returns the installed filename.
+/// Fetch the manifest, pick the jar for this instance, ensure it's the active
+/// build in `mods/`, then prune any other managed jars. Returns the active
+/// filename.
 ///
-/// Idempotent: if the exact expected jar (whose filename embeds the latest mod
-/// version) is already in `mods/`, it prunes any other managed jars and returns
-/// without re-downloading. A managed jar for the same Minecraft version but a
-/// different (older) mod version does NOT match the expected filename, so it
-/// falls through to the download and is pruned afterwards — that's how existing
-/// instances get updated to a new mod build.
+/// Order of cheap-first paths: the exact build already active → done; the exact
+/// build sitting disabled → rename it active (no download); otherwise download.
+/// Any other managed file (older version, active or disabled) is pruned so only
+/// the current build remains — that's how existing instances get updated.
 async fn resolve_and_install(instance: &Instance, mods: &Path) -> Result<String, String> {
     let manifest = fetch_manifest().await?;
     let loader = instance.loader.loader_type.as_str();
@@ -160,17 +169,24 @@ async fn resolve_and_install(instance: &Instance, mods: &Path) -> Result<String,
             format!("no companion build for Minecraft {} ({})", instance.game_version, loader)
         })?;
 
-    let dest = mods.join(&entry.file);
+    fs::create_dir_all(mods).map_err(|e| format!("create mods dir: {}", e))?;
 
-    // Already holding exactly the current build → prune any older managed jars
-    // and skip the download. This is the up-to-date fast path (no network spent
-    // on the file itself; the manifest fetch above is the only call).
+    let dest = mods.join(&entry.file);
+    let disabled = mods.join(format!("{}{}", entry.file, DISABLED_SUFFIX));
+
+    // Exact build already active → fast path, no network on the file itself.
     if dest.exists() {
-        remove_managed(mods, Some(&entry.file));
+        prune_managed_except(mods, &entry.file);
         return Ok(entry.file);
     }
 
-    fs::create_dir_all(mods).map_err(|e| format!("create mods dir: {}", e))?;
+    // Exact build sitting disabled (user toggled off then on) → re-enable it
+    // with a rename, no download.
+    if disabled.exists() {
+        fs::rename(&disabled, &dest).map_err(|e| format!("re-enable companion jar: {}", e))?;
+        prune_managed_except(mods, &entry.file);
+        return Ok(entry.file);
+    }
 
     let task = DownloadTask {
         url: entry.url.clone(),
@@ -180,9 +196,7 @@ async fn resolve_and_install(instance: &Instance, mods: &Path) -> Result<String,
     };
     download_file(&http::HTTP, &task).await?;
 
-    // Remove any other managed jars (e.g. a previous mod version) now that the
-    // current one is in place.
-    remove_managed(mods, Some(&entry.file));
+    prune_managed_except(mods, &entry.file);
     tracing::info!("Installed companion mod {} into instance {}", entry.file, instance.id);
     Ok(entry.file)
 }
@@ -217,22 +231,48 @@ async fn fetch_manifest() -> Result<Manifest, String> {
         .map_err(|e| format!("parse manifest: {}", e))
 }
 
-/// Returns the filename of a managed jar already present in `mods/`, or `None`.
-/// Used only for offline grace: we only ever keep the single jar we installed
-/// for this instance (others are pruned), so any managed jar here is *the* cape
-/// jar. Filenames embed a version *range* now, so we can't match on an exact
-/// version suffix — presence of any managed jar is the signal.
-fn installed_managed_jar(mods: &Path) -> Option<String> {
-    read_jar_names(mods).into_iter().find(|name| is_managed(name))
+/// Returns the active managed filename in use, re-enabling a disabled one if
+/// that's all we have. Used only for offline grace when the manifest check fails:
+/// we only ever keep a single managed jar per instance, so any present is *the*
+/// companion jar. Filenames embed a version *range*, so we match by our naming
+/// rather than an exact version. Best-effort on the rename.
+fn reenable_existing(mods: &Path) -> Option<String> {
+    let names = read_dir_names(mods);
+    if let Some(active) = names.iter().find(|n| is_managed_active(n)) {
+        return Some(active.clone());
+    }
+    let disabled = names.into_iter().find(|n| is_managed_disabled(n))?;
+    let active_name = disabled.trim_end_matches(DISABLED_SUFFIX).to_string();
+    match fs::rename(mods.join(&disabled), mods.join(&active_name)) {
+        Ok(_) => Some(active_name),
+        Err(e) => {
+            tracing::warn!("Could not re-enable companion jar {}: {}", disabled, e);
+            None
+        }
+    }
 }
 
-/// Remove every managed jar in `mods/`, except `keep` if given. Best-effort.
-fn remove_managed(mods: &Path, keep: Option<&str>) {
-    for name in read_jar_names(mods) {
-        if !is_managed(&name) {
+/// Disable every active managed jar by renaming it `<name>.disabled` (the loader
+/// ignores it), keeping the file so re-enabling needs no re-download. Best-effort.
+fn disable_managed(mods: &Path) {
+    for name in read_dir_names(mods) {
+        if !is_managed_active(&name) {
             continue;
         }
-        if keep == Some(name.as_str()) {
+        let from = mods.join(&name);
+        let to = mods.join(format!("{}{}", name, DISABLED_SUFFIX));
+        if let Err(e) = fs::rename(&from, &to) {
+            tracing::warn!("Could not disable companion jar {}: {}", from.display(), e);
+        }
+    }
+}
+
+/// Remove every managed file (active or disabled) except the active `keep`.
+/// Cleans up old versions and any stale disabled copy so only the current build
+/// remains. Best-effort.
+fn prune_managed_except(mods: &Path, keep: &str) {
+    for name in read_dir_names(mods) {
+        if !is_managed(&name) || name == keep {
             continue;
         }
         let path = mods.join(&name);
@@ -242,15 +282,13 @@ fn remove_managed(mods: &Path, keep: Option<&str>) {
     }
 }
 
-/// List `.jar` file names directly under `mods/` (no recursion). Empty on error.
-fn read_jar_names(mods: &Path) -> Vec<String> {
+/// All entry names directly under `mods/` (no recursion). Empty on error.
+fn read_dir_names(mods: &Path) -> Vec<String> {
     let mut out = Vec::new();
     if let Ok(entries) = fs::read_dir(mods) {
         for entry in entries.flatten() {
             if let Some(name) = entry.file_name().to_str() {
-                if name.ends_with(".jar") {
-                    out.push(name.to_string());
-                }
+                out.push(name.to_string());
             }
         }
     }

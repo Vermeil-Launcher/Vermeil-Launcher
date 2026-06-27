@@ -32,16 +32,6 @@ pub async fn load() -> Result<LauncherSettings, Box<dyn std::error::Error + Send
         let _ = save(&settings).await;
     }
 
-    // Migrate the companion-mod master switch. Before this field existed, the
-    // cape's `enabled` flag doubled as the install gate; carry that value over
-    // so existing users keep today's behaviour (no surprise install or removal).
-    // Brand-new configs are created from `default()` with `Some(true)`, so this
-    // only fires for pre-existing configs written before the field was added.
-    if settings.companion_mod_enabled.is_none() {
-        settings.companion_mod_enabled = Some(settings.ingame_cape.enabled);
-        let _ = save(&settings).await;
-    }
-
     Ok(settings)
 }
 

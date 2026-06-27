@@ -28,3 +28,18 @@
 - Verified: `cargo check` clean (0 warnings), `pnpm run build` clean. Mod
   untouched — still works as before.
 - Next: Phase 2 — `vermeil-settings.json` schema + launcher write/read-back.
+
+## 2026-06-27 · Phase 1 revised — per-instance toggle (done)
+
+- Pivoted from the global master switch to a **per-instance** toggle on the
+  Installed-tab managed-mod card (default on, supported instances only). Reverted
+  the global `companion_mod_enabled` field/command/migration added earlier.
+- Gate is now `instance.companion_enabled && is_supported`; cape-decoupling kept
+  (no cape required to install).
+- Toggling off **disables the jar in place** (rename `.disabled`), not delete;
+  on re-enables via rename — no re-download. Old-version jars still pruned.
+  `companion_mod.rs` reconcile rewritten accordingly (disable_managed /
+  reenable_existing / prune_managed_except).
+- Card copy made feature-agnostic ("Vermeil's custom in-game features").
+- Verified: `cargo check` clean (0 warnings), `pnpm run build` clean.
+- Next: Phase 2 — `vermeil-settings.json` schema + launcher write/read-back.

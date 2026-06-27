@@ -197,19 +197,15 @@ pub fn is_supported(instance: &Instance) -> bool {
 }
 
 /// The `-Dvermeil.dataDir=…` JVM argument to inject at launch, or `None` when the
-/// companion mod is off (global master switch) or the instance isn't supported.
-/// Pointing every supported instance at the one companion dir is what replaces
-/// per-instance file copies: the mod reads its shared data (cape, settings) from
-/// there and live-reloads when the files change. No longer gated on a cape
-/// existing — the dir also carries `vermeil-settings.json` and the cape can be
-/// added later without relaunching.
-pub async fn jvm_property(instance: &Instance) -> Option<String> {
+/// companion mod is off for this instance (`companion_enabled`) or the instance
+/// isn't supported. Pointing every supported instance at the one companion dir
+/// is what replaces per-instance file copies: the mod reads its shared data
+/// (cape, `vermeil-settings.json`) from there and live-reloads when the files
+/// change. No longer gated on a cape existing — the dir also carries the mod's
+/// settings, and a cape can be added later without relaunching.
+pub fn jvm_property(instance: &Instance) -> Option<String> {
     migrate_legacy_dir();
-    let enabled = settings_service::load()
-        .await
-        .map(|s| s.companion_mod_enabled.unwrap_or(true))
-        .unwrap_or(false);
-    if !enabled || !is_supported(instance) {
+    if !instance.companion_enabled || !is_supported(instance) {
         return None;
     }
     Some(format!("-Dvermeil.dataDir={}", companion_dir().display()))

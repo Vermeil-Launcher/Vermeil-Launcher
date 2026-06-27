@@ -93,13 +93,13 @@ pub enum CompanionStatus {
 pub async fn ensure_installed(instance: &Instance) -> CompanionStatus {
     let enabled = settings_service::load()
         .await
-        .map(|s| s.ingame_cape.enabled)
+        .map(|s| s.companion_mod_enabled.unwrap_or(true))
         .unwrap_or(false);
-    // Both must be on: the global toggle (master switch / "a cape is set up")
-    // and the per-instance toggle (user chose to render it here). Default for
-    // existing instances without the field is true, so behaviour matches the
-    // pre-toggle status quo (cape on every supported instance).
-    let want = enabled && instance.companion_enabled && instance_cape::is_supported(instance);
+    // The global master switch plus the support gate decide it. The mod is a
+    // feature host (cape, FOV effects, in-game settings), so its install is no
+    // longer tied to a cape being set — only to the user wanting the mod and the
+    // instance being a supported loader + Minecraft version.
+    let want = enabled && instance_cape::is_supported(instance);
     let mods = mods_dir(&instance.id);
 
     if !want {

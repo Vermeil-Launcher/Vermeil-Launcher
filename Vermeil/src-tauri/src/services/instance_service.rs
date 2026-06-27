@@ -72,7 +72,6 @@ pub async fn create(config: CreateInstanceConfig) -> Result<Instance, Box<dyn st
         mods: Vec::new(),
         source_project_id: None,
         source_platforms: Vec::new(),
-        companion_enabled: true,
     };
 
     // Write instance.json

@@ -1689,7 +1689,7 @@ const InstanceMods: Component = () => {
                 read-only (toggle lives in the General tab) so users can see
                 "yes, the jar is there" without an affordance that would let
                 them delete a launcher-managed file. */}
-            <Show when={(instance() as any)?.ingame_cape_supported && instance()?.companion_enabled !== false && (installedFilter() === "all" || installedFilter() === "mod")}>
+            <Show when={(instance() as any)?.companion_installed && (installedFilter() === "all" || installedFilter() === "mod")}>
               <div class="mod-card" title="Managed by Vermeil — toggle in Instance Options.">
                 <div class="mod-card-header">
                   <div class="mod-card-icon" style="background:#251a35;display:flex;align-items:center;justify-content:center">

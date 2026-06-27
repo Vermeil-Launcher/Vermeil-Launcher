@@ -15,6 +15,10 @@ pub struct InstanceListItem {
     /// (loader, MC version). Same gate as the launch-time install
     /// (`instance_cape::is_supported`), so the badge can't disagree with it.
     ingame_cape_supported: bool,
+    /// Whether the companion jar is actually managed on this instance right now:
+    /// the global master switch AND the support gate. Drives the read-only
+    /// "managed mod" card in the Installed tab. Recomputed each list.
+    companion_installed: bool,
 }
 
 #[tauri::command]
@@ -22,11 +26,19 @@ pub async fn list_instances() -> Result<Vec<InstanceListItem>, String> {
     let list = instance_service::list_all()
         .await
         .map_err(|e| e.to_string())?;
+    let companion_on = crate::services::settings_service::load()
+        .await
+        .map(|s| s.companion_mod_enabled.unwrap_or(true))
+        .unwrap_or(false);
     Ok(list
         .into_iter()
-        .map(|instance| InstanceListItem {
-            ingame_cape_supported: instance_cape::is_supported(&instance),
-            instance,
+        .map(|instance| {
+            let supported = instance_cape::is_supported(&instance);
+            InstanceListItem {
+                ingame_cape_supported: supported,
+                companion_installed: companion_on && supported,
+                instance,
+            }
         })
         .collect())
 }
@@ -298,24 +310,6 @@ pub async fn set_ingame_cape(
 #[tauri::command]
 pub async fn set_ingame_cape_enabled(enabled: bool) -> Result<(), String> {
     instance_cape::set_ingame_cape_enabled(enabled).await
-}
-
-/// Per-instance toggle for whether the Vermeil companion mod runs on this
-/// instance. ANDed at launch with the global cape toggle and the support gate
-/// (`is_supported`). Persists into the instance's `instance.json`.
-#[tauri::command]
-pub async fn set_instance_companion_enabled(id: String, enabled: bool) -> Result<(), String> {
-    let mut instance = instance_service::get_by_id(&id)
-        .await
-        .map_err(|e| e.to_string())?;
-    if instance.companion_enabled == enabled {
-        return Ok(());
-    }
-    instance.companion_enabled = enabled;
-    let meta_path = crate::util::paths::instances_dir().join(&id).join("instance.json");
-    let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;
-    std::fs::write(&meta_path, json).map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 /// Remove the in-game cape entirely.

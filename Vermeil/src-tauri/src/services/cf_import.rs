@@ -152,7 +152,6 @@ pub async fn import_zip(
         created_at: chrono::Utc::now().to_rfc3339(),
         source_project_id,
         source_platforms: vec!["curseforge".to_string()],
-        companion_enabled: true,
     };
 
     // Save instance.json
@@ -310,7 +309,6 @@ pub async fn import_profile_code(
                 created_at: chrono::Utc::now().to_rfc3339(),
                 source_project_id: None,
                 source_platforms: vec!["curseforge".to_string()],
-                companion_enabled: true,
             };
 
             let json = serde_json::to_string_pretty(&instance).map_err(|e| e.to_string())?;

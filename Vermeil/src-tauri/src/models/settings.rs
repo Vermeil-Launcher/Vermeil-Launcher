@@ -55,6 +55,17 @@ pub struct LauncherSettings {
     #[serde(default)]
     pub ingame_cape: IngameCapeSettings,
 
+    /// Global master switch for the Vermeil companion mod. When on, the launcher
+    /// installs the matching jar on every **supported** instance and points it at
+    /// the shared companion dir; when off, no instance gets it. Independent of
+    /// whether a cape is set — the mod also hosts FOV effects and the in-game
+    /// settings screen. `None` only in a config written before this field
+    /// existed; the loader migrates it to the old `ingame_cape.enabled` value so
+    /// existing users see no behaviour change. Brand-new installs default to
+    /// `Some(true)`.
+    #[serde(default)]
+    pub companion_mod_enabled: Option<bool>,
+
     /// User-customizable keyboard shortcuts. Map of action ID → key combo
     /// (e.g. `"Ctrl+P"`). Action IDs are defined in `Vermeil/src/lib/keybinds.ts`
     /// (frontend is the source of truth for the action registry; settings just
@@ -162,6 +173,7 @@ impl Default for LauncherSettings {
             video_settings: GlobalVideoSettings::default(),
             keybinds: HashMap::new(),
             ingame_cape: IngameCapeSettings::default(),
+            companion_mod_enabled: Some(true),
             adaptive_ram: false,
             adaptive_ram_min_mb: 0,
             adaptive_ram_max_mb: 0,

@@ -1205,11 +1205,11 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
         jvm_args.push(val);
     }
 
-    // In-game custom cape (companion mod): point the mod at the one global cape
-    // dir via `-Dvermeil.capeDir`, for supported instances with a cape set. This
-    // replaces per-instance file copies — see services::instance_cape.
-    if let Some(cape_arg) = crate::services::instance_cape::jvm_property(instance) {
-        jvm_args.push(cape_arg);
+    // Companion mod: point it at the one shared data dir via `-Dvermeil.dataDir`
+    // for supported instances when the global master switch is on. The mod reads
+    // its cape and `vermeil-settings.json` from there — see services::instance_cape.
+    if let Some(data_arg) = crate::services::instance_cape::jvm_property(instance).await {
+        jvm_args.push(data_arg);
     }
 
     // FOV-effects scale backport for pre-1.16 instances. Section 7b below gates

@@ -1230,7 +1230,43 @@
   letter-spacing: 0.06em;
   color: var(--muted);
 }
-.cape-control input[type="range"] { width: 160px; }
+/* Cape "Scale" slider — square accent thumb to match the memory/concurrency
+   sliders (the rest of the app's sharp-edge language). Native by default, so
+   it needs the full custom treatment, not just the base.css override block. */
+.cape-control input[type="range"] {
+  width: 160px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--slider-pct, 0%),
+    var(--bg) var(--slider-pct, 0%),
+    var(--bg) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+.cape-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 0;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--bg2);
+  cursor: pointer;
+}
+.cape-control input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 0;
+  background: var(--accent);
+  cursor: pointer;
+}
 .cape-control--bg input[type="color"] {
   width: 40px;
   height: 28px;

@@ -527,7 +527,12 @@ const CustomCapeEditor: Component<Props> = (props) => {
                 step="0.01"
                 value={scale()}
                 disabled={!hasImage()}
-                onInput={(e) => handleScale(parseFloat(e.currentTarget.value))}
+                style={`--slider-pct:${((scale() - 0.2) / 3.8) * 100}%`}
+                onInput={(e) => {
+                  const val = parseFloat(e.currentTarget.value);
+                  e.currentTarget.style.setProperty('--slider-pct', `${((val - 0.2) / 3.8) * 100}%`);
+                  handleScale(val);
+                }}
               />
             </label>
 

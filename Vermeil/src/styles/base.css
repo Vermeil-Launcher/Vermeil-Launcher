@@ -296,8 +296,17 @@ body {
    The radius scale is already 0, so anything that resolves through tokens
    is sharp by default. The overrides below catch every literal `50%` /
    `999px` / fixed-px border-radius rule across the stylesheets so the
-   entire app — circles, pills, FAB, traffic lights, slider thumbs,
-   spinners, toggle thumbs — renders blocky and consistent.
+   entire app — circles, pills, FAB, traffic lights, toggle thumbs —
+   renders blocky and consistent.
+
+   DO NOT add `::-webkit-slider-thumb` / `::-moz-range-thumb` to this
+   grouped rule. A selector list containing a pseudo-element the engine
+   doesn't recognize is invalid, so WebView2 (Chromium) drops the WHOLE
+   rule over `::-moz-range-thumb` and WebKitGTK drops it over the
+   `-webkit-` one — silently killing every override here. Slider thumbs
+   are squared at their own per-vendor rules instead (memory-slider in
+   components.css, concurrency-slider in notifications.css, cape slider
+   in screens.css).
    ===================================================================== */
 .win-btn,
 .dot-green,
@@ -308,8 +317,6 @@ body {
 .toggle::after,
 .onboarding-step-num,
 .memory-slider,
-.memory-slider::-webkit-slider-thumb,
-.memory-slider::-moz-range-thumb,
 .toast-icon,
 .player-head { border-radius: 0 !important; }
 

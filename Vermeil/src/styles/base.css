@@ -310,8 +310,6 @@ body {
 .memory-slider,
 .memory-slider::-webkit-slider-thumb,
 .memory-slider::-moz-range-thumb,
-.concurrency-slider::-webkit-slider-thumb,
-.concurrency-slider::-moz-range-thumb,
 .toast-icon,
 .player-head { border-radius: 0 !important; }
 

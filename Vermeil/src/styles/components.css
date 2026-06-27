@@ -1199,7 +1199,7 @@ select.field-input[size] { appearance: none; }
   height: 14px;
   background: var(--accent);
   border: none;
-  border-radius: 50%;
+  border-radius: 0;
   cursor: pointer;
   transition: transform 0.12s;
   box-shadow: 0 0 0 3px var(--bg2);
@@ -1213,7 +1213,7 @@ select.field-input[size] { appearance: none; }
   width: 14px;
   height: 14px;
   background: var(--accent);
-  border-radius: 50%;
+  border-radius: 0;
   cursor: pointer;
 }
 .memory-slider-labels {

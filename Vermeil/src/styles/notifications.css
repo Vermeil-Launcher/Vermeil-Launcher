@@ -197,7 +197,7 @@
   width: 14px;
   height: 14px;
   border: none;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--accent);
   cursor: pointer;
   transition: transform 0.1s;
@@ -211,7 +211,7 @@
   border: none;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--accent);
   cursor: pointer;
 }

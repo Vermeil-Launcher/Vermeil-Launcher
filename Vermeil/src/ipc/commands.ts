@@ -470,6 +470,8 @@ export interface LocalSkin {
  *   saved before the resolution picker existed (defaults to HD on load).
  * - `animated`: true when the source is a multi-frame GIF / APNG / animated
  *   WebP, so the display drives a live frame loop instead of a static bake.
+ * - `solid`: a solid-colour cape — the whole cape is `bg`, no image. Optional;
+ *   absent/false means an image cape.
  */
 export interface CapeTransform {
   dx: number;
@@ -478,6 +480,7 @@ export interface CapeTransform {
   bg: string;
   res?: number;
   animated?: boolean;
+  solid?: boolean;
 }
 
 /** A local, display-only custom cape (never uploaded to Mojang). */

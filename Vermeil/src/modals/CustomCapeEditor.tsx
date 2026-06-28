@@ -76,9 +76,27 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return arr;
 }
 
+/** A 1×1 PNG of `color`. Solid capes have no uploaded image, but the backend
+ *  stores a source for round-tripping — re-edit reads the colour from the
+ *  transform, so this is just a valid placeholder. */
+function makeSolidSourcePng(color: string): Uint8Array {
+  const c = document.createElement("canvas");
+  c.width = 1;
+  c.height = 1;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 1, 1);
+  }
+  return dataUrlToBytes(c.toDataURL("image/png"));
+}
+
 const CustomCapeEditor: Component<Props> = (props) => {
   const [name, setName] = createSignal(props.editing?.name ?? "Custom Cape");
   const [bg, setBg] = createSignal<string>(props.editing?.transform.bg ?? DEFAULT_BG);
+  // Cape type: a solid colour fill, or an uploaded image/animation. Solid capes
+  // are just `bg` with no image (the editor hides the image controls).
+  const [solid, setSolid] = createSignal<boolean>(props.editing?.transform.solid ?? false);
   const [scale, setScale] = createSignal<number>(props.editing?.transform.scale ?? 1);
   const [res, setRes] = createSignal<number>(clampRes(props.editing?.transform.res));
   const [hasImage, setHasImage] = createSignal(false);
@@ -125,14 +143,15 @@ const CustomCapeEditor: Component<Props> = (props) => {
   /** Bake the full cape texture into the reused offscreen canvas via the shared
    *  compositor. Returns the canvas, or null when no image is loaded yet. */
   const bakeCapeCanvas = (): HTMLCanvasElement | null => {
-    if (!frameSrc) return null;
+    if (!frameSrc && !solid()) return null;
     const c = bakeCanvas ?? (bakeCanvas = document.createElement("canvas"));
-    bakeCape(c, frameSrc.current(), frameSrc.width, frameSrc.height, {
+    bakeCape(c, solid() ? null : frameSrc!.current(), frameSrc?.width ?? 1, frameSrc?.height ?? 1, {
       dx,
       dy,
       scale: scale(),
       bg: bg(),
       res: res(),
+      solid: solid(),
     });
     return c;
   };
@@ -356,6 +375,12 @@ const CustomCapeEditor: Component<Props> = (props) => {
     refresh();
   };
 
+  /** Switch between a solid-colour cape and an image/animated cape. */
+  const setMode = (asSolid: boolean) => {
+    setSolid(asSolid);
+    refresh();
+  };
+
   const handleRes = (v: string) => {
     const n = parseInt(v, 10);
     if (!Number.isNaN(n)) {
@@ -374,7 +399,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
   // ─── Save ───
 
   const handleSave = async () => {
-    if (!frameSrc || !sourceBytes) {
+    if (!solid() && (!frameSrc || !sourceBytes)) {
       showToast({ title: "Add an image first", type: "info" });
       return;
     }
@@ -384,6 +409,11 @@ const CustomCapeEditor: Component<Props> = (props) => {
       return;
     }
     const baked = cv.toDataURL("image/png");
+    // Solid capes have no uploaded image — store a 1×1 colour swatch as the
+    // source so the backend round-trips something; re-edit reads the colour
+    // from the transform.
+    const srcBytes = solid() ? makeSolidSourcePng(bg()) : sourceBytes!;
+    const srcMime = solid() ? "image/png" : sourceMime;
     setSaving(true);
     try {
       const transform: CapeTransform = {
@@ -392,14 +422,15 @@ const CustomCapeEditor: Component<Props> = (props) => {
         scale: scale(),
         bg: bg(),
         res: res(),
-        animated: isAnimated(),
+        animated: !solid() && isAnimated(),
+        solid: solid(),
       };
       const cape = await saveCustomCape(
         props.editing?.id ?? null,
         name().trim() || "Custom Cape",
         Array.from(dataUrlToBytes(baked)),
-        Array.from(sourceBytes),
-        sourceMime,
+        Array.from(srcBytes),
+        srcMime,
         transform,
       );
       showToast({ title: "Cape saved", message: cape.name, type: "success" });
@@ -431,22 +462,27 @@ const CustomCapeEditor: Component<Props> = (props) => {
     }
 
     // Re-editing: pull the stored source image on demand (it isn't inlined in
-    // the cape list) and reapply the saved transform.
+    // the cape list) and reapply the saved transform. Solid capes have no real
+    // image — just restore the colour/mode from the transform.
     if (props.editing) {
-      try {
-        const sourceUrl = await readCustomCapeSource(props.editing.id);
-        await loadImageFromDataUrl(sourceUrl);
-        // computeBaseFit set baseDw/baseDh; the stored dx/dy/scale are in the
-        // same panel-texel space so they reapply directly.
-        sourceBytes = dataUrlToBytes(sourceUrl);
-        sourceMime = sourceUrl.slice(5, sourceUrl.indexOf(";"));
-        const animated = frameSrc?.animated ?? false;
-        setIsAnimated(animated);
-        if (animated) startAnim();
-        setHasImage(true);
-      } catch (e) {
-        console.error("Failed to load cape for editing:", e);
-        showToast({ title: "Couldn't load cape for editing", message: String(e), type: "error" });
+      if (props.editing.transform.solid) {
+        setSolid(true);
+      } else {
+        try {
+          const sourceUrl = await readCustomCapeSource(props.editing.id);
+          await loadImageFromDataUrl(sourceUrl);
+          // computeBaseFit set baseDw/baseDh; the stored dx/dy/scale are in the
+          // same panel-texel space so they reapply directly.
+          sourceBytes = dataUrlToBytes(sourceUrl);
+          sourceMime = sourceUrl.slice(5, sourceUrl.indexOf(";"));
+          const animated = frameSrc?.animated ?? false;
+          setIsAnimated(animated);
+          if (animated) startAnim();
+          setHasImage(true);
+        } catch (e) {
+          console.error("Failed to load cape for editing:", e);
+          showToast({ title: "Couldn't load cape for editing", message: String(e), type: "error" });
+        }
       }
     }
     refresh();
@@ -491,7 +527,7 @@ const CustomCapeEditor: Component<Props> = (props) => {
                 onPointerDown={onWorkspacePointerDown}
                 style={{ cursor: hasImage() ? "move" : "default" }}
               />
-              <Show when={!hasImage()}>
+              <Show when={!hasImage() && !solid()}>
                 <button class="cape-workspace-empty" onClick={handleUploadClick}>
                   <IconImage />
                   <span>Upload an image</span>
@@ -518,53 +554,77 @@ const CustomCapeEditor: Component<Props> = (props) => {
               />
             </label>
 
-            <label class="cape-control">
-              <span class="cape-control-label">Scale</span>
-              <input
-                type="range"
-                min="0.2"
-                max="4"
-                step="0.01"
-                value={scale()}
-                disabled={!hasImage()}
-                style={`--slider-pct:${((scale() - 0.2) / 3.8) * 100}%`}
-                onInput={(e) => {
-                  const val = parseFloat(e.currentTarget.value);
-                  e.currentTarget.style.setProperty('--slider-pct', `${((val - 0.2) / 3.8) * 100}%`);
-                  handleScale(val);
-                }}
-              />
-            </label>
-
-            <label class="cape-control cape-control--bg">
-              <span class="cape-control-label">Background</span>
-              <input
-                type="color"
-                value={bg()}
-                onInput={(e) => handleBg(e.currentTarget.value)}
-              />
-            </label>
-
             <div class="cape-control">
-              <span class="cape-control-label">Resolution</span>
-              <Dropdown
-                value={String(res())}
-                options={resChoices()}
-                onChange={handleRes}
-                width="150px"
-                openUp
-              />
+              <span class="cape-control-label">Type</span>
+              <div style="display:flex;gap:6px;flex:1">
+                <button
+                  class={`btn ${!solid() ? "btn--primary" : ""}`}
+                  style="flex:1;font-size:11px"
+                  onClick={() => setMode(false)}
+                >
+                  Image / animated
+                </button>
+                <button
+                  class={`btn ${solid() ? "btn--primary" : ""}`}
+                  style="flex:1;font-size:11px"
+                  onClick={() => setMode(true)}
+                >
+                  Solid color
+                </button>
+              </div>
             </div>
 
-            <div class="cape-editor-control-btns">
-              <button class="btn" onClick={handleUploadClick}>
-                <IconImage />
-                <span>{hasImage() ? "Replace" : "Upload"}</span>
-              </button>
-              <button class="btn" onClick={handleCenter} disabled={!hasImage()}>
-                Center
-              </button>
-            </div>
+            <Show when={solid()}>
+              <label class="cape-control cape-control--bg">
+                <span class="cape-control-label">Color</span>
+                <input
+                  type="color"
+                  value={bg()}
+                  onInput={(e) => handleBg(e.currentTarget.value)}
+                />
+              </label>
+            </Show>
+
+            <Show when={!solid()}>
+              <label class="cape-control">
+                <span class="cape-control-label">Scale</span>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="4"
+                  step="0.01"
+                  value={scale()}
+                  disabled={!hasImage()}
+                  style={`--slider-pct:${((scale() - 0.2) / 3.8) * 100}%`}
+                  onInput={(e) => {
+                    const val = parseFloat(e.currentTarget.value);
+                    e.currentTarget.style.setProperty('--slider-pct', `${((val - 0.2) / 3.8) * 100}%`);
+                    handleScale(val);
+                  }}
+                />
+              </label>
+
+              <div class="cape-control">
+                <span class="cape-control-label">Resolution</span>
+                <Dropdown
+                  value={String(res())}
+                  options={resChoices()}
+                  onChange={handleRes}
+                  width="150px"
+                  openUp
+                />
+              </div>
+
+              <div class="cape-editor-control-btns">
+                <button class="btn" onClick={handleUploadClick}>
+                  <IconImage />
+                  <span>{hasImage() ? "Replace" : "Upload"}</span>
+                </button>
+                <button class="btn" onClick={handleCenter} disabled={!hasImage()}>
+                  Center
+                </button>
+              </div>
+            </Show>
           </div>
         </div>
 
@@ -573,11 +633,10 @@ const CustomCapeEditor: Component<Props> = (props) => {
           <button
             class="install-btn"
             onClick={handleSave}
-            disabled={!hasImage() || saving()}
+            disabled={(!solid() && !hasImage()) || saving()}
           >
             {saving() ? "Saving…" : "Save cape"}
-          </button>
-        </div>
+          </button>        </div>
       </div>
     </div>
   );

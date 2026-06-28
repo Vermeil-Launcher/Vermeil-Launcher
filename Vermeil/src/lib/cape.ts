@@ -10,9 +10,11 @@
  * "front" face at texture rect `(1,1)` size `10×16` — `PANEL`. The image is
  * drawn there and also onto the thin side/top/bottom faces that sit adjacent
  * to it in the atlas, so a scaled-up image's overflow wraps onto those faces
- * as its continuation rather than a duplicate. The inner/back face is left as
- * solid background. The whole footprint (`0,0 → 22,17`) is filled with the
- * background colour first so no face renders transparent.
+ * as its continuation rather than a duplicate. The inner/back face (`BACK`) is
+ * a horizontal mirror of the front so it reflects the design when the cape
+ * lifts. The whole footprint (`0,0 → 22,17`) is filled with the background
+ * colour first so no face renders transparent; a solid-colour cape is just
+ * that fill with no image.
  *
  * ## Animation (cross-platform note)
  *
@@ -30,6 +32,9 @@
 import { parseGIF, decompressFrames, type DecompressedFrame } from "gifuct-js";
 
 export const PANEL = { x: 1, y: 1, w: 10, h: 16 };
+/** The cape's inner/back large face in the 64×32 atlas. We mirror the front
+ *  panel here so the back isn't a blank colour when the cape lifts. */
+export const BACK = { x: 12, y: 1, w: 10, h: 16 };
 export const FOOTPRINT = { x: 0, y: 0, w: 22, h: 17 };
 
 /** Supported bake-resolution multipliers of the 64×32 atlas. */
@@ -50,10 +55,13 @@ export interface CapeBakeParams {
   dy: number;
   /** Multiplier on the contain-fit baseline size. */
   scale: number;
-  /** CSS colour filling the cape behind/around the image. */
+  /** CSS colour filling the cape behind/around the image (and the whole cape in
+   *  solid mode). */
   bg: string;
   /** Bake-resolution multiplier of the 64×32 atlas. */
   res: number;
+  /** Solid-colour cape: fill the whole cape with {@link bg} and draw no image. */
+  solid?: boolean;
 }
 
 /** Clamp a resolution to the supported set (guards stale/tampered values that
@@ -79,7 +87,7 @@ export function computeBaseFit(imgW: number, imgH: number): { baseDw: number; ba
  */
 export function bakeCape(
   canvas: HTMLCanvasElement,
-  source: CanvasImageSource,
+  source: CanvasImageSource | null,
   srcW: number,
   srcH: number,
   t: CapeBakeParams,
@@ -97,6 +105,9 @@ export function bakeCape(
   // Solid background across the whole footprint — no transparent faces.
   ctx.fillStyle = t.bg;
   ctx.fillRect(FOOTPRINT.x * S, FOOTPRINT.y * S, FOOTPRINT.w * S, FOOTPRINT.h * S);
+
+  // Solid-colour cape (or no image loaded yet): the fill IS the whole cape.
+  if (t.solid || !source) return;
 
   const { baseDw, baseDh } = computeBaseFit(srcW, srcH);
   const dw = baseDw * t.scale * S;
@@ -121,6 +132,19 @@ export function bakeCape(
   ctx.rect((PANEL.x + PANEL.w) * S, 0, PANEL.w * S, PANEL.y * S);
   ctx.clip();
   ctx.drawImage(source, (PANEL.x + PANEL.w + t.dx) * S, (t.dy - PANEL.h) * S, dw, dh);
+  ctx.restore();
+
+  // Back (inner) face — a horizontal mirror of the freshly-drawn front panel,
+  // so when the cape lifts the inside reflects the design instead of a flat
+  // background. Blit the front PANEL onto itself flipped into the BACK rect.
+  ctx.save();
+  ctx.translate((BACK.x + BACK.w) * S, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(
+    canvas,
+    PANEL.x * S, PANEL.y * S, PANEL.w * S, PANEL.h * S, // src: front panel
+    0, PANEL.y * S, PANEL.w * S, PANEL.h * S,           // dst (flipped → back rect)
+  );
   ctx.restore();
 }
 

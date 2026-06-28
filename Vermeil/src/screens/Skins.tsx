@@ -221,6 +221,7 @@ const Skins: Component = () => {
           scale: t?.scale ?? 1,
           bg: t?.bg ?? "#2b2740",
           res: clampRes(t?.res),
+          solid: t?.solid ?? false,
           elytra: showElytra(),
         };
       });
@@ -719,7 +720,7 @@ const Skins: Component = () => {
       // Cap animated strips so a high-res, many-frame GIF doesn't decode to a
       // huge texture (OOM risk). Matches the editor's animated res ceiling.
       const res = src.frameCount > 1 ? Math.min(clampRes(t.res), ANIMATED_MAX_RES) : clampRes(t.res);
-      const bake = bakeModCapeStrip(src, { dx: t.dx, dy: t.dy, scale: t.scale, bg: t.bg, res });
+      const bake = bakeModCapeStrip(src, { dx: t.dx, dy: t.dy, scale: t.scale, bg: t.bg, res, solid: t.solid ?? false });
       return { png: Array.from(bake.png), frameTimeMs: bake.frames > 1 ? bake.frameTimeMs : null };
     } finally {
       src.dispose();

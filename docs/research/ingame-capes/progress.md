@@ -154,3 +154,17 @@ User reported in-game far lower-res than the launcher model for the same cape. R
 - Windows path untouched (WebView2 has `ImageDecoder`, so `decodeGif` never runs there) → zero regression risk on the platform we can test.
 - APNG/animated-WebP still have no JS fallback → static on a WebKitGTK build without `ImageDecoder` (narrowed, documented in the `FrameSource` doc comment).
 - Verified: `pnpm build` clean (tsc + Vite, gifuct-js bundles fine). **Needs a Linux smoke-test**: upload an animated GIF cape on WebKitGTK, confirm it animates in the 3D viewer and in-game.
+
+## 2026-06-28 · cape editor — mirrored back face + solid/image modes
+- `bakeCape` (lib/cape.ts): the inner/back large face (`BACK` = atlas 12,1,10×16)
+  is now a horizontal mirror of the front panel (self-canvas flip-blit) instead
+  of flat background — so the cape's inside reflects the design when it lifts.
+  Flows to the editor preview, Skins display, and the in-game `bakeModCapeStrip`.
+- New cape **type**: solid colour vs image/animated. `solid` added to
+  `CapeBakeParams` + `CapeTransform` (TS only — the Rust transform is opaque
+  `serde_json::Value`, rides along). Solid = fill the whole cape with the colour,
+  no image; editor hides the image controls and saves a 1×1 colour swatch as the
+  source placeholder. The old standalone "Background" picker is gone — it's the
+  solid-mode "Color"; image mode keeps a default dark backing (not user-set).
+- Verified: `pnpm run build` clean. In-game solid/animated capes bake through the
+  same path (solid → bakeCape early-returns on the colour fill).

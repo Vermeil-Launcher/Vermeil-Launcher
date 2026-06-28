@@ -576,8 +576,9 @@
    ============================================================ */
 .account-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 300px));
   gap: var(--space-3);
+  justify-content: start;
 }
 @media (max-width: 720px) {
   .account-grid { grid-template-columns: 1fr; }
@@ -625,15 +626,21 @@
   text-transform: uppercase;
 }
 .account-card-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-xs);
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.account-card-remove svg {
+  width: 14px;
+  height: 14px;
 }
 .account-card:hover .account-card-remove {
   opacity: 1;

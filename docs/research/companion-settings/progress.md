@@ -222,3 +222,29 @@
   DEVELOPMENT.md table/structure/archived list, ingame-capes research, this
   feature's matrix, the minecraft-mod skill table + runClient example, test-cape.ps1.
 - Verified: `cargo check` clean.
+
+## 2026-06-27 · Phase 4 (Fabric 26.1-26.2) — settings screen + logo button (done)
+
+- Ported the screen + logo button + store + mixin to fabric/26.1-26.2 (cape-only,
+  same as 1.21.11). Cape files (`VermeilCape`, `VermeilCapeTexture`,
+  `AvatarRendererMixin`) were already byte-identical between the two projects, so
+  only the GUI files needed era-specific edits.
+- 26.x render refactor (verified from 26.2 genSources, not guessed): `GuiGraphics`
+  → `GuiGraphicsExtractor`; `Screen.render` → `extractRenderState`;
+  `AbstractButton.renderContents/renderDefaultSprite` →
+  `extractContents/extractDefaultSprite`; `GuiGraphics.drawString` →
+  `GuiGraphicsExtractor.text`; `Minecraft.setScreen` → `minecraft.gui.setScreen`.
+  Input (`MouseButtonEvent`/`KeyEvent`/`CharacterEvent`), `pose()`
+  (`Matrix3x2fStack`), `Button.builder`, `children()`, and the `menu.quit` anchor
+  were unchanged from 1.21.11.
+- Fade-in fix (both 26.x AND 1.21.11): the logo blit was hardcoded opaque (`-1`),
+  so during the title-screen fade (which overlaps the Mojang loading-overlay
+  fade-out) the frame faded via the widget `alpha` but the logo popped in at full
+  opacity. Now blits with `ARGB.white(this.alpha)` so the logo ramps in with
+  everything else.
+- Verified: 26.x `gradlew build` clean (JDK 25), 1.21.11 clean (JDK 21); runClient
+  smoke-tested on 26.x — button + logo on title/pause, settings opens, toggle
+  works, logo fades in correctly.
+- All three active projects now have the in-game settings screen (forge/1.8.9,
+  fabric/1.21.11, fabric/26.1-26.2). Next: Phase 5 — mod release so the launcher
+  pulls the new jars and the feature can be tested end-to-end through the launcher.

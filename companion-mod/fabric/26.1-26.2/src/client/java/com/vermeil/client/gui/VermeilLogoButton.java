@@ -5,7 +5,7 @@ import com.vermeil.VermeilMod;
 import java.io.IOException;
 import java.io.InputStream;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -60,8 +60,8 @@ public class VermeilLogoButton extends AbstractButton {
 	}
 
 	@Override
-	protected void renderContents(final GuiGraphics gfx, final int mouseX, final int mouseY, final float delta) {
-		this.renderDefaultSprite(gfx);
+	protected void extractContents(final GuiGraphicsExtractor gfx, final int mouseX, final int mouseY, final float delta) {
+		this.extractDefaultSprite(gfx);
 		ensureLogoRegistered();
 		final int ix = this.getX() + (this.getWidth() - ICON) / 2;
 		final int iy = this.getY() + (this.getHeight() - ICON) / 2;

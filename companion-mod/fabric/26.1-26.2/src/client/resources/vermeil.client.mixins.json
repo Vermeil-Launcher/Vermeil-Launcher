@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"AvatarRendererMixin",
-		"MinecraftClientMixin"
+		"MinecraftClientMixin",
+		"VermeilMenuButtonMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

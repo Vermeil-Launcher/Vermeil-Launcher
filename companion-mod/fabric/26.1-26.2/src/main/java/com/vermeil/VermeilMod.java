@@ -1,6 +1,7 @@
 package com.vermeil;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +16,13 @@ import org.slf4j.LoggerFactory;
 public class VermeilMod implements ModInitializer {
 	public static final String MOD_ID = "vermeil";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+	/** Mod version from {@code fabric.mod.json} (driven by gradle.properties). */
+	public static String version() {
+		return FabricLoader.getInstance().getModContainer(MOD_ID)
+			.map(c -> c.getMetadata().getVersion().getFriendlyString())
+			.orElse("?");
+	}
 
 	@Override
 	public void onInitialize() {

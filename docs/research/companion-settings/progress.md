@@ -248,3 +248,21 @@
 - All three active projects now have the in-game settings screen (forge/1.8.9,
   fabric/1.21.11, fabric/26.1-26.2). Next: Phase 5 — mod release so the launcher
   pulls the new jars and the feature can be tested end-to-end through the launcher.
+
+## 2026-06-28 · cape toggle "off" now hides the cape (all projects)
+
+- Bug: toggling the in-game cape OFF removed the custom cape but revealed the
+  account's real Mojang cape — the render hook only acted while the custom cape
+  was *active*, so "off" fell through to vanilla. Intended: off = no cape.
+- Fabric (1.21.11 + 26.x): VermeilCape tracks `capeDisabled` (= `!cape.enabled`,
+  set each reload); AvatarRendererMixin forces `state.showCape = false` for the
+  local player when disabled (else-if after the active-custom branch).
+- Forge 1.8.9: added a second coremod hook `shouldHideCape(player)`; the cape
+  transformer now returns `null` from `getLocationCape()` (skipping the vanilla
+  real-cape fallback) when disabled — a two-branch ASM with two hand-written
+  stack-map frames (custom → ARETURN rl; disabled → ARETURN null; else vanilla).
+- "Unconfigured" (enabled default, no texture) still falls through to vanilla —
+  only an explicit off hides.
+- Verified: all three `gradlew build` clean (26.x JDK 25, 1.21.11 JDK 21, 1.8.9
+  JDK 8). NEEDS a 1.8.9 runClient smoke-test — ASM frame correctness is only
+  verifiable at runtime (Fabric showCape path is low-risk).

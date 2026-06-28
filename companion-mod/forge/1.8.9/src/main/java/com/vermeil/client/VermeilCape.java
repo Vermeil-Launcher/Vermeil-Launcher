@@ -73,6 +73,10 @@ public final class VermeilCape {
 
 	/** Whether a cape texture is currently registered and should be applied. Client thread only. */
 	private volatile boolean active;
+	/** Whether the cape was explicitly turned off in settings (vs simply having
+	 *  none configured). When true the {@code getLocationCape} hook returns null
+	 *  for the local player so no cape — not even a Mojang one — renders. */
+	private volatile boolean capeDisabled;
 	/** Decoded animation frames (ARGB, {@code width × capeHeight} each). Client thread only. */
 	private int[][] frames;
 	private int frameWidth;
@@ -95,6 +99,25 @@ public final class VermeilCape {
 	 */
 	public static ResourceLocation overrideCapeLocation(final AbstractClientPlayer player) {
 		return INSTANCE.capeFor(player);
+	}
+
+	/**
+	 * Whether to force the local player's cape off — the cape was explicitly
+	 * disabled in Vermeil settings, so vanilla's real-cape fallback must be
+	 * suppressed too. Called from the coremod-injected hook: when true, the
+	 * patched {@code getLocationCape()} returns null (no cape) instead of running
+	 * the vanilla logic. Only affects the local player.
+	 */
+	public static boolean shouldHideCape(final AbstractClientPlayer player) {
+		return INSTANCE.hideFor(player);
+	}
+
+	private boolean hideFor(final AbstractClientPlayer player) {
+		if (!capeDisabled) {
+			return false;
+		}
+		Minecraft mc = Minecraft.getMinecraft();
+		return mc != null && player == mc.thePlayer;
 	}
 
 	private ResourceLocation capeFor(final AbstractClientPlayer player) {
@@ -135,6 +158,9 @@ public final class VermeilCape {
 	private void reload(final Minecraft mc) {
 		File capeFile = new File(new File(capeDir(), CAPE_SUBDIR), CAPE_FILE);
 		CapeSettings settings = readSettings();
+		// Explicit off (toggle) vs simply unconfigured — the cape hook hides the
+		// local player's cape only for the former.
+		capeDisabled = !settings.enabled;
 
 		if (!settings.enabled || !capeFile.isFile()) {
 			deactivate(mc, settings.enabled ? "no cape file" : "disabled");

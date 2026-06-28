@@ -20,7 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * whose {@code cape()} points at our registered texture, forcing {@code showCape}
  * on; the vanilla {@code CapeLayer} then draws it through the normal path. The
  * custom cape takes precedence even over a Mojang-granted cape (enabling it means
- * "use this"). Only the local player is touched.
+ * "use this"). When the cape is explicitly turned off in Vermeil settings we
+ * instead force {@code showCape} off, hiding any cape (including a Mojang one)
+ * rather than revealing it. Only the local player is touched.
  */
 @Mixin(AvatarRenderer.class)
 public class AvatarRendererMixin {
@@ -29,13 +31,19 @@ public class AvatarRendererMixin {
 		at = @At("TAIL")
 	)
 	private void vermeil$applyCustomCape(final Avatar entity, final AvatarRenderState state, final float partialTicks, final CallbackInfo ci) {
-		if (entity != Minecraft.getInstance().player || !VermeilCape.isActive()) {
+		if (entity != Minecraft.getInstance().player) {
 			return;
 		}
-		// The custom cape takes precedence even when the account has a real
-		// (Mojang-granted) cape — enabling it in the launcher means "use this".
-		PlayerSkin skin = state.skin;
-		state.showCape = true;
-		state.skin = new PlayerSkin(skin.body(), VermeilCape.capeTexture(), skin.elytra(), skin.model(), skin.secure());
+		if (VermeilCape.isActive()) {
+			// The custom cape takes precedence even when the account has a real
+			// (Mojang-granted) cape — enabling it in the launcher means "use this".
+			PlayerSkin skin = state.skin;
+			state.showCape = true;
+			state.skin = new PlayerSkin(skin.body(), VermeilCape.capeTexture(), skin.elytra(), skin.model(), skin.secure());
+		} else if (VermeilCape.isCapeDisabled()) {
+			// Cape turned off in Vermeil settings — hide any cape entirely
+			// (including a Mojang-granted one) rather than falling back to vanilla.
+			state.showCape = false;
+		}
 	}
 }

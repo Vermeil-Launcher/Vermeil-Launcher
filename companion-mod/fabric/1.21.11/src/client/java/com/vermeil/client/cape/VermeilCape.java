@@ -39,8 +39,9 @@ import net.minecraft.resources.Identifier;
  * when active, points the local player's skin at {@link #capeTexture()}. We poll
  * the files once a second while in a world and reload only when they change, so
  * the launcher can turn the cape on/off or swap the image and have it apply
- * without a game restart (live reload). When disabled or absent, no cape is shown
- * (vanilla behaviour) — there is no placeholder.
+ * without a game restart (live reload). When explicitly turned off the cape is
+ * hidden entirely (see {@link #isCapeDisabled()} — no Mojang cape fallback); when
+ * simply unconfigured, vanilla behaviour applies.
  */
 public final class VermeilCape {
 	/** Identifier the cape texture is registered under and that the cape layer binds. */
@@ -68,6 +69,10 @@ public final class VermeilCape {
 
 	/** Whether a cape texture is currently registered and should be applied. Render thread only. */
 	private static boolean active;
+	/** Whether the cape was explicitly turned off in settings (vs simply having
+	 *  none configured). When true, the render hook hides any cape — including a
+	 *  Mojang-granted one — instead of falling back to vanilla. Render thread only. */
+	private static boolean capeDisabled;
 	/** Signature of the cape files at the last reload, to detect changes. Render thread only. */
 	private static String lastSignature = "";
 	private static int tickCounter;
@@ -98,6 +103,12 @@ public final class VermeilCape {
 		return active;
 	}
 
+	/** Whether the cape was explicitly turned off in Vermeil settings. The render
+	 *  hook hides all capes in that case instead of revealing a Mojang cape. */
+	public static boolean isCapeDisabled() {
+		return capeDisabled;
+	}
+
 	/**
 	 * Polls the cape files for changes and reloads when they differ. Called once
 	 * per client tick (render thread, where GPU work is legal); throttled to about
@@ -122,6 +133,9 @@ public final class VermeilCape {
 	private static void reload(final Minecraft minecraft) {
 		Path capeFile = capeDir().resolve(CAPE_SUBDIR).resolve(CAPE_FILE);
 		CapeSettings settings = readSettings();
+		// Explicit off (toggle) vs simply unconfigured — the render hook hides the
+		// cape only for the former.
+		capeDisabled = !settings.enabled();
 
 		if (!settings.enabled() || !Files.isRegularFile(capeFile)) {
 			deactivate(minecraft, settings.enabled() ? "no cape file" : "disabled");

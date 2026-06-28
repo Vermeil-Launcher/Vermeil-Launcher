@@ -203,5 +203,22 @@
 - Verified: `gradlew build` clean (JDK 21); runClient smoke-tested — button +
   logo render on title + pause, settings screen opens (no crash), search focuses
   with caret, cape pill toggles.
-- Next: replicate to fabric/1.21-1.21.1 and fabric/26.1-26.2 (26.x needs JDK 25;
+- Next: replicate to fabric/26.1-26.2 (26.x needs JDK 25;
   may have a further API delta), then Phase 5 (mod release).
+
+## 2026-06-27 · archived fabric/1.21-1.21.1
+
+- Moved `companion-mod/fabric/1.21-1.21.1` → `companion-mod/archive/fabric/` (git
+  mv, history kept) to shrink the port surface — supported Fabric is now 1.21.11
+  + 26.x only (plus Forge 1.8.9). Decision: the feature-renderer era was the odd
+  one out (distinct cape hook) and least worth carrying every feature into.
+- Launcher gate: dropped `"1.21", "1.21.1"` from `FABRIC_SUPPORTED`
+  (instance_cape.rs) — those instances no longer offer/install the companion mod.
+  Skins toast hint updated (26.x or 1.21.11).
+- CI: removed the 1.21-1.21.1 chmod/sed/build lines from `mod-release.yml`; the
+  manifest builder globs `companion-mod/fabric/*/`, so the archived project drops
+  out of the published manifest automatically on the next mod release.
+- Docs reconciled: archive README (row + active-era count + restore-guide symbol),
+  DEVELOPMENT.md table/structure/archived list, ingame-capes research, this
+  feature's matrix, the minecraft-mod skill table + runClient example, test-cape.ps1.
+- Verified: `cargo check` clean.

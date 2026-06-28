@@ -41,12 +41,12 @@ settings screen. Applies across all active companion projects.
 | Project | MC | Loader | Java | Cape | FOV effects | In-game UI |
 |---|---|---|---|---|---|---|
 | fabric/26.1-26.2 | 26.1–26.2 | Fabric | 25 | yes | native | none |
-| fabric/1.21.11 | 1.21.11 | Fabric | 21 | yes | native | none |
-| fabric/1.21-1.21.1 | 1.21–1.21.1 | Fabric | 21 | yes | native | none |
-| forge/1.8.9 | 1.8.9 | Forge | 8 | yes | backport | none |
+| fabric/1.21.11 | 1.21.11 | Fabric | 21 | yes | native | yes |
+| forge/1.8.9 | 1.8.9 | Forge | 8 | yes | backport | yes |
 
 FOV-effects backport is 1.8.9-only and correct (1.16+ native). Cape at parity.
-In-game settings UI exists nowhere yet.
+(`fabric/1.21-1.21.1`, the feature-renderer era, was archived to shrink the
+maintenance surface — supported Fabric is now 1.21.11 + 26.x only.)
 
 ## Decisions (settled)
 

@@ -658,7 +658,7 @@ const Skins: Component = () => {
       setIngameEnabled(true);
       showToast({
         title: "Cape equipped",
-        message: "Applies in-game on launch (Fabric on MC 26.x or 1.21.1).",
+        message: "Applies in-game on launch (Fabric on MC 26.x or 1.21.11).",
         type: "success",
         autoCloseMs: 3000,
       });

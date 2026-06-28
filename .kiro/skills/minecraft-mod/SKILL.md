@@ -51,7 +51,7 @@ alone from the repo root fails with "does not contain a Gradle build".
 - Run in-game: `.\companion-mod\fabric\26.1-26.2\gradlew.bat -p companion-mod\fabric\26.1-26.2 runClient`
   → launches a dev client; confirm the init log lines fire (`Vermeil mod initialized.` /
   `Vermeil client initialized.`) and the feature renders, then exit cleanly with no crash.
-  (Swap `26.1-26.2` for another project folder, e.g. `1.21-1.21.1`, in both places.)
+  (Swap `26.1-26.2` for another project folder, e.g. `1.21.11`, in both places.)
 - Use `git -C` for git; run `gradlew` with `-p`. PowerShell shell — chain with
   `;`, never `&&`.
 
@@ -68,7 +68,6 @@ Built projects:
 | Project | Minecraft range | Loader | Java | Cape hook |
 |---------|-----------------|--------|------|-----------|
 | `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`AvatarRenderer.extractRenderState`, `CapeLayer.submit`) |
-| `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`@Redirect` `getSkin()` in `CapeLayer.render`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source: `Identifier` + sampler) |
 | `companion-mod/forge/1.8.9/` | 1.8.9 | Forge | 8 | coremod ASM redirect of `AbstractClientPlayer.getLocationCape` |
 

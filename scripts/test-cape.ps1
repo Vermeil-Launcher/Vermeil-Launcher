@@ -43,7 +43,7 @@ param(
   [ValidateSet('fabric', 'forge')]
   [string]$DevLoader = 'fabric',
   # Which mod project's dev client to target when -Target dev (the folder name,
-  # e.g. fabric: 26.1-26.2, 1.21-1.21.1, 1.21.11; forge: 1.8.9).
+  # e.g. fabric: 26.1-26.2, 1.21.11; forge: 1.8.9).
   [string]$DevProject = '26.1-26.2'
 )
 

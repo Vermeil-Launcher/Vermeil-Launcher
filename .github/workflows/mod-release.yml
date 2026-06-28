@@ -45,14 +45,12 @@ jobs:
       - name: Build the mods
         run: |
           set -euo pipefail
-          chmod +x companion-mod/fabric/26.1-26.2/gradlew companion-mod/fabric/1.21-1.21.1/gradlew companion-mod/fabric/1.21.11/gradlew companion-mod/forge/1.8.9/gradlew
+          chmod +x companion-mod/fabric/26.1-26.2/gradlew companion-mod/fabric/1.21.11/gradlew companion-mod/forge/1.8.9/gradlew
           # Each era runs its Gradle daemon on a different JDK: 26.x on 25
           # (Gradle 9.x), the 1.21.x projects on 21, Forge 1.8.9 on 8 (Gradle 3.1).
           (cd companion-mod/fabric/26.1-26.2 && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew build --console=plain)
           # The dev gradle.properties pin a local Windows JDK path for convenience;
           # CI supplies its own JDK, so drop that line before building.
-          sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21-1.21.1/gradle.properties
-          (cd companion-mod/fabric/1.21-1.21.1 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
           sed -i '/^org\.gradle\.java\.home=/d' companion-mod/fabric/1.21.11/gradle.properties
           (cd companion-mod/fabric/1.21.11 && JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build --console=plain)
           # Forge 1.8.9: classic ForgeGradle 2 on Gradle 3.1 + JDK 8. --no-daemon

@@ -118,14 +118,14 @@ single-source preprocessor tree:
 | Project | Minecraft range | Loader | Java | Cape hook era |
 |---------|-----------------|--------|------|---------------|
 | `companion-mod/fabric/26.1-26.2/` | 26.1–26.2 | Fabric | 25 | render-state (`Avatar*`) |
-| `companion-mod/fabric/1.21-1.21.1/` | 1.21–1.21.1 | Fabric | 21 | feature-renderer (`CapeLayer`) |
 | `companion-mod/fabric/1.21.11/` | 1.21.11 | Fabric | 21 | render-state (= 26.x client source) |
 | `companion-mod/forge/1.8.9/` | 1.8.9 | Forge | 8 | coremod redirect (`getLocationCape`) |
 
-The intermediate 1.21.x render-state eras (1.21.2–1.21.4, 1.21.5–1.21.8,
-1.21.9–1.21.10) are built and compile-verified but **archived** under
-`companion-mod/archive/fabric/` — out of the build/CI/support path to keep the
-maintenance surface small. See that folder's README to restore one.
+The older 1.21.x eras — the feature-renderer 1.21–1.21.1 and the intermediate
+render-state eras (1.21.2–1.21.4, 1.21.5–1.21.8, 1.21.9–1.21.10) — are built and
+compile-verified but **archived** under `companion-mod/archive/fabric/` — out of
+the build/CI/support path to keep the maintenance surface small. See that folder's
+README to restore one.
 
 Each project ships **one jar covering a range** of Minecraft versions (a Fabric
 jar is intermediary-remapped, so it runs on every version where its Mixin targets
@@ -210,7 +210,7 @@ Vermeil-Launcher/             # repo root
 │   ├── package.json
 │   └── vite.config.ts
 ├── companion-mod/            # companion Minecraft mod (Java, separate builds)
-│   ├── fabric/               #   per-render-era Fabric projects: 26.1-26.2/, 1.21-1.21.1/, 1.21.11/
+│   ├── fabric/               #   per-render-era Fabric projects: 26.1-26.2/, 1.21.11/
 │   └── forge/                #   legacy Forge project: 1.8.9/
 └── docs/                     # project docs + docs/research/ notes
 ```

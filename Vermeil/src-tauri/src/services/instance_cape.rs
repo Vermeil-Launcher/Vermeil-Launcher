@@ -141,8 +141,6 @@ pub async fn get_ingame_cape() -> Option<IngameCapeSettings> {
 const FABRIC_SUPPORTED: &[&str] = &[
     // 26.x render-state era (companion-mod/fabric/26.1-26.2).
     "26.1", "26.1.1", "26.1.2", "26.2",
-    // 1.21 feature-renderer era (companion-mod/fabric/1.21-1.21.1).
-    "1.21", "1.21.1",
     // 1.21.11 render-state era (companion-mod/fabric/1.21.11).
     "1.21.11",
 ];

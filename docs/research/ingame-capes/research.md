@@ -18,7 +18,7 @@ Goal: render a user's local custom cape **in-game**, not just in the launcher's 
 
 ## Build structure
 - **One standalone Gradle project per (era, loader)** — eras can't share a toolchain (Java 25 Fabric vs Java 8 Forge can't even share a Gradle). Stonecutter (single-source multi-version) was tried and dropped.
-- Built & active (folder = full MC range it covers): `companion-mod/fabric/26.1-26.2/`, `1.21-1.21.1/` (feature-renderer), `1.21.11/` (render-state, = 26.x source), and `companion-mod/forge/1.8.9/` (Forge, legacy PvP). The intermediate 1.21.x render-state eras (`1.21.2-1.21.4`, `1.21.5-1.21.8`, `1.21.9-1.21.10`) are compile-verified but **archived** under `companion-mod/archive/fabric/` to keep the maintenance surface small. Fabric projects: official Mojang mappings, no Fabric API (loader + Mixins only). One jar per project covering its version range.
+- Built & active (folder = full MC range it covers): `companion-mod/fabric/26.1-26.2/`, `1.21.11/` (render-state, = 26.x source), and `companion-mod/forge/1.8.9/` (Forge, legacy PvP). The older 1.21.x eras — the feature-renderer `1.21-1.21.1` and the intermediate render-state eras (`1.21.2-1.21.4`, `1.21.5-1.21.8`, `1.21.9-1.21.10`) — are compile-verified but **archived** under `companion-mod/archive/fabric/` to keep the maintenance surface small. Fabric projects: official Mojang mappings, no Fabric API (loader + Mixins only). One jar per project covering its version range.
 - Fabric covers Quilt for free. No classic Forge exists for 26.x → Fabric-only there. 1.8.9 is Forge-only (Legacy Fabric lacks the Sodium/performance-mod ecosystem that PvP audience uses).
 
 ## Per-era cape hook (verified from each version's genSources)

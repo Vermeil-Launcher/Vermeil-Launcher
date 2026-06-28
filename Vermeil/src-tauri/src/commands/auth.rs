@@ -34,6 +34,9 @@ pub async fn start_ms_login(app: tauri::AppHandle) -> Result<String, String> {
     .inner_size(500.0, 650.0)
     .center()
     .always_on_top(true)
+    // Paint the window in the app's dark background up front so it doesn't flash
+    // white before Microsoft's page renders.
+    .background_color(tauri::utils::config::Color(19, 17, 25, 255))
     .data_directory(auth_webview_dir)
     .build()
     .map_err(|e| format!("Failed to open sign-in window: {}", e))?;

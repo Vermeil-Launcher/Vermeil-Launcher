@@ -369,6 +369,13 @@ const Settings: Component = () => {
               </div>
               <div class="settings-row">
                 <div>
+                  <div class="settings-key">Boot splash</div>
+                  <div class="settings-val">Show the animated logo splash on startup</div>
+                </div>
+                <div class={`toggle ${settings()!.splash_screen ? "on" : ""}`} onClick={() => updateSetting("splash_screen", !settings()!.splash_screen)} />
+              </div>
+              <div class="settings-row">
+                <div>
                   <div class="settings-key">Check for updates</div>
                   <div class="settings-val">Manually check for a new version</div>
                 </div>

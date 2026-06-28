@@ -19,6 +19,7 @@ import NoAccountModal from "./components/NoAccountModal";
 import Toasts, { showToast } from "./components/Toasts";
 import InstallProgress from "./components/InstallProgress";
 import BulkInstallToast from "./components/BulkInstallToast";
+import Splash from "./components/Splash";
 import DependencyIssuesModal from "./components/DependencyIssuesModal";
 import UpdateBanner from "./components/UpdateBanner";
 import CrashReportModal, { showCrashReport } from "./components/CrashReportModal";
@@ -352,6 +353,13 @@ const screenTitles: Record<Screen, string> = {
 };
 
 const App: Component = () => {
+  // Boot splash. Shown by default the moment the (initially hidden) window is
+  // revealed; `splashOn` is flipped off early in init when the setting is
+  // disabled, and `appShown` starts the dismissal countdown once the window
+  // is actually on screen.
+  const [splashOn, setSplashOn] = createSignal(true);
+  const [appShown, setAppShown] = createSignal(false);
+
   // Listen for game exit/crash events from backend
   onMount(async () => {
     // Live game log stream. Subscribe at app level so log lines pour into
@@ -467,12 +475,17 @@ const App: Component = () => {
       if (!s.onboarded && list.length === 0) {
         openOnboarding();
       }
+      // Decide the splash before the window is revealed so a disabled splash
+      // never flashes. Default-on if the read fails (catch leaves splashOn true).
+      if (!s.splash_screen) setSplashOn(false);
     } catch (e) {
       console.error("Onboarding gate failed:", e);
     }
 
     // Show window after initialization is complete (window starts hidden)
     await showWindow();
+    // The window is now on screen — start the splash dismissal countdown.
+    setAppShown(true);
 
     // Global keyboard shortcuts.
     //
@@ -579,6 +592,9 @@ const App: Component = () => {
       <OnboardingWizard />
       <PinInstancesModal />
       <Toasts />
+      <Show when={splashOn()}>
+        <Splash start={appShown()} onDone={() => setSplashOn(false)} />
+      </Show>
     </div>
   );
 };

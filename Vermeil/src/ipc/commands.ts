@@ -111,6 +111,8 @@ export interface LauncherSettings {
   auto_update: boolean;
   discord_rpc: boolean;
   show_snapshots: boolean;
+  /** Show the animated boot splash when the launcher window first appears. */
+  splash_screen: boolean;
   concurrent_downloads: number;
   /**
    * Maximum simultaneous disk writes during batch downloads.

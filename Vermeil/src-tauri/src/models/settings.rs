@@ -15,6 +15,11 @@ pub struct LauncherSettings {
     pub auto_update: bool,
     pub discord_rpc: bool,
     pub show_snapshots: bool,
+    /// Show the animated boot splash (turning logo cube + wordmark) when the
+    /// launcher window first appears. Defaults to `true`; existing configs
+    /// without the field opt in too.
+    #[serde(default = "default_splash_screen")]
+    pub splash_screen: bool,
     #[serde(default = "default_concurrent_downloads")]
     pub concurrent_downloads: u8,
     /// Maximum simultaneous disk writes. Separated from network concurrency so a slow
@@ -124,6 +129,7 @@ pub struct GlobalVideoSettings {
 
 fn default_concurrent_downloads() -> u8 { 10 }
 fn default_concurrent_writes() -> u8 { 10 }
+fn default_splash_screen() -> bool { true }
 
 /// In-game custom cape state (companion mod). The baked cape image lives at
 /// `<data>/ingame-cape.png`; this is just the toggle + which library cape.
@@ -151,6 +157,7 @@ impl Default for LauncherSettings {
             auto_update: true,
             discord_rpc: false,
             show_snapshots: false,
+            splash_screen: true,
             concurrent_downloads: default_concurrent_downloads(),
             concurrent_writes: default_concurrent_writes(),
             mod_sources: vec!["modrinth".to_string(), "curseforge".to_string()],

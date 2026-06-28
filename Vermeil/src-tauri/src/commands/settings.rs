@@ -24,6 +24,16 @@ pub async fn get_app_directory() -> Result<String, String> {
     Ok(paths::data_dir().to_string_lossy().to_string())
 }
 
+/// Open the launcher's data directory in the OS file manager.
+#[tauri::command]
+pub async fn open_app_directory() -> Result<(), String> {
+    let dir = paths::data_dir();
+    if dir.exists() {
+        open::that(&dir).map_err(|e| format!("Failed to open {}: {}", dir.display(), e))?;
+    }
+    Ok(())
+}
+
 use crate::util::paths;
 use std::fs;
 

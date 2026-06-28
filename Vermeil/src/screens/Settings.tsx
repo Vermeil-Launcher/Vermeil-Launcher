@@ -1,5 +1,5 @@
 import { Component, createSignal, createResource, Show, For, onMount, onCleanup, createEffect } from "solid-js";
-import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
+import { getSettings, saveSettings, getCacheSize, purgeCache, getAppDirectory, openAppDirectory, LauncherSettings, detectJavaInstallations, validateJavaPath, setJavaPath, installRecommendedJava, deleteJavaInstall, pruneInvalidJavaPaths, getSystemMemory, JavaInstall } from "../ipc/commands";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances, showToast } from "../App";
 import { checkForUpdates } from "../services/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -451,11 +451,23 @@ const Settings: Component = () => {
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:8px">Storage</div>
             <div class="settings-group">
-              <div class="settings-row">
+              <div
+                class="settings-row"
+                style="cursor:pointer"
+                onClick={() => openAppDirectory()}
+                title="Open in file manager"
+              >
                 <div>
                   <div class="settings-key">App directory</div>
                   <div class="settings-val" style="font-family:var(--font-mono);font-size:10px">{appDirectory() ?? "…"}</div>
                 </div>
+                <button
+                  class="btn"
+                  style="font-size:11px;padding:4px 10px"
+                  onClick={(e) => { e.stopPropagation(); openAppDirectory(); }}
+                >
+                  <IconFolderOpen /> Open
+                </button>
               </div>
               <div class="settings-row">
                 <div>

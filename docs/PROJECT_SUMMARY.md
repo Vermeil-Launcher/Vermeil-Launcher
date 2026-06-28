@@ -23,7 +23,7 @@ Vermeil is a custom Minecraft: Java Edition launcher built with **Rust (Tauri 2)
 | Package manager | pnpm |
 | Build system | Tauri CLI + Vite |
 | CI/CD | GitHub Actions (Windows + Linux matrix) |
-| Installer | NSIS (Windows), .deb + .AppImage (Linux) |
+| Installer | NSIS (Windows), .AppImage (Linux) |
 | Auto-updater | Tauri updater plugin (Windows NSIS + Linux AppImage) |
 
 ---
@@ -155,7 +155,7 @@ Vermeil-Launcher/               # Repo root
 
 ### Cross-Platform
 - Windows: NSIS installer, auto-update
-- Linux: .deb package, .AppImage (auto-update)
+- Linux: .AppImage (auto-update)
 - Platform-aware: Java exe names, classpath separators, Adoptium URLs, natives, OS rules
 - Centralized platform helpers (util/platform.rs)
 

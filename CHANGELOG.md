@@ -1,17 +1,20 @@
 # Changelog
 
-## 0.7.3
+## 0.7.4
 
 ### Added
 
-- In-game Vermeil settings screen, opened from a logo button on the pause and title menus, to toggle the custom cape — and adjust FOV effects on 1.8.9 — without leaving the game.
-- Per-instance toggle for the Vermeil companion mod on the Installed tab.
-
-### Changed
-
-- The companion mod now installs on supported instances without needing a custom cape set first, and its settings live in a single file editable from the in-game screen.
-- Companion support covers Minecraft 1.8.9, 1.21.11, and 26.x; 1.21–1.21.1 is no longer offered.
+- Animated boot splash screen on launch, with a toggle in General settings.
+- Custom capes can mirror the front face onto the back, and you can pick a solid-color cape or an image/animated one.
+- Open the app's data directory straight from Settings with a click.
 
 ### Fixed
 
-- Slider thumbs render square to match the launcher's sharp-edge style, and the cape-scale slider now shows its fill.
+- Turning the in-game cape off now hides the cape entirely instead of revealing your Mojang cape.
+- The splash progress bar fills smoothly to 100% without snapping at the end.
+- The launcher always opens at its minimum size, centered, and never maximized.
+- The sign-in window no longer flashes white before the Microsoft page loads.
+- The sign-in session is cleared on each login, so removed accounts no longer reappear in the chooser.
+- Account cards show the remove icon and take up less width.
+- Instance Java arguments refresh when the global garbage-collector preset changes.
+- Video and memory settings update instantly without needing to switch tabs.

@@ -1,18 +1,17 @@
 # Changelog
 
-## 0.7.2
+## 0.7.3
 
 ### Added
 
-- Bidirectional sync for video settings (FOV, Max FPS, VSync, view bobbing, GUI scale, FOV Effects, master/music volume): in-game changes flow back to the launcher sliders when you quit, and launcher changes apply on next launch.
-- Vermeil companion mod has a dedicated toggle in Settings → General and shows up as a managed entry on supported instances' Installed mods tab.
+- In-game Vermeil settings screen, opened from a logo button on the pause and title menus, to toggle the custom cape — and adjust FOV effects on 1.8.9 — without leaving the game.
+- Per-instance toggle for the Vermeil companion mod on the Installed tab.
 
 ### Changed
 
-- Video settings no longer have a "Default" state — every slider shows a concrete value (Mojang's vanilla default until you change it), matching how Minecraft's own screens work.
+- The companion mod now installs on supported instances without needing a custom cape set first, and its settings live in a single file editable from the in-game screen.
+- Companion support covers Minecraft 1.8.9, 1.21.11, and 26.x; 1.21–1.21.1 is no longer offered.
 
 ### Fixed
 
-- Settings → Resources shows the real per-platform app directory instead of a hardcoded Windows path.
-- Keybind reset button icon renders correctly instead of an empty box.
-- Typing in a text input no longer triggers global app keybinds.
+- Slider thumbs render square to match the launcher's sharp-edge style, and the cape-scale slider now shows its fill.

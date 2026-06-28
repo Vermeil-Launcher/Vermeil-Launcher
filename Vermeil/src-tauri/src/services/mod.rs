@@ -27,4 +27,3 @@ pub mod quilt;
 pub mod settings_service;
 pub mod skins;
 pub mod video_options;
-pub mod window_state;

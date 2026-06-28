@@ -267,6 +267,9 @@ const Library: Component = () => {
                     </div>
                     <div class="inst-card-badges">
                       <span class="badge badge--version">{inst.game_version}</span>
+                      <Show when={inst.source_project_id && inst.source_version}>
+                        <span class="badge badge--vnum" title={`Modpack version ${inst.source_version}`}>{inst.source_version}</span>
+                      </Show>
                       <span class={`badge badge--loader ${loaderBadgeClass(inst.loader.type)}`}>
                         {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
                       </span>

@@ -19,6 +19,10 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 struct MrpackIndex {
     name: String,
+    /// Author-set version label for this modpack release (mrpack spec
+    /// `versionId`). Surfaced as the Library card's modpack version badge.
+    #[serde(rename = "versionId", default)]
+    version_id: Option<String>,
     files: Vec<MrpackFile>,
     dependencies: std::collections::HashMap<String, String>,
 }
@@ -354,6 +358,7 @@ pub async fn install_from_mrpack_file(
         mods: mod_entries,
         source_project_id,
         source_platforms: vec!["modrinth".to_string()],
+        source_version: index.version_id.clone(),
         companion_enabled: true,
     };
 

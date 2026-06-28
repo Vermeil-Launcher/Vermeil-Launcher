@@ -139,6 +139,13 @@ pub struct Instance {
     /// cross-platform match is found.
     #[serde(default)]
     pub source_platforms: Vec<String>,
+
+    /// The modpack's own version label (Modrinth mrpack `versionId`, or the
+    /// CurseForge manifest `version`), when this instance was installed from a
+    /// modpack. Shown as a badge on the Library card. `None` for custom
+    /// instances and for modpacks whose manifest didn't declare a version.
+    #[serde(default)]
+    pub source_version: Option<String>,
     /// Per-instance toggle for the Vermeil companion mod. When true (default),
     /// the launcher keeps the managed companion jar active on this instance;
     /// when false, the jar is disabled (renamed `.disabled`, not deleted) so the

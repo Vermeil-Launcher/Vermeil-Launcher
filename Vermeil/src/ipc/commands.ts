@@ -31,6 +31,10 @@ export interface Instance {
   created_at: string;
   source_project_id: string | null;
   source_platforms: string[];
+  /** The modpack's own version label (mrpack `versionId` / CurseForge manifest
+   *  `version`) when this instance came from a modpack. Shown on the Library
+   *  card. `null` for custom instances or modpacks with no declared version. */
+  source_version?: string | null;
   /** Per-instance on/off for the Vermeil companion mod. Default true. When false,
    *  the managed jar is disabled (renamed `.disabled`, not deleted) on this
    *  instance. Toggled from the managed-mod card in the Installed tab. */

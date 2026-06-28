@@ -20,6 +20,10 @@ const CF_API_BASE: &str = "https://api.curseforge.com/v1";
 pub struct CfManifest {
     pub minecraft: CfMinecraft,
     pub name: String,
+    /// Modpack release version from the CurseForge manifest. Shown as the
+    /// Library card's modpack version badge.
+    #[serde(default)]
+    pub version: Option<String>,
     pub files: Vec<CfFile>,
     #[serde(default)]
     pub overrides: String,
@@ -152,6 +156,7 @@ pub async fn import_zip(
         created_at: chrono::Utc::now().to_rfc3339(),
         source_project_id,
         source_platforms: vec!["curseforge".to_string()],
+        source_version: manifest.version.clone(),
         companion_enabled: true,
     };
 
@@ -310,6 +315,7 @@ pub async fn import_profile_code(
                 created_at: chrono::Utc::now().to_rfc3339(),
                 source_project_id: None,
                 source_platforms: vec!["curseforge".to_string()],
+                source_version: None,
                 companion_enabled: true,
             };
 

@@ -2,6 +2,7 @@ import { Component, createSignal, createEffect, createResource, For, Show, onMou
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
+import { contentVersion } from "../lib/contentVersion";
 import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
@@ -1776,8 +1777,8 @@ const InstanceMods: Component = () => {
                         </span>
                       </Show>
                       <span class="mod-tag mod-tag-version">{instance()!.game_version}</span>
-                      <Show when={(mod as any).version_number}>
-                        <span class="mod-tag mod-tag-vnum" title={(mod as any).version_number}>{(mod as any).version_number}</span>
+                      <Show when={contentVersion((mod as any).version_number, mod.filename, instance()!.game_version)}>
+                        {(v) => <span class="mod-tag mod-tag-vnum" title={v()}>{v()}</span>}
                       </Show>
                       <Show when={modUpdates().has(mod.project_id)}>
                         <button

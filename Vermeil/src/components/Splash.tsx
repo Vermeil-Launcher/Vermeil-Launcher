@@ -22,8 +22,7 @@ const REDUCE =
   window.matchMedia &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const MIN_MS = REDUCE ? 200 : 2300; // minimum on-screen time
-const SNAP_MS = 280; // bar 92% → 100% before fade
+const MIN_MS = REDUCE ? 200 : 2300; // on-screen time / bar fill duration
 const FADE_MS = 600; // matches .splash transition in splash.css
 
 const Splash: Component<SplashProps> = (props) => {
@@ -36,18 +35,14 @@ const Splash: Component<SplashProps> = (props) => {
     if (!props.start || started) return;
     started = true;
 
-    // Ease toward 92% over the minimum display (we can't know real progress),
-    // then snap to 100% as we begin to fade — the standard determinate pattern.
-    requestAnimationFrame(() => setFill({ pct: 92, ms: MIN_MS }));
+    // Fill smoothly from 0 to 100% across the whole on-screen time — one
+    // continuous motion, no ease-to-92-then-snap.
+    requestAnimationFrame(() => setFill({ pct: 100, ms: MIN_MS }));
 
     const minTimer = setTimeout(() => {
-      setFill({ pct: 100, ms: SNAP_MS });
-      const snapTimer = setTimeout(() => {
-        setDone(true); // triggers the CSS fade
-        const removeTimer = setTimeout(() => props.onDone(), FADE_MS + 100);
-        onCleanup(() => clearTimeout(removeTimer));
-      }, SNAP_MS);
-      onCleanup(() => clearTimeout(snapTimer));
+      setDone(true); // bar has reached 100% — fade out
+      const removeTimer = setTimeout(() => props.onDone(), FADE_MS + 100);
+      onCleanup(() => clearTimeout(removeTimer));
     }, MIN_MS);
     onCleanup(() => clearTimeout(minTimer));
   });

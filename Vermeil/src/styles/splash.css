@@ -120,7 +120,7 @@
 /* Determinate progress fill — width driven by components/Splash.tsx. */
 .splash-bar {
   position: absolute; left: 0; right: 0; bottom: 0;
-  height: 2px; background: rgba(139, 92, 246, 0.14); overflow: hidden;
+  height: 6px; background: rgba(139, 92, 246, 0.14); overflow: hidden;
 }
 .splash-bar-fill {
   height: 100%; width: 0;

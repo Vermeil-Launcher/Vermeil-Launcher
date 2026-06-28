@@ -13,6 +13,17 @@ pub async fn start_ms_login(app: tauri::AppHandle) -> Result<String, String> {
         let _ = existing.close();
     }
 
+    // Isolate the sign-in webview's session in its own data directory and wipe it
+    // before each login. Microsoft's webview persists session cookies, so without
+    // this the account chooser keeps listing accounts the user already removed
+    // from the launcher (and a fresh launcher has no way to drop a stale MS
+    // session). A dedicated dir keeps the wipe from touching the main window's
+    // webview storage (e.g. the Library sort saved in localStorage). Best-effort:
+    // if the folder is briefly locked by a just-closed window, the next login
+    // still gets a clean slate.
+    let auth_webview_dir = paths::data_dir().join("auth-webview");
+    let _ = fs::remove_dir_all(&auth_webview_dir);
+
     // Open a new webview window pointed at the Microsoft sign-in page
     let window = tauri::WebviewWindowBuilder::new(
         &app,
@@ -23,6 +34,7 @@ pub async fn start_ms_login(app: tauri::AppHandle) -> Result<String, String> {
     .inner_size(500.0, 650.0)
     .center()
     .always_on_top(true)
+    .data_directory(auth_webview_dir)
     .build()
     .map_err(|e| format!("Failed to open sign-in window: {}", e))?;
 

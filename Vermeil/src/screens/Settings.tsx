@@ -23,35 +23,33 @@ const clampConcurrency = (n: number, max: number): number =>
 
 const Settings: Component = () => {
   const [tab, setTab] = createSignal<SettingsTab>("general");
-  const [settings, { refetch }] = createResource(getSettings);
+  const [settings, { refetch, mutate }] = createResource(getSettings);
   const [appVersion] = createResource(getVersion);
   const [appDirectory] = createResource(getAppDirectory);
   const [systemMemoryMb] = createResource(getSystemMemory);
   const [cacheSize, setCacheSize] = createSignal(0);
   const [purging, setPurging] = createSignal(false);
 
-  // Optimistic local mirror of `settings.video_settings` so slider values
-  // (text labels) update live during drag. The resource only refetches after
-  // the save round-trip completes, which lags the slider thumb. We mirror it
-  // here, write through to the backend, and the local signal stays authoritative.
+  // Video settings read straight from the resource — `updateSetting` mutates it
+  // optimistically (see below), so reads are always the latest value, no
+  // separate mirror to drift out of sync. Only valid inside `<Show when={settings()}>`.
   type VS = LauncherSettings["video_settings"];
-  const [vsLocal, setVsLocal] = createSignal<VS | null>(null);
-  createEffect(() => {
-    const s = settings();
-    if (s && vsLocal() === null) setVsLocal(s.video_settings);
-  });
-  const vs = (): VS => vsLocal() ?? settings()!.video_settings;
+  const vs = (): VS => settings()!.video_settings;
 
   // When the game exits, the backend reads options.txt back and emits the
-  // merged video settings. Adopt them immediately so an open Settings screen
-  // reflects in-game changes live, and refetch so the resource stays in sync.
+  // merged video settings. Fold them into the resource so an open Settings
+  // screen reflects in-game changes live (single source of truth).
   onMount(() => {
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
     listen<VS>("video-settings-synced", (e) => {
-      setVsLocal(e.payload);
-      void refetch();
-    }).then((fn) => { unlisten = fn; });
-    onCleanup(() => unlisten?.());
+      const cur = settings();
+      if (cur) mutate({ ...cur, video_settings: e.payload });
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    });
+    onCleanup(() => { cancelled = true; unlisten?.(); });
   });
 
   // Same optimistic-display pattern for the concurrency sliders. Without
@@ -291,9 +289,12 @@ const Settings: Component = () => {
     const current = settings();
     if (!current) return;
     const updated = { ...current, [key]: value };
+    // Optimistic: update the resource synchronously so the UI (toggles, sliders,
+    // dropdowns) reflects the change immediately and the next read-modify-write
+    // sees the latest state — no save→refetch round-trip to lag behind or clobber.
+    mutate(updated);
     try {
       await saveSettings(updated);
-      await refetch();
       // Notify the global keydown handler that the keybind cache is stale.
       // App.tsx listens for this event and re-reads settings.keybinds.
       if (key === "keybinds") {
@@ -301,15 +302,18 @@ const Settings: Component = () => {
       }
     } catch (e) {
       console.error("Failed to save setting:", e);
+      // Persist failed — pull the real state back so the UI doesn't lie.
+      await refetch();
     }
   };
 
-  // Patch helper for video_settings: writes optimistically to local signal
-  // (so slider text labels update during drag), then fires the backend save.
+  // Patch helper for video_settings: merges onto the current resource value and
+  // writes through `updateSetting` (which mutates optimistically, so the slider
+  // tracks the thumb live with no separate mirror).
   const updateVideoSettings = (patch: Partial<VS>) => {
-    const merged = { ...vs(), ...patch };
-    setVsLocal(merged);
-    updateSetting("video_settings", merged);
+    const cur = settings()?.video_settings;
+    if (!cur) return;
+    updateSetting("video_settings", { ...cur, ...patch });
   };
 
   const openInstanceOptions = (id: string) => {

@@ -402,6 +402,15 @@ const InstanceMods: Component = () => {
   const [extraArgsText, setExtraArgsText] = createSignal("");
   const [knownPresets, setKnownPresets] = createSignal<Record<string, string[]>>({});
   const [globalPreset, setGlobalPreset] = createSignal<string>("g1gc");
+  // Bumped when the global GC preset changes (Settings fires the event after the
+  // save lands). The args effect reads it so the editor re-derives even if this
+  // screen was already mounted when the preset changed.
+  const [gcTick, setGcTick] = createSignal(0);
+  onMount(() => {
+    const onGcChange = () => setGcTick((t) => t + 1);
+    window.addEventListener("vermeil-gc-preset-changed", onGcChange);
+    onCleanup(() => window.removeEventListener("vermeil-gc-preset-changed", onGcChange));
+  });
   let gutterRef: HTMLDivElement | undefined;
 
   /** Display label for a preset ID — matches the strings in Settings.tsx. */
@@ -453,6 +462,7 @@ const InstanceMods: Component = () => {
   //   • saved extra_args is genuinely customized → show those,
   //   • no saved extra_args → show current preset flags.
   createEffect(() => {
+    gcTick(); // re-derive when the global GC preset changes
     const inst = instance();
     if (!inst || mainTab() !== "settings") return;
     const id = activeInstanceId();

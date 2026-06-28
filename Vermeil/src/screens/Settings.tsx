@@ -300,6 +300,13 @@ const Settings: Component = () => {
       if (key === "keybinds") {
         window.dispatchEvent(new CustomEvent("vermeil-keybinds-changed"));
       }
+      // The per-instance Java-args editor pre-fills from the global GC preset.
+      // It lives on another screen, so fire after the save lands (not just the
+      // optimistic mutate) — it reads settings from disk and would otherwise
+      // race this write. The instance screen re-derives its args on this event.
+      if (key === "gc_preset") {
+        window.dispatchEvent(new CustomEvent("vermeil-gc-preset-changed"));
+      }
     } catch (e) {
       console.error("Failed to save setting:", e);
       // Persist failed — pull the real state back so the UI doesn't lie.

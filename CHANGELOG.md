@@ -1,20 +1,16 @@
 # Changelog
 
-## 0.7.4
+## 0.7.5
 
 ### Added
 
-- Animated boot splash screen on launch, with a toggle in General settings.
-- Custom capes can mirror the front face onto the back, and you can pick a solid-color cape or an image/animated one.
-- Open the app's data directory straight from Settings with a click.
+- Content version is now shown as a badge on mod and modpack cards in Browse, on the Installed tab, and in download history.
+- Modpack instances show their pack version as a badge on the Library card.
+
+### Changed
+
+- Linux builds now ship only the AppImage; the .deb package is no longer produced.
 
 ### Fixed
 
-- Turning the in-game cape off now hides the cape entirely instead of revealing your Mojang cape.
-- The splash progress bar fills smoothly to 100% without snapping at the end.
-- The launcher always opens at its minimum size, centered, and never maximized.
-- The sign-in window no longer flashes white before the Microsoft page loads.
-- The sign-in session is cleared on each login, so removed accounts no longer reappear in the chooser.
-- Account cards show the remove icon and take up less width.
-- Instance Java arguments refresh when the global garbage-collector preset changes.
-- Video and memory settings update instantly without needing to switch tabs.
+- The boot splash progress bar is taller and easier to see.

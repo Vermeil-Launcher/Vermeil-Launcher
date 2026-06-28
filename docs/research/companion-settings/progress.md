@@ -264,5 +264,6 @@
 - "Unconfigured" (enabled default, no texture) still falls through to vanilla —
   only an explicit off hides.
 - Verified: all three `gradlew build` clean (26.x JDK 25, 1.21.11 JDK 21, 1.8.9
-  JDK 8). NEEDS a 1.8.9 runClient smoke-test — ASM frame correctness is only
-  verifiable at runtime (Fabric showCape path is low-risk).
+  JDK 8). 1.8.9 runClient smoke-tested — `AbstractClientPlayer` loaded with no
+  VerifyError (two-frame ASM valid), and the cape toggled on/off live (cape
+  texture loaded → "removed (disabled)" → reloaded).

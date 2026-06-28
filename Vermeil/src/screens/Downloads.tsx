@@ -83,6 +83,9 @@ const DownloadCard: Component<{ entry: DownloadEntry; timeAgo: (ts: number) => s
             <Show when={dl().gameVersion}>
               <span class="badge badge--version">{dl().gameVersion}</span>
             </Show>
+            <Show when={dl().versionNumber}>
+              <span class="badge badge--vnum" title={dl().versionNumber!}>{dl().versionNumber}</span>
+            </Show>
             <span class="dl-card-time">{props.timeAgo(dl().timestamp)}</span>
           </div>
         </div>

@@ -25,6 +25,10 @@ pub struct ModHit {
     /// Surfaced so the frontend can display "1.20.1 – 1.21.4" badges on cards.
     pub versions: Vec<String>,
     pub latest_version: Option<String>,
+    /// Human-readable latest content version (Modrinth `version_number` /
+    /// CurseForge file display name). Shown as a tag on Browse cards. `None`
+    /// when the source doesn't expose it or the lookup failed.
+    pub version_name: Option<String>,
     /// Primary author display name. Modrinth: search hit's `author`.
     /// CurseForge: first entry of `authors[]`. None when the source doesn't
     /// expose an author (rare).
@@ -77,6 +81,7 @@ pub async fn search_mods(
                 categories: h.categories,
                 versions: h.versions,
                 latest_version: h.latest_version,
+                version_name: h.version_name,
                 author: h.author,
             })
             .collect(),
@@ -118,6 +123,7 @@ pub async fn search_modpacks(
                 categories: h.categories,
                 versions: h.versions,
                 latest_version: h.latest_version,
+                version_name: h.version_name,
                 author: h.author,
             })
             .collect(),
@@ -185,6 +191,7 @@ pub async fn search_curseforge(
                 categories: h.categories,
                 versions: h.versions,
                 latest_version: h.latest_version,
+                version_name: h.version_name,
                 author: h.author,
             })
             .collect(),

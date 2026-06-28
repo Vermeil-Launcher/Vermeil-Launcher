@@ -105,6 +105,8 @@ struct CfMod {
 struct CfLatestFile {
     #[serde(rename = "gameVersions", default)]
     game_versions: Vec<String>,
+    #[serde(rename = "displayName", default)]
+    display_name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -151,6 +153,9 @@ pub struct CfHit {
     pub categories: Vec<String>,
     pub versions: Vec<String>,
     pub latest_version: Option<String>,
+    /// Human-readable latest-file label (CurseForge `displayName`), shown as
+    /// the content version on Browse cards. Free from the search response.
+    pub version_name: Option<String>,
     /// Primary author display name (first entry in CurseForge's authors array).
     pub author: Option<String>,
 }
@@ -232,6 +237,13 @@ pub async fn search(
             .first()
             .map(|f| f.file_id.to_string());
 
+        // Latest file's human label (e.g. "sodium-fabric-0.5.8") for the
+        // Browse card's content-version tag. Free from the search response.
+        let version_name = m.latest_files
+            .first()
+            .map(|f| f.display_name.clone())
+            .filter(|s| !s.is_empty());
+
         // Build categories list. Start with CF's category slugs, then inject
         // loader names derived from the modLoader field in latestFilesIndexes.
         // The frontend uses these to render loader badges on cards.
@@ -296,6 +308,7 @@ pub async fn search(
             categories,
             versions,
             latest_version,
+            version_name,
             author: m.authors.into_iter().next().map(|a| a.name),
         }
     }).collect();
@@ -361,6 +374,7 @@ pub async fn get_project_files(
         CfFileInfo {
             file_id: f.id,
             file_name: f.file_name,
+            display_name: f.display_name,
             download_url,
             file_length: f.file_length,
             hashes: f.hashes.into_iter()
@@ -387,6 +401,8 @@ struct CfFile {
     id: u64,
     #[serde(rename = "fileName")]
     file_name: String,
+    #[serde(rename = "displayName", default)]
+    display_name: String,
     #[serde(rename = "downloadUrl")]
     download_url: Option<String>,
     #[serde(rename = "fileLength")]
@@ -413,6 +429,9 @@ struct CfDependency {
 pub struct CfFileInfo {
     pub file_id: u64,
     pub file_name: String,
+    /// CurseForge's human-readable file label (e.g. "sodium-fabric-0.5.8").
+    /// Used as the content version on Installed cards. Empty when absent.
+    pub display_name: String,
     pub download_url: Option<String>,
     pub file_length: u64,
     pub hashes: Vec<String>, // SHA-1 only

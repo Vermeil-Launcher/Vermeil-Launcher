@@ -419,6 +419,7 @@ async fn build_mod_tasks(
             project_id,
             version_id: info.id.to_string(),
             filename: info.file_name.clone(),
+            version_number: None,
             enabled: true,
             pinned: false,
             title: None,

@@ -137,6 +137,7 @@ const BrowseModpacks: Component = () => {
       iconUrl: pack.icon_url,
       loader: extractLoaders(pack)[0] || "",
       gameVersion: extractVersionRange(pack),
+      versionNumber: pack.version_name ?? undefined,
     });
 
     const installPromise = modSource() === "curseforge"
@@ -260,6 +261,9 @@ const BrowseModpacks: Component = () => {
                         </For>
                         <Show when={extractVersionRange(pack)}>
                           <span class="badge badge--version">{extractVersionRange(pack)}</span>
+                        </Show>
+                        <Show when={pack.version_name}>
+                          <span class="badge badge--vnum" title={pack.version_name!}>{pack.version_name}</span>
                         </Show>
                       </div>
                       <div class="mod-stats">↓ {formatDownloads(pack.downloads)} · ♥ {formatDownloads(pack.follows)}</div>

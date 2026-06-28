@@ -23,6 +23,11 @@ pub struct ModrinthProject {
     pub versions: Vec<String>,
     pub latest_version: Option<String>,
     pub project_type: String,
+    /// Human-readable latest version label (Modrinth `version_number`), shown
+    /// as the content version on Browse cards. Not in the search response —
+    /// filled in by a single batched `/v2/versions?ids=` call per page.
+    #[serde(default)]
+    pub version_name: Option<String>,
     /// Username of the project's primary author (Modrinth's `author` field
     /// in search hits — populated for /search responses, NOT for
     /// /project/{id} where it's named `team` instead).
@@ -120,9 +125,61 @@ pub async fn search_mods(
         return Err(format!("Modrinth HTTP error: {}", text));
     }
 
-    resp.json::<ModrinthSearchResult>()
+    let mut result = resp
+        .json::<ModrinthSearchResult>()
         .await
-        .map_err(|e| format!("Parse Modrinth search: {}", e))
+        .map_err(|e| format!("Parse Modrinth search: {}", e))?;
+    attach_version_names(&mut result).await;
+    Ok(result)
+}
+
+/// Fetch multiple versions by id in one batched call
+/// (`GET /v2/versions?ids=[...]`). Best-effort: returns an empty map on any
+/// failure so search degrades gracefully (cards just omit the version tag).
+pub async fn get_versions_by_ids(ids: &[String]) -> std::collections::HashMap<String, String> {
+    use std::collections::HashMap;
+    if ids.is_empty() {
+        return HashMap::new();
+    }
+    let ids_json = serde_json::to_string(ids).unwrap_or_default();
+    let url = format!(
+        "{}/versions?ids={}",
+        MODRINTH_API,
+        urlencoding::encode(&ids_json)
+    );
+    let resp = match crate::util::http::send_with_retry(|| crate::util::http::HTTP.get(&url)).await {
+        Ok(r) if r.status().is_success() => r,
+        _ => return HashMap::new(),
+    };
+    match resp.json::<Vec<ModrinthVersion>>().await {
+        Ok(versions) => versions
+            .into_iter()
+            .map(|v| (v.id, v.version_number))
+            .collect(),
+        Err(_) => HashMap::new(),
+    }
+}
+
+/// Attach a human version label to each search hit by batch-resolving the
+/// hits' `latest_version` ids. One extra API call per page; best-effort.
+async fn attach_version_names(result: &mut ModrinthSearchResult) {
+    let ids: Vec<String> = result
+        .hits
+        .iter()
+        .filter_map(|h| h.latest_version.clone())
+        .collect();
+    if ids.is_empty() {
+        return;
+    }
+    let map = get_versions_by_ids(&ids).await;
+    if map.is_empty() {
+        return;
+    }
+    for h in &mut result.hits {
+        if let Some(vid) = &h.latest_version {
+            h.version_name = map.get(vid).cloned();
+        }
+    }
 }
 
 /// Search modpacks on Modrinth
@@ -159,9 +216,12 @@ pub async fn search_modpacks(
         return Err(format!("Modrinth HTTP error: {}", text));
     }
 
-    resp.json::<ModrinthSearchResult>()
+    let mut result = resp
+        .json::<ModrinthSearchResult>()
         .await
-        .map_err(|e| format!("Parse Modrinth modpacks: {}", e))
+        .map_err(|e| format!("Parse Modrinth modpacks: {}", e))?;
+    attach_version_names(&mut result).await;
+    Ok(result)
 }
 
 /// Get versions for a specific project (to find the right file to download)

@@ -461,6 +461,21 @@
   text-transform: none;
   letter-spacing: 0;
 }
+/* Content version (the mod/pack's own release, e.g. "0.5.8+mc1.21"), distinct
+   from the MC game-version pill. Accent-tinted and width-capped because
+   CurseForge display names can be long — full value lives in the title. */
+.mod-tag-vnum {
+  font-family: var(--font-mono, monospace);
+  text-transform: none;
+  letter-spacing: 0;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .mod-tag-loader.loader-fabric { background: rgba(192, 132, 232, 0.12); color: #c084e8; border-color: rgba(192, 132, 232, 0.3); }
 .mod-tag-loader.loader-quilt { background: rgba(192, 132, 232, 0.12); color: var(--loader-quilt); border-color: rgba(192, 132, 232, 0.3); }
 .mod-tag-loader.loader-forge { background: rgba(232, 131, 74, 0.12); color: #e8834a; border-color: rgba(232, 131, 74, 0.3); }

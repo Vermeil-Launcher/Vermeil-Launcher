@@ -520,6 +520,19 @@
   color: var(--text);
 }
 
+/* Variant — content version (the item's own release). Accent-tinted to read as
+   distinct from the neutral MC game-version badge; width-capped with ellipsis
+   since CurseForge display names can run long (full text in the title attr). */
+.badge--vnum {
+  font-family: var(--font-mono);
+  background: var(--accent-soft);
+  color: var(--accent);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Variant — source (brand tints + inline source-logo SVG sizing) */
 .badge--source.badge--modrinth   { background: var(--source-modrinth-soft);   color: var(--source-modrinth); }
 .badge--source.badge--curseforge { background: var(--source-curseforge-soft); color: var(--source-curseforge); }

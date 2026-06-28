@@ -830,6 +830,7 @@ const InstanceMods: Component = () => {
         const depsInstalled: number = result.deps_installed ?? 0;
         const depTitles: string[] = result.dep_titles ?? [];
         const depIssues: DependencyIssue[] = result.issues ?? [];
+        const vnum: string | undefined = result.mod_entry?.version_number ?? undefined;
         if (depsInstalled > 0) {
           // Show up to 3 dep titles inline; fall back to count for the rest.
           const preview = depTitles.slice(0, 3).join(", ");
@@ -837,10 +838,10 @@ const InstanceMods: Component = () => {
           const message = depTitles.length > 0
             ? `${mod.title} with ${preview}${more}`
             : `${mod.title} (+${depsInstalled} dep${depsInstalled === 1 ? "" : "s"})`;
-          completeDownload(dlId, message);
+          completeDownload(dlId, message, vnum);
           showToast({ title: "Installed", message, type: "success", autoCloseMs: 4000 });
         } else {
-          completeDownload(dlId);
+          completeDownload(dlId, undefined, vnum);
           showToast({ title: "Installed", message: mod.title, type: "success", autoCloseMs: 3000 });
         }
         // Show structured per-dep modal for missing/incompatible/failed deps.
@@ -948,13 +949,14 @@ const InstanceMods: Component = () => {
           ? await installCfModToInstance(inst.id, mod.project_id, inst.loader.type, inst.game_version, category)
           : await installModToInstance(inst.id, mod.project_id, inst.loader.type, inst.game_version, category);
         setLocalInstalled(prev => { const s = new Set(prev); s.add(mod.project_id); return s; });
-        completeDownload(dlId);
         try {
           const result = JSON.parse(resultJson);
           const depIssues: DependencyIssue[] = result.issues ?? [];
           aggregateIssues.push(...depIssues);
+          completeDownload(dlId, undefined, result.mod_entry?.version_number ?? undefined);
         } catch {
           // resultJson might not be valid JSON for older command shapes — ignore
+          completeDownload(dlId);
         }
       } catch (e: any) {
         failDownload(dlId);
@@ -1774,6 +1776,9 @@ const InstanceMods: Component = () => {
                         </span>
                       </Show>
                       <span class="mod-tag mod-tag-version">{instance()!.game_version}</span>
+                      <Show when={(mod as any).version_number}>
+                        <span class="mod-tag mod-tag-vnum" title={(mod as any).version_number}>{(mod as any).version_number}</span>
+                      </Show>
                       <Show when={modUpdates().has(mod.project_id)}>
                         <button
                           class="mod-tag mod-tag-update"
@@ -1904,6 +1909,9 @@ const InstanceMods: Component = () => {
                         </For>
                         <Show when={mod.versions && mod.versions.length > 0}>
                           <span class="mod-tag mod-tag-version">{formatVersionRange(mod.versions)}</span>
+                        </Show>
+                        <Show when={mod.version_name}>
+                          <span class="mod-tag mod-tag-vnum" title={mod.version_name!}>{mod.version_name}</span>
                         </Show>
                       </div>
                     </Show>

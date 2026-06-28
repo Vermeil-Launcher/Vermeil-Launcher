@@ -81,6 +81,13 @@ pub struct ModEntry {
     pub project_id: String,
     pub version_id: String,
     pub filename: String,
+    /// Human-readable content version (Modrinth `version_number`, e.g.
+    /// "0.6.0+mc1.21"; CurseForge file display name). Populated at install time
+    /// for mods added directly from Browse. `None` for modpack-bundled mods,
+    /// manually-added jars, and entries installed before this field existed —
+    /// the Installed card simply omits the version tag in that case.
+    #[serde(default)]
+    pub version_number: Option<String>,
     pub enabled: bool,
     pub pinned: bool,
     #[serde(default)]

@@ -76,6 +76,9 @@ export interface ModHit {
   versions?: string[];
   /** Latest version ID (Modrinth's `latest_version`). */
   latest_version?: string | null;
+  /** Human-readable latest content version (Modrinth `version_number` /
+   *  CurseForge file display name), shown as a tag on Browse cards. */
+  version_name?: string | null;
   /** Primary author display name. Modrinth: search hit's `author`.
    *  CurseForge: first entry of the project's `authors[]` array. */
   author?: string | null;

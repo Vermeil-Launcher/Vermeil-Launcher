@@ -135,6 +135,10 @@ export interface DownloadEntry {
   iconUrl?: string;
   loader?: string;
   gameVersion?: string;
+  /** Human-readable content version (e.g. "0.5.8+mc1.21"). Set upfront for
+   *  modpacks (known from the search hit) or on completion for individual
+   *  mods (resolved server-side at install). Omitted when unknown. */
+  versionNumber?: string;
   /** Primary author display name. Cached when the user installs from
    *  search results so we can show "by Author" in the Downloads history
    *  card without re-fetching project metadata. */
@@ -166,7 +170,7 @@ function persistDownloads() {
 export function trackDownload(
   name: string,
   category: string,
-  meta?: { iconUrl?: string | null; loader?: string; gameVersion?: string; author?: string | null },
+  meta?: { iconUrl?: string | null; loader?: string; gameVersion?: string; author?: string | null; versionNumber?: string | null },
 ): string {
   const id = Math.random().toString(36).slice(2);
   const entry: DownloadEntry = {
@@ -178,14 +182,15 @@ export function trackDownload(
     iconUrl: meta?.iconUrl ?? undefined,
     loader: meta?.loader,
     gameVersion: meta?.gameVersion,
+    versionNumber: meta?.versionNumber ?? undefined,
     author: meta?.author ?? undefined,
   };
   setDownloads(prev => [entry, ...prev].slice(0, 200));
   return id;
 }
 
-export function completeDownload(id: string, nameOverride?: string) {
-  setDownloads(prev => prev.map(d => d.id === id ? { ...d, status: "completed" as const, timestamp: Date.now(), name: nameOverride || d.name } : d));
+export function completeDownload(id: string, nameOverride?: string, versionNumber?: string) {
+  setDownloads(prev => prev.map(d => d.id === id ? { ...d, status: "completed" as const, timestamp: Date.now(), name: nameOverride || d.name, versionNumber: versionNumber ?? d.versionNumber } : d));
   persistDownloads();
 }
 

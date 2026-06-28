@@ -176,3 +176,32 @@
 - Verified via runClient across iterations; build clean (JDK 8).
 - Next: port this layout to the 3 Fabric projects (pixel font there too; cape
   toggle only — 1.16+ FOV is native; pause/title button via Mixin, no Fabric API).
+
+## 2026-06-27 · Phase 4 (Fabric 1.21.11) — settings screen + logo button (done)
+
+- Ported the 1.8.9 design to fabric/1.21.11 (cape-only — 1.16+ FOV is native, so
+  single "Cosmetics" category, no Visuals tab). New `VermeilSettingsStore` (NIO,
+  cape on/off only), `gui/VermeilSettingsScreen` (sidebar + search + ON/OFF pill,
+  vanilla pixel font, GL-scaled), `gui/VermeilLogoButton`, `mixin/VermeilMenuButtonMixin`.
+- API verified from genSources (not guessed) — 1.21.11 input refactor:
+  `mouseClicked(MouseButtonEvent, boolean)`, `keyPressed(KeyEvent)`,
+  `charTyped(CharacterEvent)`; `GuiGraphics.pose()` returns JOML `Matrix3x2fStack`
+  (`pushMatrix`/`popMatrix`/`scale(x,y)`); `AbstractButton` needs
+  `updateWidgetNarration`. Mod version via `FabricLoader` (`VermeilMod.version()`),
+  no constant.
+- `render()` must NOT call `renderBackground()` — the engine already draws it in
+  `renderWithTooltipAndSubtitles`; calling again double-blurs → crash. Fixed.
+- Button placement anchors to the screens' own widgets (no hardcoded coords):
+  pause menu → right of the lowest full-width button; title screen → past the
+  accessibility button (found via `menu.quit`), so it never overlaps the vanilla
+  language/accessibility side cluster. Skips cleanly when the anchor is absent.
+- Logo texture: a mod asset blit via resource-pack id does NOT resolve in a
+  split-sourceset dev run (`Missing resource`). Switched to the cape's proven
+  pattern — read `logo.png` from the classpath and register a `DynamicTexture`
+  once on first render; works in dev and packaged. logo.png (64×64) lives in the
+  client sourceset (`src/client/resources/assets/vermeil/textures/gui/`).
+- Verified: `gradlew build` clean (JDK 21); runClient smoke-tested — button +
+  logo render on title + pause, settings screen opens (no crash), search focuses
+  with caret, cape pill toggles.
+- Next: replicate to fabric/1.21-1.21.1 and fabric/26.1-26.2 (26.x needs JDK 25;
+  may have a further API delta), then Phase 5 (mod release).

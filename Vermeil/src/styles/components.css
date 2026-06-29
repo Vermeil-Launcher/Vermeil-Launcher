@@ -1155,37 +1155,10 @@ select.field-input[size] { appearance: none; }
   background: var(--bg3); color: var(--text); padding: var(--space-1) var(--space-2);
 }
 
-/* Memory slider */
-.memory-slider-wrap {
-  width: 100%;
-  max-width: 300px;
-}
-.memory-slider-track-wrap {
-  position: relative;
-  padding: var(--space-2) 0;
-}
-.memory-slider-dots {
-  position: absolute;
-  top: 0;
-  left: 6px;
-  right: 6px;
-  height: 100%;
-  pointer-events: none;
-}
-.memory-dot {
-  position: absolute;
-  top: 50%;
-  width: 4px;
-  height: 12px;
-  border-radius: var(--radius-xs);
-  background: var(--bg4);
-  transform: translate(-50%, -50%);
-  transition: background 0.12s;
-}
-.memory-dot.filled {
-  background: var(--accent);
-  opacity: 0.6;
-}
+/* Range-slider styling. Shared by the video-settings sliders, which compose
+   `memory-slider vs-slider`. ponytail: the `memory-slider` name is now a
+   misnomer (the memory UI that owned it is gone) — rename to a generic
+   `.slider` in the vocabulary-unification pass. */
 .memory-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -1228,41 +1201,6 @@ select.field-input[size] { appearance: none; }
   background: var(--accent);
   border-radius: 0;
   cursor: pointer;
-}
-.memory-slider-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: var(--space-1);
-}
-.memory-slider-value {
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 11px;
-}
-.memory-hint {
-  font-size: 10px;
-  margin-top: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-xs);
-  font-weight: 500;
-}
-.memory-hint.good {
-  color: var(--success);
-  background: rgba(74, 222, 128, 0.08);
-}
-.memory-hint.low {
-  color: var(--muted);
-  background: var(--bg3);
-}
-.memory-hint.high {
-  color: var(--warn);
-  background: rgba(245, 158, 11, 0.08);
-}
-.memory-hint.warn {
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.08);
 }
 
 .control-total {
@@ -1327,53 +1265,6 @@ select.field-input[size] { appearance: none; }
   color: var(--muted);
   font-weight: 500;
   margin-left: var(--space-2);
-}
-
-/* Adaptive RAM readout — replaces the manual `.memory-hint` row in the
-   per-instance Settings tab when global adaptive RAM is on. Renders the
-   computed value with a hover-for-breakdown tooltip and an inline
-   "Override for this instance" link. */
-.memory-adaptive-readout {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text);
-}
-.memory-adaptive-readout .tip-breakdown {
-  cursor: help;
-  text-decoration: underline dotted var(--muted);
-  text-underline-offset: 3px;
-}
-.memory-adaptive-warn {
-  color: var(--warn);
-  font-weight: 500;
-}
-.memory-adaptive-overridden {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-size: 11px;
-  color: var(--muted);
-}
-.memory-adaptive-override-btn {
-  margin-left: auto;
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.memory-adaptive-override-btn:hover {
-  color: var(--text);
 }
 
 /* ============================================================

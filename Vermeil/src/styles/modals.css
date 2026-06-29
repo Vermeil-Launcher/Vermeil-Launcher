@@ -351,16 +351,6 @@
 .onboarding-java-slots::-webkit-scrollbar-track { background: transparent; }
 
 
-/* Memory slider override inside the onboarding wizard. The default
-   `.memory-slider-wrap` is capped at 300px (suited to the per-instance
-   Settings card where it sits next to other controls), but inside the
-   wider wizard modal it should fill the body width so the snap dots and
-   labels spread out evenly. */
-.onboarding-modal .memory-slider-wrap {
-  max-width: none;
-}
-
-
 /* Java chooser modal — shown when "Detect" finds more than one matching JRE
    and the user has to pick which one to bind to the slot. Shape matches the
    `.java-slot` cards above so the choice feels consistent with the slot UI

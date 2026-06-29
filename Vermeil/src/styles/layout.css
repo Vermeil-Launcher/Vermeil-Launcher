@@ -227,20 +227,3 @@
 }
 
 
-/* Multi-line tooltip variant for "why this value?" breakdowns. Inherits
-   the base `[data-tip]::after` color + shadow + opacity transition from
-   the rule above; differs in three ways:
-     - `pre-line` whitespace so newlines in the data-tip render
-     - widened max-width so a 4-row formula fits comfortably
-     - 3px accent left stripe as the visual cue that this isn't a label
-       tooltip — same color tokens, slightly more weight
-   Position helpers (`tip-below`, `tip-left`) keep working unchanged. */
-.tip-breakdown[data-tip]::after {
-  white-space: pre-line;
-  max-width: 260px;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-3);
-  font-size: 11px;
-  line-height: 1.55;
-  text-align: left;
-  border-left: 3px solid var(--accent);
-}

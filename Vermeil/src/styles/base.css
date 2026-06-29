@@ -304,7 +304,7 @@ body {
    doesn't recognize is invalid, so WebView2 (Chromium) drops the WHOLE
    rule over `::-moz-range-thumb` and WebKitGTK drops it over the
    `-webkit-` one — silently killing every override here. Slider thumbs
-   are squared at their own per-vendor rules instead (memory-slider in
+   are squared at their own per-vendor rules instead (slider in
    components.css, concurrency-slider in notifications.css, cape slider
    in screens.css).
    ===================================================================== */
@@ -316,7 +316,7 @@ body {
 .dock-dot,
 .toggle::after,
 .onboarding-step-num,
-.memory-slider,
+.slider,
 .toast-icon,
 .player-head { border-radius: 0 !important; }
 

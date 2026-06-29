@@ -1131,11 +1131,9 @@ select.field-input[size] { appearance: none; }
   background: var(--bg3); color: var(--text); padding: var(--space-1) var(--space-2);
 }
 
-/* Range-slider styling. Shared by the video-settings sliders, which compose
-   `memory-slider vs-slider`. ponytail: the `memory-slider` name is now a
-   misnomer (the memory UI that owned it is gone) — rename to a generic
-   `.slider` in the vocabulary-unification pass. */
-.memory-slider {
+/* Generic range-slider styling, composed as `slider vs-slider` by the
+   video-settings sliders. */
+.slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -1154,7 +1152,7 @@ select.field-input[size] { appearance: none; }
     var(--bg) 100%
   );
 }
-.memory-slider::-webkit-slider-thumb {
+.slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -1167,10 +1165,10 @@ select.field-input[size] { appearance: none; }
   box-shadow: 0 0 0 3px var(--bg2);
   margin-top: 0;
 }
-.memory-slider::-webkit-slider-thumb:hover {
+.slider::-webkit-slider-thumb:hover {
   transform: scale(1.25);
 }
-.memory-slider::-moz-range-thumb {
+.slider::-moz-range-thumb {
   border: none;
   width: 14px;
   height: 14px;

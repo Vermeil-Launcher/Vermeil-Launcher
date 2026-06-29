@@ -709,7 +709,7 @@ const Settings: Component = () => {
                   max="260"
                   step="10"
                   value={vs().max_fps ?? 120}
-                  class="memory-slider vs-slider"
+                  class="slider vs-slider"
                   style={`--slider-pct:${((vs().max_fps ?? 120) - 10) / 250 * 100}%`}
                   onInput={(e) => {
                     const val = parseInt(e.currentTarget.value);
@@ -780,7 +780,7 @@ const Settings: Component = () => {
                   max="110"
                   step="1"
                   value={vs().fov === null ? 70 : Math.round(40 * vs().fov! + 70)}
-                  class="memory-slider vs-slider"
+                  class="slider vs-slider"
                   style={`--slider-pct:${((vs().fov === null ? 70 : Math.round(40 * vs().fov! + 70)) - 30) / 80 * 100}%`}
                   onInput={(e) => {
                     const degrees = parseInt(e.currentTarget.value);
@@ -801,7 +801,7 @@ const Settings: Component = () => {
                   max="100"
                   step="1"
                   value={vs().fov_effects === null ? 100 : Math.round(vs().fov_effects! * 100)}
-                  class="memory-slider vs-slider"
+                  class="slider vs-slider"
                   style={`--slider-pct:${(vs().fov_effects === null ? 100 : Math.round(vs().fov_effects! * 100))}%`}
                   onInput={(e) => {
                     const pct = parseInt(e.currentTarget.value);
@@ -827,7 +827,7 @@ const Settings: Component = () => {
                   max="100"
                   step="1"
                   value={vs().master_volume === null ? 100 : Math.round(vs().master_volume! * 100)}
-                  class="memory-slider vs-slider"
+                  class="slider vs-slider"
                   style={`--slider-pct:${(vs().master_volume === null ? 100 : Math.round(vs().master_volume! * 100))}%`}
                   onInput={(e) => {
                     const pct = parseInt(e.currentTarget.value);
@@ -847,7 +847,7 @@ const Settings: Component = () => {
                   max="100"
                   step="1"
                   value={vs().music_volume === null ? 100 : Math.round(vs().music_volume! * 100)}
-                  class="memory-slider vs-slider"
+                  class="slider vs-slider"
                   style={`--slider-pct:${(vs().music_volume === null ? 100 : Math.round(vs().music_volume! * 100))}%`}
                   onInput={(e) => {
                     const pct = parseInt(e.currentTarget.value);

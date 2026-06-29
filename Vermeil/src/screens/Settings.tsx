@@ -10,6 +10,7 @@ import JavaPathInput from "../components/JavaPathInput";
 import JavaChooserModal from "../modals/JavaChooserModal";
 import Dropdown from "../components/Dropdown";
 import KeybindCapture from "../components/KeybindCapture";
+import { loaderBadgeClass, loaderLabel } from "../lib/loader";
 import { KEYBINDS, resolveBinding } from "../lib/keybinds";
 import { listen } from "@tauri-apps/api/event";
 
@@ -949,16 +950,6 @@ const Settings: Component = () => {
               <For each={instances() || []}>
                 {(inst) => {
                   const iconUrl = (!inst.icon || inst.icon === "cube") ? undefined : inst.icon;
-                  const loaderLabel = inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1);
-                  const badgeClass = (() => {
-                    switch (inst.loader.type) {
-                      case "fabric": return "badge--fabric";
-                      case "forge": return "badge--forge";
-                      case "neoforge": return "badge--neoforge";
-                      case "quilt": return "badge--quilt";
-                      default: return "badge--vanilla";
-                    }
-                  })();
                   const colorClass = (() => {
                     switch (inst.loader.type) {
                       case "fabric": return "fabric";
@@ -984,7 +975,7 @@ const Settings: Component = () => {
                             {inst.game_version} · {inst.mods.length} mods · {inst.window.width}x{inst.window.height}
                           </div>
                           <div class="inst-card-badges">
-                            <span class={`badge badge--loader ${badgeClass}`}>{loaderLabel}</span>
+                            <span class={`badge badge--loader ${loaderBadgeClass(inst.loader.type)}`}>{loaderLabel(inst.loader.type)}</span>
                             <Show when={inst.ingame_cape_supported}>
                               <span class="badge badge--companion" title="Vermeil companion mod supported">
                                 <img src="/logo.png" alt="Vermeil" draggable={false} />

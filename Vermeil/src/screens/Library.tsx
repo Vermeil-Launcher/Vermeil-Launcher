@@ -3,6 +3,7 @@ import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, instances,
 import { Instance, deleteInstance, renameInstance, getSettings } from "../ipc/commands";
 import { IconPlus, IconModrinth, IconCurseForge, IconX } from "../components/Icons";
 import Dropdown from "../components/Dropdown";
+import { loaderBadgeClass, loaderLabel } from "../lib/loader";
 
 /** Library sort modes. Persisted in localStorage so the choice sticks between
  *  sessions (a pure view preference — kept out of the launcher settings file to
@@ -22,16 +23,6 @@ function epoch(dateStr: string | null | undefined): number {
   if (!dateStr) return 0;
   const t = new Date(dateStr).getTime();
   return Number.isNaN(t) ? 0 : t;
-}
-
-function loaderBadgeClass(loader: string): string {
-  switch (loader) {
-    case "fabric": return "badge--fabric";
-    case "forge": return "badge--forge";
-    case "neoforge": return "badge--neoforge";
-    case "quilt": return "badge--quilt";
-    default: return "badge--vanilla";
-  }
 }
 
 function bannerColor(loader: string): string {
@@ -271,7 +262,7 @@ const Library: Component = () => {
                         <span class="badge badge--vnum" title={`Modpack version ${inst.source_version}`}>{inst.source_version}</span>
                       </Show>
                       <span class={`badge badge--loader ${loaderBadgeClass(inst.loader.type)}`}>
-                        {inst.loader.type === "vanilla" ? "Vanilla" : inst.loader.type.charAt(0).toUpperCase() + inst.loader.type.slice(1)}
+                        {loaderLabel(inst.loader.type)}
                       </span>
                       <span class="badge">{inst.java.memory_max_mb} MB</span>
                       <Show when={inst.ingame_cape_supported}>

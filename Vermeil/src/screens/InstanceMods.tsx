@@ -3,6 +3,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { contentVersion } from "../lib/contentVersion";
+import { loaderBadgeClass, loaderLabel } from "../lib/loader";
 import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
@@ -925,22 +926,22 @@ const InstanceMods: Component = () => {
           <IconArrowLeft />
         </button>
         <span style="font-size:13px;font-weight:600;color:var(--text)">{instance()?.name}</span>
-        <Show when={instance()?.loader.type !== "vanilla"}>
-          <span class={`ctx-badge badge-${instance()?.loader.type === "neoforge" ? "neo" : instance()?.loader.type}`}>
-            {instance()?.loader.type}
+        <Show when={instance() && instance()!.loader.type !== "vanilla"}>
+          <span class={`badge badge--loader ${loaderBadgeClass(instance()!.loader.type)}`}>
+            {loaderLabel(instance()!.loader.type)}
           </span>
         </Show>
-        <span class="ctx-badge" style="background:var(--bg4);color:var(--muted)">{instance()?.game_version}</span>
+        <span class="badge badge--version">{instance()?.game_version}</span>
         <Show when={instance()?.ingame_cape_supported}>
-          <span class="ctx-badge ctx-badge--companion" title="Vermeil companion mod supported">
+          <span class="badge badge--companion" title="Vermeil companion mod supported">
             <img src="/logo.png" alt="Vermeil" draggable={false} />
           </span>
         </Show>
         <Show when={(instance()?.source_platforms || []).includes("modrinth")}>
-          <span class="ctx-badge badge-source-mr" title="Available on Modrinth"><IconModrinth /></span>
+          <span class="badge badge--source badge--modrinth" title="Available on Modrinth"><IconModrinth /></span>
         </Show>
         <Show when={(instance()?.source_platforms || []).includes("curseforge")}>
-          <span class="ctx-badge badge-source-cf" title="Available on CurseForge"><IconCurseForge /></span>
+          <span class="badge badge--source badge--curseforge" title="Available on CurseForge"><IconCurseForge /></span>
         </Show>
 
         <div class="ctx-action-group">

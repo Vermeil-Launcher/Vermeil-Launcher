@@ -1,6 +1,7 @@
 import { Component, createSignal, createEffect, createResource, createMemo, For, Show, onCleanup } from "solid-js";
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination, clearGameLogs } from "../App";
 import { launchInstance, listInstanceWorlds, getJavaNews, getArticleBody, NewsArticle } from "../ipc/commands";
+import { loaderBadgeClass, loaderLabel } from "../lib/loader";
 import { IconPlay, IconGlobe, IconShieldCheck } from "../components/Icons";
 import PlayerHead from "../components/PlayerHead";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -45,22 +46,6 @@ function bannerColor(loader: string): string {
     case "neoforge": return "purple";
     default: return "green";
   }
-}
-
-/** Per-loader badge color modifier (mirrors the Library card). */
-function loaderBadgeClass(loader: string): string {
-  switch (loader) {
-    case "fabric": return "badge--fabric";
-    case "quilt": return "badge--quilt";
-    case "forge": return "badge--forge";
-    case "neoforge": return "badge--neoforge";
-    default: return "badge--vanilla";
-  }
-}
-
-/** Display label for a loader id. */
-function loaderLabel(loader: string): string {
-  return loader === "vanilla" ? "Vanilla" : loader.charAt(0).toUpperCase() + loader.slice(1);
 }
 
 const Home: Component = () => {

@@ -146,7 +146,7 @@
      on the card grids was removed; it doubled the clearance.) */
   --dock-clearance: calc(88px * var(--dock-scale));
   --card-track: 240px;          /* fixed card width for shared grid */
-  --card-track-compact: 180px;  /* narrow card width for dense grids */
+  --card-track-compact: 240px;  /* card width for the mod Browse/Installed grids */
   --content-min: 480px;         /* minimum supported content width */
 
   /* --- Brand colors: intentional exceptions to the no-literal rule ---

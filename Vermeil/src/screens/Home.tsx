@@ -53,7 +53,7 @@ const Home: Component = () => {
   // Column-aware news page size so each page fills complete rows when the
   // window is maximized (shared helper — see lib/gridPageSize.ts). News uses
   // the standard `.card-grid` (track 240, gap 12); media cards are taller.
-  const newsPageSize = createGridPageSize({ track: 240, gap: 12, rowHeight: 240, maxRows: 4 });
+  const newsPageSize = createGridPageSize({ track: 240, gap: 12, rowHeight: 240, maxRows: 4, debounceMs: 0 });
   const [selectedArticle, setSelectedArticle] = createSignal<NewsArticle | null>(null);
   const [articleBody, setArticleBody] = createSignal<string>("");
   const [loadingArticle, setLoadingArticle] = createSignal(false);

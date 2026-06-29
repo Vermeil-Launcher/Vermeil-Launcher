@@ -6,8 +6,11 @@ import { createSignal, onCleanup } from "solid-js";
  * trailing cell when the window is resized/maximized.
  *
  * Unlike a layout-overriding approach it does NOT touch the grid's CSS template
- * (the grid still lays out via `auto-fit`) — it only sizes the *page* — and it
- * recomputes only after a resize settles, so the layout never jumps. `cols`
+ * (the grid still lays out via `auto-fit`) — it only sizes the *page*. It
+ * recomputes after a resize settles (`debounceMs`, default 300 — so a
+ * server-paged grid doesn't spam its API during a drag), or immediately when
+ * `debounceMs` is 0 (client-sliced grids like news, so the fill follows the
+ * window with no empty-slot flicker). `cols`
  * uses the same math CSS `auto-fit` uses, so it matches the rendered columns:
  * pass the same `track` (the grid's `minmax` min) and `gap` the CSS uses.
  *
@@ -16,7 +19,8 @@ import { createSignal, onCleanup } from "solid-js";
  *   <div class="card-grid" ref={page.setEl}>…</div>
  *   // page.size() → items to show/fetch per page
  */
-export function createGridPageSize(opts: { track: number; gap: number; rowHeight: number; maxRows: number }) {
+export function createGridPageSize(opts: { track: number; gap: number; rowHeight: number; maxRows: number; debounceMs?: number }) {
+  const debounceMs = opts.debounceMs ?? 300;
   const [size, setSize] = createSignal(opts.maxRows * 4 || 16);
   let el: HTMLElement | undefined;
   let settle: number | undefined;
@@ -36,9 +40,13 @@ export function createGridPageSize(opts: { track: number; gap: number; rowHeight
     setSize(cols * rows); // multiple of cols → trailing row is always full
   };
 
+  // Server-paged grids (Browse) debounce so a drag-resize doesn't spam the
+  // rate-limited API; client-sliced grids (news) recompute immediately so the
+  // fill follows the window with no visible empty-slot flicker.
   const onResize = () => {
+    if (debounceMs <= 0) { compute(); return; }
     if (settle !== undefined) clearTimeout(settle);
-    settle = window.setTimeout(compute, 300);
+    settle = window.setTimeout(compute, debounceMs);
   };
 
   const setEl = (node: HTMLElement) => {

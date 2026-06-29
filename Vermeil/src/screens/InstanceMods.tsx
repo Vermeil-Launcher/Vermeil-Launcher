@@ -14,7 +14,48 @@ const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
   { value: "updated", label: "Updated" },
 ];
-const BROWSE_PAGE_SIZE = 20;
+/**
+ * Column-aware page size for the server-paged Browse grid. Measures the grid
+ * container and reports `columns × rows`, so each fetched page fills complete
+ * rows with no empty trailing cell. Unlike the old adaptive helper it does NOT
+ * override the grid's CSS template (it only sizes the *fetch*) and recomputes
+ * only after a resize settles — so the layout never jumps. `cols` uses the same
+ * math CSS `auto-fit` uses, so it matches what's actually rendered.
+ */
+function createGridPageSize(opts: { track: number; gap: number; rowHeight: number; maxRows: number }) {
+  const [size, setSize] = createSignal(21);
+  let el: HTMLElement | undefined;
+  let settle: number | undefined;
+  const compute = () => {
+    if (!el) return;
+    const w = el.clientWidth;
+    if (w <= 0) return;
+    const cols = Math.max(1, Math.floor((w + opts.gap) / (opts.track + opts.gap)));
+    const content = el.closest(".content") as HTMLElement | null;
+    let availH = window.innerHeight;
+    if (content) {
+      const top = el.getBoundingClientRect().top - content.getBoundingClientRect().top;
+      availH = content.clientHeight - top;
+    }
+    const rows = Math.min(opts.maxRows, Math.max(1, Math.ceil(availH / (opts.rowHeight + opts.gap))));
+    setSize(cols * rows); // multiple of cols → trailing row is always full
+  };
+  const onResize = () => {
+    if (settle !== undefined) clearTimeout(settle);
+    settle = window.setTimeout(compute, 300);
+  };
+  const setEl = (node: HTMLElement) => {
+    el = node;
+    compute();
+    requestAnimationFrame(compute);
+    const ro = new ResizeObserver(onResize);
+    ro.observe(node);
+    const content = node.closest(".content");
+    if (content) ro.observe(content);
+    onCleanup(() => { ro.disconnect(); if (settle !== undefined) clearTimeout(settle); });
+  };
+  return { setEl, size };
+}
 
 type InstanceTab = "content" | "files" | "worlds" | "logs" | "settings";
 
@@ -80,6 +121,16 @@ const InstanceMods: Component = () => {
   // The draft mirrors the slider while dragging so the GB label updates
   // instantly; the actual save is debounced to avoid instance.json write races.
   const manualMax = (): number => Math.max((systemMemoryMb() || 16384) - 2048, 4096);
+  // Recommended-RAM guidance shown under the manual slider, by allocation tier.
+  const memoryHint = (mb: number): { text: string; color: string } => {
+    if (mb <= 1024) return { text: "Very low — may struggle with vanilla", color: "var(--danger)" };
+    if (mb <= 2048) return { text: "Minimum for vanilla Minecraft", color: "var(--muted)" };
+    if (mb <= 4096) return { text: "Good for vanilla and light modpacks", color: "var(--success)" };
+    if (mb <= 6144) return { text: "Recommended for most modpacks", color: "var(--success)" };
+    if (mb <= 8192) return { text: "Good for large modpacks (100+ mods)", color: "var(--success)" };
+    if (mb <= 12288) return { text: "High — only needed for heavy modpacks", color: "var(--warn)" };
+    return { text: "Very high — may cause GC stuttering", color: "var(--danger)" };
+  };
   const [memoryDraft, setMemoryDraft] = createSignal<number | null>(null);
   const memoryValue = (): number => memoryDraft() ?? instance()?.java.memory_max_mb ?? 4096;
   createEffect(() => {
@@ -216,8 +267,11 @@ const InstanceMods: Component = () => {
   const [totalHits, setTotalHits] = createSignal(0);
   const [currentPage, setCurrentPage] = createSignal(1);
   const [sortBy, setSortBy] = createSignal("relevance");
-  // Browse is server-paged against rate-limited APIs at a fixed page size; the
-  // prev/next pager lives in the floating dock.
+  // Browse is server-paged against rate-limited APIs. The page size tracks the
+  // grid's column count so each page fills complete rows (no empty corner); the
+  // prev/next pager lives in the floating dock. Track 240 + gap 12 match
+  // `--card-track-compact` + `--space-3` so `cols` equals the rendered columns.
+  const browsePageSize = createGridPageSize({ track: 240, gap: 12, rowHeight: 210, maxRows: 5 });
   const [modSource, setModSource] = createSignal<"modrinth" | "curseforge">("modrinth");
   const [installing, setInstalling] = createSignal<string | null>(null);
   const [localInstalled, setLocalInstalled] = createSignal<Set<string>>(new Set());
@@ -461,7 +515,7 @@ const InstanceMods: Component = () => {
     }
   };
 
-  const totalPages = () => Math.max(1, Math.ceil(totalHits() / BROWSE_PAGE_SIZE));
+  const totalPages = () => Math.max(1, Math.ceil(totalHits() / browsePageSize.size()));
 
   // Load files when tab switches
   createEffect(() => {
@@ -495,6 +549,7 @@ const InstanceMods: Component = () => {
   createEffect(() => {
     if (mainTab() === "content" && contentTab() === "browse") {
       browseFilter(); // track category changes
+      browsePageSize.size(); // re-search when the column-aware page size changes (resize)
       if (instance()) {
         setCurrentPage(1);
         doSearch(1);
@@ -583,7 +638,7 @@ const InstanceMods: Component = () => {
     const inst = instance();
     if (!inst) return;
     const p = page || currentPage();
-    const offset = (p - 1) * BROWSE_PAGE_SIZE;
+    const offset = (p - 1) * browsePageSize.size();
     const token = ++searchToken;
     setSearching(true);
     try {
@@ -595,8 +650,8 @@ const InstanceMods: Component = () => {
 
       const source = modSource();
       const result = source === "curseforge"
-        ? await searchCurseforge(searchQuery(), inst.loader.type, version, offset, BROWSE_PAGE_SIZE, sortBy(), filter)
-        : await searchMods(searchQuery(), inst.loader.type, version, offset, BROWSE_PAGE_SIZE, sortBy(), filter);
+        ? await searchCurseforge(searchQuery(), inst.loader.type, version, offset, browsePageSize.size(), sortBy(), filter)
+        : await searchMods(searchQuery(), inst.loader.type, version, offset, browsePageSize.size(), sortBy(), filter);
 
       if (token !== searchToken) return; // superseded by a newer request
       setSearchResults(result.hits);
@@ -1137,6 +1192,9 @@ const InstanceMods: Component = () => {
                   <span style="color:var(--accent);font-weight:600">{(memoryValue() / 1024).toFixed(1).replace('.0', '')} GB</span>
                   <span>{Math.round(manualMax() / 1024)} GB</span>
                 </div>
+                <div style={`font-size:var(--fs-2xs);font-weight:500;margin-top:6px;color:${memoryHint(memoryValue()).color}`}>
+                  {memoryHint(memoryValue()).text}
+                </div>
               </div>
             </Show>
           </div>
@@ -1607,7 +1665,7 @@ const InstanceMods: Component = () => {
               </div>
             </div>
             <div class="browse-results">
-              <div class="card-grid card-grid--compact browse-grid">
+              <div class="card-grid card-grid--compact browse-grid" ref={browsePageSize.setEl}>
               <For each={searchResults()}>
                 {(mod) => (
                   <div class={`mod-card ${selectMode() && selectedItems().has(mod.project_id) ? "mod-item-selected" : ""}`}

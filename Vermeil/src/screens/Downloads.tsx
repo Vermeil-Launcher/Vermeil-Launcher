@@ -36,7 +36,7 @@ const Downloads: Component = () => {
         </Show>
       </div>
       <Show when={history().length > 0} fallback={
-        <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border);text-align:center">
+        <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--surface-panel);border:1px solid var(--border);text-align:center">
           Download history will appear here.
         </div>
       }>

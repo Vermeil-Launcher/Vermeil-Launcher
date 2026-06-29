@@ -220,7 +220,7 @@ const BrowseModpacks: Component = () => {
 
           {/* Confirmation dialog */}
           <Show when={confirmPack()}>
-            <div style="background:var(--bg3);border:1px solid var(--border);padding:12px;margin-bottom:12px">
+            <div style="background:var(--surface-panel);border:1px solid var(--border);padding:12px;margin-bottom:12px">
               <div style="font-size:12px;color:var(--text);margin-bottom:8px">
                 You already have <strong>{getInstallCount(confirmPack()!.project_id)}</strong> instance(s) of <strong>{confirmPack()!.title}</strong>:
               </div>
@@ -233,7 +233,7 @@ const BrowseModpacks: Component = () => {
               </div>
               <div style="display:flex;gap:8px;align-items:center">
                 <button class="install-btn" onClick={() => doInstall(confirmPack()!)}>Install Anyway</button>
-                <button class="btn btn--ghost" style="font-size:11px" onClick={() => setConfirmPack(null)}>Cancel</button>
+                <button class="btn btn--ghost btn--sm" onClick={() => setConfirmPack(null)}>Cancel</button>
               </div>
             </div>
           </Show>

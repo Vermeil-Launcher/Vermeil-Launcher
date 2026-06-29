@@ -238,7 +238,7 @@ const Home: Component = () => {
         {/* Continue section */}
         <div class="section-label">Continue</div>
         <Show when={recentWorlds() && recentWorlds()!.length > 0} fallback={
-          <div style="color:var(--muted);font-size:12px;margin-bottom:24px;padding:14px;background:var(--bg3);border:1px solid var(--border)">
+          <div style="color:var(--muted);font-size:12px;margin-bottom:24px;padding:14px;background:var(--surface-panel);border:1px solid var(--border)">
             No recent worlds. Play a game to see your worlds here.
           </div>
         }>
@@ -317,7 +317,7 @@ const Home: Component = () => {
           </div>
         </div>
         <Show when={news() && news()!.length > 0} fallback={
-          <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--bg3);border:1px solid var(--border)">
+          <div style="color:var(--muted);font-size:12px;padding:14px;background:var(--surface-panel);border:1px solid var(--border)">
             Loading news...
           </div>
         }>

@@ -922,7 +922,7 @@ const InstanceMods: Component = () => {
       }>
       {/* Context bar */}
       <div class="inst-context-bar">
-        <button class="btn btn--ghost" style="padding:3px 7px;font-size:12px" onClick={() => setActiveScreen("library")}>
+        <button class="btn btn--ghost btn--sm" onClick={() => setActiveScreen("library")}>
           <IconArrowLeft />
         </button>
         <span style="font-size:13px;font-weight:600;color:var(--text)">{instance()?.name}</span>
@@ -1165,13 +1165,13 @@ const InstanceMods: Component = () => {
                 <div style="display:flex;gap:8px;align-items:center">
                   <input class="field-control field-control--text" style="max-width:160px;border-color:var(--danger)" placeholder="Type Confirm"
                     onInput={(e) => setDeleteCountdown(e.currentTarget.value === "Confirm" ? 0 : 1)} />
-                  <button class="btn btn--danger" style="font-size:11px" disabled={deleteCountdown() !== 0}
+                  <button class="btn btn--danger btn--sm" disabled={deleteCountdown() !== 0}
                     onClick={async () => { const inst = instance(); if (!inst) return; await deleteInstance(inst.id); await refetchInstances(); refreshPinnedInstanceIds().catch(() => {}); setActiveScreen("library"); }}>Delete</button>
-                  <button class="btn btn--ghost" style="font-size:11px" onClick={() => setDeleteConfirm(false)}>Cancel</button>
+                  <button class="btn btn--ghost btn--sm" onClick={() => setDeleteConfirm(false)}>Cancel</button>
                 </div>
               </div>
             }>
-              <button class="btn btn--danger" style="font-size:11px"
+              <button class="btn btn--danger btn--sm"
                 onClick={async () => {
                   const settings = await getSettings();
                   if (settings.force_delete) {
@@ -1319,7 +1319,7 @@ const InstanceMods: Component = () => {
           </Show>
           <Show when={showBulkDelete()}>
             <div class="bulk-delete-confirm">
-              <div style="font-size:12px;color:#e05252;margin-bottom:8px">
+              <div style="font-size:12px;color:var(--danger);margin-bottom:8px">
                 {(() => {
                   const f = installedFilter();
                   const mods = instance()?.mods || [];
@@ -1331,7 +1331,7 @@ const InstanceMods: Component = () => {
                 })()}
               </div>
               <div style="display:flex;gap:8px">
-                <button class="btn btn--danger" style="font-size:11px" onClick={async () => {
+                <button class="btn btn--danger btn--sm" onClick={async () => {
                   const inst = instance();
                   if (!inst) return;
                   setShowBulkDelete(false);
@@ -1353,7 +1353,7 @@ const InstanceMods: Component = () => {
                     });
                   }
                 }}>Delete</button>
-                <button class="btn btn--ghost" style="font-size:11px" onClick={() => setShowBulkDelete(false)}>Cancel</button>
+                <button class="btn btn--ghost btn--sm" onClick={() => setShowBulkDelete(false)}>Cancel</button>
               </div>
             </div>
           </Show>
@@ -1584,11 +1584,11 @@ const InstanceMods: Component = () => {
                         </Show>
                       </div>
                       <Show when={isModInstalled(mod.project_id)}>
-                        <span class="btn btn--sm" style="font-size:10px;padding:3px 8px">Installed</span>
+                        <span class="btn btn--sm">Installed</span>
                       </Show>
                       <Show when={!isModInstalled(mod.project_id)}>
                         <Show when={selectMode()} fallback={
-                          <button class="btn btn--sm btn--primary" style="font-size:10px;padding:3px 8px" disabled={installing() === mod.project_id} onClick={() => handleInstallMod(mod)}>
+                          <button class="btn btn--sm btn--primary" disabled={installing() === mod.project_id} onClick={() => handleInstallMod(mod)}>
                             {installing() === mod.project_id ? "..." : "+ Install"}
                           </button>
                         }>
@@ -1610,7 +1610,7 @@ const InstanceMods: Component = () => {
                 <button class="btn btn--primary" onClick={handleBulkInstall}>
                   Install {selectedItems().size} items
                 </button>
-                <button class="btn btn--ghost" style="font-size:11px" onClick={() => setSelectedItems(new Map())}>Clear</button>
+                <button class="btn btn--ghost btn--sm" onClick={() => setSelectedItems(new Map())}>Clear</button>
               </div>
             </Show>
           </div>
@@ -1622,12 +1622,12 @@ const InstanceMods: Component = () => {
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
             <Show when={filePath()}>
-              <button class="btn" style="font-size:11px;padding:4px 10px" onClick={navigateUp}>← Back</button>
+              <button class="btn btn--sm" onClick={navigateUp}>← Back</button>
             </Show>
             <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">
               /{filePath() || ""}
             </span>
-            <button class="btn" style="margin-left:auto;font-size:11px;padding:4px 10px" onClick={() => openInstanceFolder(instance()!.id, filePath())}>
+            <button class="btn btn--sm" style="margin-left:auto" onClick={() => openInstanceFolder(instance()!.id, filePath())}>
               Open in Explorer
             </button>
           </div>
@@ -1673,7 +1673,7 @@ const InstanceMods: Component = () => {
                     <div class="mod-name">{world.name}</div>
                     <div class="mod-stats">{world.game_mode} · {world.size_mb} MB</div>
                   </div>
-                  <button class="btn" style="font-size:10px;padding:4px 8px" onClick={() => openInstanceFolder(instance()!.id, `saves/${world.folder_name}`)}>
+                  <button class="btn btn--sm" onClick={() => openInstanceFolder(instance()!.id, `saves/${world.folder_name}`)}>
                     Open
                   </button>
                 </div>

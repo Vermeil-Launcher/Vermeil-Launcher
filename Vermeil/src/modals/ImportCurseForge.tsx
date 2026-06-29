@@ -72,7 +72,7 @@ const ImportCurseForge: Component = () => {
           </div>
 
           <Show when={error()}>
-            <div style="color:#e05252;font-size:11px;margin-top:12px;padding:8px 10px;background:#1a1214;border:1px solid #3a1a1a">
+            <div style="color:var(--danger);font-size:11px;margin-top:12px;padding:8px 10px;background:var(--danger-soft);border:1px solid var(--danger)">
               {error()}
             </div>
           </Show>

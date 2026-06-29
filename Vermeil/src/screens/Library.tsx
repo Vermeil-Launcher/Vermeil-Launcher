@@ -182,7 +182,7 @@ const Library: Component = () => {
 
       {/* Delete confirmation */}
       <Show when={showDeleteConfirm()}>
-        <div style="background:var(--bg3);border:1px solid var(--danger);padding:12px;margin-bottom:12px">
+        <div style="background:var(--surface-panel);border:1px solid var(--danger);padding:12px;margin-bottom:12px">
           <div style="font-size:12px;color:var(--danger);margin-bottom:8px">Delete {selected().size} instance(s)? Type <strong>Confirm</strong> to proceed.</div>
           <div style="display:flex;gap:8px;align-items:center">
             <input class="field-control field-control--text" style="max-width:140px;border-color:var(--danger)" placeholder="Type Confirm" value={deleteInput()} onInput={(e) => setDeleteInput(e.currentTarget.value)} />

@@ -14,10 +14,12 @@
 //! authors themselves recommend, which is well inside the slack from world
 //! state, render distance, and exploration patterns.
 //!
-//! Allocation is always on: the formula's target is clamped to the user's
+//! Adaptive is the default: the formula's target is clamped to the user's
 //! configured maximum (Settings → Resources) and a system-derived minimum.
-//! `LauncherSettings::adaptive_ram` and `JavaConfig::adaptive_override` are
-//! retained for settings-file compatibility but no longer gate the result.
+//! Per instance, `JavaConfig::adaptive_override` turns adaptive off and uses
+//! the manual `memory_max_mb` value verbatim. The legacy global
+//! `LauncherSettings::adaptive_ram` flag is retained for settings-file
+//! compatibility but no longer gates the result.
 
 use crate::models::instance::{Instance, LoaderType};
 use crate::models::settings::LauncherSettings;
@@ -42,8 +44,9 @@ pub struct EffectiveMemory {
     pub min_mb: u32,
     pub max_mb: u32,
     pub capped: bool,
-    /// Always `true` now — adaptive allocation is unconditional. Retained so
-    /// the IPC shape stays stable for the frontend.
+    /// Always `true` unless this instance turned adaptive off
+    /// (`JavaConfig::adaptive_override`), in which case `value_mb ==
+    /// instance.java.memory_max_mb` and the UI shows the manual slider.
     pub adaptive_active: bool,
     pub breakdown: Vec<MemoryBreakdown>,
 }
@@ -217,11 +220,16 @@ pub fn resolve(instance: &Instance, settings: &LauncherSettings, system_mb: u32)
     // well-defined.
     let min_mb = min_mb.min(max_mb);
 
-    // Adaptive allocation is always on (the manual toggle + per-instance
-    // override UI were removed). Memory is the formula's target, clamped to
-    // the user's configured max (Settings → Resources).
-    let value_mb = target.clamp(min_mb, max_mb);
-    let capped = value_mb < target;
+    // Per-instance opt-out: when an instance turns adaptive RAM off
+    // (`adaptive_override`), use its manual `memory_max_mb` verbatim. Otherwise
+    // the formula's target, clamped to the user's global max.
+    let adaptive_active = !instance.java.adaptive_override;
+    let value_mb = if adaptive_active {
+        target.clamp(min_mb, max_mb)
+    } else {
+        instance.java.memory_max_mb
+    };
+    let capped = adaptive_active && value_mb < target;
 
     EffectiveMemory {
         value_mb,
@@ -229,7 +237,7 @@ pub fn resolve(instance: &Instance, settings: &LauncherSettings, system_mb: u32)
         min_mb,
         max_mb,
         capped,
-        adaptive_active: true,
+        adaptive_active,
         breakdown,
     }
 }

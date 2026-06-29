@@ -1,10 +1,10 @@
-import { Component, createSignal, createEffect, For, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createEffect, createResource, For, Show, onMount, onCleanup } from "solid-js";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { contentVersion } from "../lib/contentVersion";
 import { loaderBadgeClass, loaderLabel } from "../lib/loader";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getSystemMemory, getEffectiveMemory, EffectiveMemory, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -59,10 +59,12 @@ function firstAvailableCategory(loader: string): "mod" | "resourcepack" | "shade
 const InstanceMods: Component = () => {
   const [mainTab, setMainTab] = createSignal<InstanceTab>(initialInstanceTab() as InstanceTab || "content");
 
-  // Per-instance memory is allocated automatically (services/memory.rs) and
-  // shown read-only on the Settings tab. `effectiveMemory` holds the resolved
-  // value + the formula breakdown for display; the cap lives in Settings →
-  // Resources. Refreshed on tab/instance change and after mod install/remove.
+  // Per-instance memory. Adaptive by default (services/memory.rs); an instance
+  // can opt out via `java.adaptive_override` and set RAM manually. `effectiveMemory`
+  // holds the resolved value + formula breakdown for the read-only display; the
+  // adaptive cap lives in Settings → Resources. Refreshed on tab/instance change
+  // and after mod install/remove.
+  const [systemMemoryMb] = createResource(getSystemMemory);
   const [effectiveMemory, setEffectiveMemory] = createSignal<EffectiveMemory | null>(null);
   const refreshAdaptive = async () => {
     const id = activeInstanceId();
@@ -71,6 +73,44 @@ const InstanceMods: Component = () => {
       setEffectiveMemory(await getEffectiveMemory(id));
     } catch {
       // Best-effort — leave the previous value.
+    }
+  };
+
+  // Manual-memory slider state (used when an instance turns adaptive off).
+  // The draft mirrors the slider while dragging so the GB label updates
+  // instantly; the actual save is debounced to avoid instance.json write races.
+  const manualMax = (): number => Math.max((systemMemoryMb() || 16384) - 2048, 4096);
+  const [memoryDraft, setMemoryDraft] = createSignal<number | null>(null);
+  const memoryValue = (): number => memoryDraft() ?? instance()?.java.memory_max_mb ?? 4096;
+  createEffect(() => {
+    const inst = instance();
+    const draft = memoryDraft();
+    if (inst && draft !== null && inst.java.memory_max_mb === draft) setMemoryDraft(null);
+  });
+  let memorySaveTimer: number | undefined;
+  const commitMemory = (instanceId: string, mb: number) => {
+    if (memorySaveTimer !== undefined) clearTimeout(memorySaveTimer);
+    memorySaveTimer = window.setTimeout(() => {
+      memorySaveTimer = undefined;
+      updateInstanceOptions(instanceId, { memoryMaxMb: mb })
+        .then(() => refetchInstances())
+        .catch((err) => showToast({ title: "Failed to save memory", message: String(err), type: "error" }));
+    }, 200);
+  };
+  // Flip adaptive on/off for this instance. When turning manual ON for the
+  // first time, seed `memory_max_mb` from the current adaptive value so the
+  // slider starts at a sensible spot instead of a stale default.
+  const toggleAdaptive = async () => {
+    const inst = instance();
+    if (!inst) return;
+    const turningOff = !inst.java.adaptive_override; // currently adaptive → going manual
+    try {
+      const seed = turningOff ? (effectiveMemory()?.value_mb ?? inst.java.memory_max_mb) : undefined;
+      await updateInstanceOptions(inst.id, { adaptiveOverride: turningOff, ...(seed ? { memoryMaxMb: seed } : {}) });
+      await refetchInstances();
+      await refreshAdaptive();
+    } catch (e) {
+      showToast({ title: "Failed to change memory mode", message: String(e), type: "error" });
     }
   };
 
@@ -1036,30 +1076,69 @@ const InstanceMods: Component = () => {
             </div>
           </div>
 
-          {/* Memory — allocated automatically per instance (see
-              services/memory.rs), clamped to the global Maximum RAM in
-              Settings → Resources. Read-only here. */}
+          {/* Memory — automatic by default (formula-derived, clamped to the
+              global Maximum RAM in Settings → Resources). Turn "Automatic" off
+              to set this instance's RAM manually. */}
           <div class="settings-group" style="margin-bottom:16px">
             <div class="settings-row">
               <div>
-                <div class="settings-key">Memory</div>
-                <div class="settings-val">Allocated automatically for this instance</div>
+                <div class="settings-key">Automatic memory</div>
+                <div class="settings-val">Allocate RAM automatically based on this pack</div>
               </div>
-              <Show when={effectiveMemory()} fallback={<span class="settings-val">—</span>}>
-                {(em) => (
-                  <div style="text-align:right">
-                    <div style="font-family:var(--font-mono);font-size:var(--fs-lg);color:var(--text)">
-                      {(em().value_mb / 1024).toFixed(1).replace('.0', '')} GB
-                    </div>
-                    <Show when={em().capped}>
-                      <div style="font-size:var(--fs-2xs);color:var(--warn);margin-top:2px">
-                        capped at your max · pack suggests {(em().target_mb / 1024).toFixed(1).replace('.0', '')} GB
-                      </div>
-                    </Show>
-                  </div>
-                )}
-              </Show>
+              <div
+                class={`toggle ${!instance()?.java.adaptive_override ? "on" : ""}`}
+                style="transform:scale(0.8)"
+                onClick={toggleAdaptive}
+              />
             </div>
+            <Show
+              when={instance()?.java.adaptive_override}
+              fallback={
+                <div class="settings-row" style="margin-top:10px">
+                  <div class="settings-val">Allocated</div>
+                  <Show when={effectiveMemory()} fallback={<span class="settings-val">—</span>}>
+                    {(em) => (
+                      <div style="text-align:right">
+                        <div style="font-family:var(--font-mono);font-size:var(--fs-lg);color:var(--text)">
+                          {(em().value_mb / 1024).toFixed(1).replace('.0', '')} GB
+                        </div>
+                        <Show when={em().capped}>
+                          <div style="font-size:var(--fs-2xs);color:var(--warn);margin-top:2px">
+                            capped at your max · pack suggests {(em().target_mb / 1024).toFixed(1).replace('.0', '')} GB
+                          </div>
+                        </Show>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              }
+            >
+              {/* Manual slider — shown only when this instance opted out. */}
+              <div style="margin-top:12px">
+                <input
+                  type="range"
+                  class="slider"
+                  min={512}
+                  max={manualMax()}
+                  step={256}
+                  value={memoryValue()}
+                  style={{ "--slider-pct": `${((memoryValue() - 512) / (manualMax() - 512)) * 100}%` }}
+                  onInput={(e) => {
+                    const inst = instance();
+                    if (!inst) return;
+                    const snapped = Math.max(512, Math.round(parseInt(e.currentTarget.value) / 256) * 256);
+                    e.currentTarget.style.setProperty("--slider-pct", `${((snapped - 512) / (manualMax() - 512)) * 100}%`);
+                    setMemoryDraft(snapped);
+                    commitMemory(inst.id, snapped);
+                  }}
+                />
+                <div style="display:flex;justify-content:space-between;font-size:var(--fs-2xs);color:var(--muted);margin-top:4px">
+                  <span>512 MB</span>
+                  <span style="color:var(--accent);font-weight:600">{(memoryValue() / 1024).toFixed(1).replace('.0', '')} GB</span>
+                  <span>{Math.round(manualMax() / 1024)} GB</span>
+                </div>
+              </div>
+            </Show>
           </div>
 
           {/* Java arguments — single editable code-editor panel.

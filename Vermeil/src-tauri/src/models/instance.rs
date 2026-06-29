@@ -37,12 +37,10 @@ pub struct JavaConfig {
     pub memory_max_mb: u32,
     pub memory_min_mb: u32,
     pub extra_args: Vec<String>,
-    /// Per-instance opt-out for global adaptive RAM. When `true`, the launcher
-    /// ignores `LauncherSettings::adaptive_ram` for this instance and uses the
-    /// stored `memory_max_mb` slider value instead. Set by the per-instance
-    /// "Override for this instance" link in the Settings tab — useful when a
-    /// user wants to push past the global adaptive max for one heavy session
-    /// without flipping the global toggle.
+    /// Per-instance opt-out for adaptive RAM. **Retained for settings-file
+    /// compatibility only** — adaptive allocation is now unconditional (see
+    /// `services::memory`), so this field no longer affects the launch heap.
+    /// Kept so older `instance.json` files still parse.
     #[serde(default)]
     pub adaptive_override: bool,
 }

@@ -259,18 +259,6 @@ const Settings: Component = () => {
     const aligned = Math.floor(Math.floor(usable * pct) / 256) * 256;
     return Math.max(1024, Math.min(aligned, 16384));
   };
-  const adaptiveDefaultMin = (systemMb: number): number => {
-    const max = adaptiveDefaultMax(systemMb);
-    const aligned = Math.floor(Math.floor(max * 0.40) / 256) * 256;
-    return Math.max(1024, Math.min(aligned, 4096));
-  };
-
-  /** Current effective max for the adaptive bounds — user-set value, or the
-   *  system-derived default when the stored value is the `0` sentinel. */
-  const adaptiveMax = (): number => {
-    const stored = settings()?.adaptive_ram_max_mb ?? 0;
-    return stored > 0 ? stored : adaptiveDefaultMax(systemMemoryMb() || 0);
-  };
 
   /** Format MB as "X.X GB" matching the rest of the launcher's memory text. */
   const formatMemoryGb = (mb: number): string => {
@@ -278,13 +266,6 @@ const Settings: Component = () => {
     return `${gb.toFixed(gb < 10 ? 1 : 0).replace(/\.0$/, "")} GB`;
   };
 
-  /** Toggle the master adaptive switch. The explanation now lives as
-   *  always-visible copy in the Memory section, so no intro toast fires. */
-  const handleAdaptiveToggle = async () => {
-    const s = settings();
-    if (!s) return;
-    await updateSetting("adaptive_ram", !s.adaptive_ram);
-  };
   const updateSetting = async <K extends keyof LauncherSettings>(key: K, value: LauncherSettings[K]) => {
     const current = settings();
     if (!current) return;
@@ -921,70 +902,21 @@ const Settings: Component = () => {
             </Show>
           </div>
 
-          {/* Memory section — adaptive RAM allocation. Lives here in Global
-              Instance because it's a per-instance behaviour control: every
-              instance's `-Xmx` is computed from this when adaptive is on.
-              The min/max dropdowns stay visible even with the toggle off so
-              users can pre-configure their preferred bounds before flipping
-              the switch (and so they understand the effect before opting in). */}
+          {/* Memory section. Memory is allocated automatically per instance
+              (services/memory.rs) from the pack's loader, mod count, and
+              content; this single control caps how high that can go. */}
           <div class="settings-section">
             <div class="section-label" style="margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Memory</div>
-            {/* Always-visible explanation of what adaptive RAM does. This
-                replaces the old one-time intro toast so the behaviour stays
-                discoverable every time the user visits Settings. References
-                the live cap so the copy reflects the current bounds. */}
             <div class="settings-val" style="margin-bottom:10px;line-height:1.5">
-              Memory is allocated <span style="color:var(--accent)">automatically</span> as each instance needs it, up to <span style="color:var(--accent)">{formatMemoryGb(adaptiveMax())}</span>. Disable to set it <span style="color:var(--accent)">manually per instance</span>.
+              Memory is allocated <span style="color:var(--accent)">automatically</span> for each instance based on its pack, up to the maximum below.
             </div>
             <div class="vs-grid">
-              {/* Adaptive toggle */}
-              <div class="vs-cell">
-                <div class="vs-key">Adaptive RAM</div>
-                <div style="flex:1" />
-                <div
-                  class={`toggle ${settings()!.adaptive_ram ? "on" : ""}`}
-                  onClick={handleAdaptiveToggle}
-                />
-              </div>
-
-              {/* Minimum RAM dropdown. Greyed out when adaptive RAM is off,
-                  since the bounds only apply to the automatic allocator. The
-                  Auto label shows the system-derived default so users know
-                  what the sentinel value resolves to. */}
-              <div class="vs-cell">
-                <div class="vs-key">Minimum RAM</div>
-                <div style="flex:1" />
-                <Dropdown
-                  disabled={!settings()!.adaptive_ram}
-                  value={String(settings()!.adaptive_ram_min_mb || 0)}
-                  options={(() => {
-                    const sysMb = systemMemoryMb() || 0;
-                    const auto = adaptiveDefaultMin(sysMb);
-                    return [
-                      { value: "0", label: `Auto (${formatMemoryGb(auto)})` },
-                      { value: "1024", label: "1 GB" },
-                      { value: "1536", label: "1.5 GB" },
-                      { value: "2048", label: "2 GB" },
-                      { value: "2560", label: "2.5 GB" },
-                      { value: "3072", label: "3 GB" },
-                      { value: "4096", label: "4 GB" },
-                    ];
-                  })()}
-                  onChange={(val) => {
-                    updateSetting("adaptive_ram_min_mb", parseInt(val) || 0);
-                  }}
-                />
-              </div>
-
-              {/* Maximum RAM dropdown. Greyed out when adaptive RAM is off.
-                  Capped at 16 GB to keep G1GC pause times healthy; users on
-                  big-memory systems with ZGC can override per-instance via
-                  the in-instance Override link. */}
+              {/* Maximum RAM cap. Capped at 16 GB to keep G1GC pause times
+                  healthy. Auto resolves to a system-RAM-derived default. */}
               <div class="vs-cell">
                 <div class="vs-key">Maximum RAM</div>
                 <div style="flex:1" />
                 <Dropdown
-                  disabled={!settings()!.adaptive_ram}
                   value={String(settings()!.adaptive_ram_max_mb || 0)}
                   options={(() => {
                     const sysMb = systemMemoryMb() || 0;
@@ -1053,7 +985,6 @@ const Settings: Component = () => {
                           </div>
                           <div class="inst-card-badges">
                             <span class={`badge badge--loader ${badgeClass}`}>{loaderLabel}</span>
-                            <span class="badge">{inst.java.memory_max_mb} MB</span>
                             <Show when={inst.ingame_cape_supported}>
                               <span class="badge badge--companion" title="Vermeil companion mod supported">
                                 <img src="/logo.png" alt="Vermeil" draggable={false} />

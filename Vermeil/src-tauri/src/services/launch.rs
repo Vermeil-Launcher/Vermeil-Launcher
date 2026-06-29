@@ -1099,11 +1099,9 @@ pub async fn launch(instance: &Instance, username: &str, uuid: &str, access_toke
     // Done once here rather than at each use site to avoid redundant I/O.
     let global_settings = crate::services::settings_service::load().await.ok();
 
-    // Memory settings first (can be overridden by version args if needed).
-    // When global adaptive RAM is on (and the instance hasn't opted out via
-    // `adaptive_override`), we replace the slider's `memory_max_mb` with a
-    // formula-derived value scaled to mod count + loader. -Xms still tracks
-    // the slider so the JVM has a sane initial heap.
+    // Memory: the per-instance `-Xmx` is computed by the adaptive formula
+    // (scaled to mod count + loader) and clamped to the user's global max.
+    // -Xms tracks the stored min so the JVM has a sane initial heap.
     let effective = global_settings.as_ref().map(|s| {
         crate::services::memory::resolve(
             instance,

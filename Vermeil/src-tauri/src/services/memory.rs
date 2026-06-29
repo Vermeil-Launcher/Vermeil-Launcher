@@ -1,7 +1,6 @@
 //! Adaptive RAM allocation.
 //!
-//! When the user enables `LauncherSettings::adaptive_ram`, the launcher picks
-//! a `-Xmx` per instance from a tiered formula based on:
+//! The launcher picks a `-Xmx` per instance from a tiered formula based on:
 //!
 //!   - Game-version baseline (1.21+ chunk renderer is heavier than 1.20-)
 //!   - Loader (Forge/NeoForge cost more heap than Fabric/Quilt at runtime)
@@ -15,10 +14,10 @@
 //! authors themselves recommend, which is well inside the slack from world
 //! state, render distance, and exploration patterns.
 //!
-//! Per-instance overrides: `JavaConfig::adaptive_override == true` makes the
-//! launcher ignore the global toggle for that instance and use the manual
-//! `memory_max_mb` slider value verbatim — escape hatch for users who need
-//! to push past the global cap for one heavy session.
+//! Allocation is always on: the formula's target is clamped to the user's
+//! configured maximum (Settings → Resources) and a system-derived minimum.
+//! `LauncherSettings::adaptive_ram` and `JavaConfig::adaptive_override` are
+//! retained for settings-file compatibility but no longer gate the result.
 
 use crate::models::instance::{Instance, LoaderType};
 use crate::models::settings::LauncherSettings;
@@ -43,9 +42,8 @@ pub struct EffectiveMemory {
     pub min_mb: u32,
     pub max_mb: u32,
     pub capped: bool,
-    /// `true` only when global adaptive is on AND the per-instance override
-    /// is off. When `false`, `value_mb == instance.java.memory_max_mb` and
-    /// the UI keeps the slider editable as before.
+    /// Always `true` now — adaptive allocation is unconditional. Retained so
+    /// the IPC shape stays stable for the frontend.
     pub adaptive_active: bool,
     pub breakdown: Vec<MemoryBreakdown>,
 }
@@ -202,8 +200,6 @@ fn compute_target(instance: &Instance) -> (u32, Vec<MemoryBreakdown>) {
 /// pass a sane fallback like 8192 — `default_max_for_system` will keep the
 /// numbers conservative.
 pub fn resolve(instance: &Instance, settings: &LauncherSettings, system_mb: u32) -> EffectiveMemory {
-    let adaptive_active = settings.adaptive_ram && !instance.java.adaptive_override;
-
     let (target, breakdown) = compute_target(instance);
 
     let min_mb = if settings.adaptive_ram_min_mb == 0 {
@@ -221,12 +217,11 @@ pub fn resolve(instance: &Instance, settings: &LauncherSettings, system_mb: u32)
     // well-defined.
     let min_mb = min_mb.min(max_mb);
 
-    let value_mb = if adaptive_active {
-        target.clamp(min_mb, max_mb)
-    } else {
-        instance.java.memory_max_mb
-    };
-    let capped = adaptive_active && value_mb < target;
+    // Adaptive allocation is always on (the manual toggle + per-instance
+    // override UI were removed). Memory is the formula's target, clamped to
+    // the user's configured max (Settings → Resources).
+    let value_mb = target.clamp(min_mb, max_mb);
+    let capped = value_mb < target;
 
     EffectiveMemory {
         value_mb,
@@ -234,7 +229,7 @@ pub fn resolve(instance: &Instance, settings: &LauncherSettings, system_mb: u32)
         min_mb,
         max_mb,
         capped,
-        adaptive_active,
+        adaptive_active: true,
         breakdown,
     }
 }

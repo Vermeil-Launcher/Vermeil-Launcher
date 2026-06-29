@@ -1,9 +1,9 @@
-import { Component, createSignal, createEffect, createResource, For, Show, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createEffect, For, Show, onMount, onCleanup } from "solid-js";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { setActiveScreen, instances, activeInstanceId, refetchInstances, refreshPinnedInstanceIds, initialInstanceTab, gameRunning, trackDownload, completeDownload, failDownload, startBulkBatch, endBulkBatch, showToast, gameLogsFor, setDockHidden, setDockPagination, logsPoppedOut } from "../App";
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { contentVersion } from "../lib/contentVersion";
-import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, getSystemMemory, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, LauncherSettings, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
+import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getEffectiveMemory, EffectiveMemory, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
 const SORT_OPTIONS = [
@@ -57,44 +57,22 @@ function firstAvailableCategory(loader: string): "mod" | "resourcepack" | "shade
 
 const InstanceMods: Component = () => {
   const [mainTab, setMainTab] = createSignal<InstanceTab>(initialInstanceTab() as InstanceTab || "content");
-  const [systemMemoryMb] = createResource(getSystemMemory);
 
-  // Adaptive RAM state. Pulled from the global settings + a backend
-  // resolution call that returns the per-instance breakdown. Kept in
-  // signals (not a resource) because the settings tab refetches it on
-  // every open + after mod install/remove, and we want the read-only
-  // display to update without a stale-cache window.
-  const [adaptiveSettings, setAdaptiveSettings] = createSignal<LauncherSettings | null>(null);
+  // Per-instance memory is allocated automatically (services/memory.rs) and
+  // shown read-only on the Settings tab. `effectiveMemory` holds the resolved
+  // value + the formula breakdown for display; the cap lives in Settings →
+  // Resources. Refreshed on tab/instance change and after mod install/remove.
   const [effectiveMemory, setEffectiveMemory] = createSignal<EffectiveMemory | null>(null);
   const refreshAdaptive = async () => {
     const id = activeInstanceId();
     if (!id) return;
     try {
-      const [s, em] = await Promise.all([getSettings(), getEffectiveMemory(id)]);
-      setAdaptiveSettings(s);
-      setEffectiveMemory(em);
+      setEffectiveMemory(await getEffectiveMemory(id));
     } catch {
-      // Best-effort — leave previous values, slider falls back to manual mode.
+      // Best-effort — leave the previous value.
     }
   };
 
-  // Memory hint based on allocation amount
-  const memoryHintText = (mb: number) => {
-    if (mb <= 1024) return "Very low — may struggle with vanilla";
-    if (mb <= 2048) return "Minimum for vanilla Minecraft";
-    if (mb <= 4096) return "Good for vanilla and light modpacks";
-    if (mb <= 6144) return "Recommended for most modpacks";
-    if (mb <= 8192) return "Good for large modpacks (100+ mods)";
-    if (mb <= 12288) return "High — only needed for heavy modpacks";
-    return "Very high — may cause GC stuttering";
-  };
-  const memoryHintLevel = (mb: number): string => {
-    if (mb <= 1024) return "warn";
-    if (mb <= 2048) return "low";
-    if (mb <= 8192) return "good";
-    if (mb <= 12288) return "high";
-    return "warn";
-  };
 
   // React to external tab change requests (e.g., from Home settings button)
   createEffect(() => {
@@ -276,42 +254,6 @@ const InstanceMods: Component = () => {
     if (!id) return;
     syncInstanceMods(id).then(() => refetchInstances()).catch(() => {});
   });
-
-  // Optimistic local mirror of the per-instance memory value so the slider
-  // label and fill update synchronously while the user drags. Without this
-  // the displayed "X.Y GB" lags the thumb because the read source
-  // (`instance().java.memory_max_mb`) only refreshes after the IPC save
-  // round-trip + refetchInstances() completes.
-  const [memoryDraft, setMemoryDraft] = createSignal<number | null>(null);
-  const memoryValue = (): number => memoryDraft() ?? instance()?.java.memory_max_mb ?? 4096;
-  // Clear the draft once the resource catches up so external changes are
-  // reflected eventually. (The resource always re-reads on refetch.)
-  createEffect(() => {
-    const inst = instance();
-    const draft = memoryDraft();
-    if (inst && draft !== null && inst.java.memory_max_mb === draft) {
-      setMemoryDraft(null);
-    }
-  });
-
-  // Debounced save for the memory slider. Firing IPC on every drag tick
-  // (~30/sec) caused concurrent read-modify-write races on instance.json,
-  // surfacing as "EOF while parsing" toasts. Now we only persist after
-  // the user pauses dragging — the visual updates instantly via the draft
-  // signal, save fires once when the drag settles.
-  let memorySaveTimer: number | undefined;
-  const commitMemory = (instanceId: string, mb: number) => {
-    if (memorySaveTimer !== undefined) clearTimeout(memorySaveTimer);
-    memorySaveTimer = window.setTimeout(() => {
-      memorySaveTimer = undefined;
-      updateInstanceOptions(instanceId, { memoryMaxMb: mb })
-        .then(() => refetchInstances())
-        .catch((err) => {
-          console.error("Save memory failed:", err);
-          showToast({ title: "Failed to save memory setting", message: String(err), type: "error" });
-        });
-    }, 200);
-  };
 
   // Java args editor. Displays the effective GC flags in an editable
   // textarea. If the user has custom `extra_args` saved, those are shown.
@@ -1093,164 +1035,29 @@ const InstanceMods: Component = () => {
             </div>
           </div>
 
-          {/* Memory.
-              When global adaptive RAM is on (and this instance hasn't opted
-              out via `java.adaptive_override`), the slider is read-only and
-              the value comes from the formula; users see a breakdown tooltip
-              and a one-click escape hatch to override per-instance. When
-              adaptive is off (or overridden), the slider is fully editable
-              as before. */}
+          {/* Memory — allocated automatically per instance (see
+              services/memory.rs), clamped to the global Maximum RAM in
+              Settings → Resources. Read-only here. */}
           <div class="settings-group" style="margin-bottom:16px">
             <div class="settings-row">
               <div>
-                <div class="settings-key">Memory allocated</div>
-                <div class="settings-val">RAM assigned to this instance</div>
+                <div class="settings-key">Memory</div>
+                <div class="settings-val">Allocated automatically for this instance</div>
               </div>
-              <div class="memory-slider-wrap">
-                {(() => {
-                  const em = effectiveMemory();
-                  const adaptiveActive = em?.adaptive_active === true;
-                  const max = Math.max((systemMemoryMb() || 16384) - 2048, 4096);
-                  const displayedMb = adaptiveActive
-                    ? (em?.value_mb ?? memoryValue())
-                    : memoryValue();
-
-                  return (
-                    <>
-                      <div class="memory-slider-track-wrap">
-                        <div class="memory-slider-dots">
-                          {(() => {
-                            const dots = [];
-                            for (let gb = 4096; gb <= max; gb += 4096) {
-                              const pct = ((gb - 512) / (max - 512)) * 100;
-                              dots.push(
-                                <div
-                                  class="memory-dot"
-                                  classList={{ filled: gb <= displayedMb }}
-                                  style={{ left: `${pct}%` }}
-                                />
-                              );
-                            }
-                            return dots;
-                          })()}
-                        </div>
-                        <input
-                          type="range"
-                          class="memory-slider"
-                          min={512}
-                          max={max}
-                          step={256}
-                          disabled={adaptiveActive}
-                          value={displayedMb}
-                          style={{
-                            "--slider-pct": `${((displayedMb - 512) / (max - 512)) * 100}%`,
-                            "opacity": adaptiveActive ? "0.5" : undefined,
-                            "cursor": adaptiveActive ? "not-allowed" : undefined,
-                          }}
-                          title={adaptiveActive ? "Adaptive RAM is on. Override for this instance to edit." : undefined}
-                          onInput={(e) => {
-                            if (adaptiveActive) return;
-                            const inst = instance();
-                            if (!inst) return;
-                            const val = parseInt(e.currentTarget.value);
-                            const snapped = Math.round(val / 512) * 512 || 512;
-                            e.currentTarget.value = String(snapped);
-                            e.currentTarget.style.setProperty('--slider-pct', `${((snapped - 512) / (max - 512)) * 100}%`);
-                            setMemoryDraft(snapped);
-                            commitMemory(inst.id, snapped);
-                          }}
-                        />
+              <Show when={effectiveMemory()} fallback={<span class="settings-val">—</span>}>
+                {(em) => (
+                  <div style="text-align:right">
+                    <div style="font-family:var(--font-mono);font-size:var(--fs-lg);color:var(--text)">
+                      {(em().value_mb / 1024).toFixed(1).replace('.0', '')} GB
+                    </div>
+                    <Show when={em().capped}>
+                      <div style="font-size:var(--fs-2xs);color:var(--warn);margin-top:2px">
+                        capped at your max · pack suggests {(em().target_mb / 1024).toFixed(1).replace('.0', '')} GB
                       </div>
-                      <div class="memory-slider-labels">
-                        <span>512 MB</span>
-                        <span class="memory-slider-value">{(displayedMb / 1024).toFixed(1).replace('.0', '')} GB</span>
-                        <span>{Math.round(max / 1024)} GB</span>
-                      </div>
-
-                      {/* Adaptive read-out: replaces the manual hint with a
-                          breakdown tooltip when adaptive owns the value.
-                          Tooltip uses the new `.tip-breakdown` variant —
-                          same color tokens as the rest of the launcher with
-                          an accent left stripe to cue "structured info". */}
-                      <Show when={adaptiveActive && em} fallback={
-                        <div class={`memory-hint ${memoryHintLevel(displayedMb)}`}>
-                          {memoryHintText(displayedMb)}
-                        </div>
-                      }>
-                        <div class="memory-adaptive-readout">
-                          <span
-                            class="tip-below tip-breakdown"
-                            data-tip={(() => {
-                              const lines = em!.breakdown.map(b => {
-                                const gb = (b.value_mb / 1024).toFixed(b.value_mb < 1024 ? 2 : 1).replace(/\.?0+$/, "");
-                                return `${gb} GB · ${b.label}`;
-                              });
-                              lines.push("———");
-                              const totalGb = (em!.target_mb / 1024).toFixed(1).replace(/\.0$/, "");
-                              lines.push(`${totalGb} GB target`);
-                              if (em!.capped) {
-                                const cappedGb = (em!.value_mb / 1024).toFixed(1).replace(/\.0$/, "");
-                                lines.push(`Capped to ${cappedGb} GB by user max`);
-                              }
-                              return lines.join("\n");
-                            })()}
-                          >
-                            Adaptive: {(em!.value_mb / 1024).toFixed(1).replace('.0', '')} GB
-                          </span>
-                          <Show when={em!.capped}>
-                            <span class="memory-adaptive-warn">
-                              · capped (pack suggests {(em!.target_mb / 1024).toFixed(1).replace('.0', '')} GB)
-                            </span>
-                          </Show>
-                          <button
-                            class="memory-adaptive-override-btn"
-                            title="Disable adaptive RAM for this instance and edit manually"
-                            onClick={async () => {
-                              const inst = instance();
-                              if (!inst) return;
-                              try {
-                                await updateInstanceOptions(inst.id, { adaptiveOverride: true });
-                                await refetchInstances();
-                                await refreshAdaptive();
-                              } catch (e) {
-                                showToast({ title: "Override failed", message: String(e), type: "error" });
-                              }
-                            }}
-                          >
-                            Override for this instance
-                          </button>
-                        </div>
-                      </Show>
-
-                      {/* When adaptive is ON globally but this instance has
-                          opted out, surface a small banner so the user knows
-                          why they're back on the manual slider — and can
-                          flip back to adaptive in one click. */}
-                      <Show when={!adaptiveActive && adaptiveSettings()?.adaptive_ram && instance()?.java.adaptive_override}>
-                        <div class="memory-adaptive-overridden">
-                          Adaptive RAM is bypassed for this instance.
-                          <button
-                            class="memory-adaptive-override-btn"
-                            onClick={async () => {
-                              const inst = instance();
-                              if (!inst) return;
-                              try {
-                                await updateInstanceOptions(inst.id, { adaptiveOverride: false });
-                                await refetchInstances();
-                                await refreshAdaptive();
-                              } catch (e) {
-                                showToast({ title: "Resume failed", message: String(e), type: "error" });
-                              }
-                            }}
-                          >
-                            Resume adaptive
-                          </button>
-                        </div>
-                      </Show>
-                    </>
-                  );
-                })()}
-              </div>
+                    </Show>
+                  </div>
+                )}
+              </Show>
             </div>
           </div>
 

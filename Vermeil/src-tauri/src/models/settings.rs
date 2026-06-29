@@ -68,11 +68,9 @@ pub struct LauncherSettings {
     #[serde(default)]
     pub keybinds: HashMap<String, String>,
 
-    /// Adaptive RAM allocation. When `true`, the launcher computes a per-
-    /// instance `-Xmx` from mod count, loader, and content categories instead
-    /// of using `instance.java.memory_max_mb`. Each instance can opt out via
-    /// `JavaConfig::adaptive_override`. Defaults to `false` so existing users
-    /// see no behavioural change.
+    /// Adaptive RAM allocation. **Retained for settings-file compatibility
+    /// only** — allocation is now always adaptive (see `services::memory`),
+    /// so this flag no longer gates behaviour. Old configs still parse.
     #[serde(default)]
     pub adaptive_ram: bool,
     /// Minimum bound for adaptive allocation (MB). The formula's clamped

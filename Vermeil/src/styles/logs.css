@@ -218,9 +218,5 @@
 .article-body a:hover { text-decoration: underline; }
 
 
-/* News grid (Home) — locked to a 4-column layout regardless of window width
-   so the section always reads as a clean 4×2 block (8 cards = exactly two
-   rows). Cards stretch with `1fr` to fill the row evenly. */
-.news-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-}
+/* News grid (Home) reflows via the canonical .card-grid (auto-fit) — no
+   bespoke column override. */

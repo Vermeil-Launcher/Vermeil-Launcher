@@ -336,7 +336,7 @@ const Home: Component = () => {
             Loading news...
           </div>
         }>
-          <div class="card-grid news-grid">
+          <div class="card-grid">
             <For each={visibleNews()}>
               {(article) => (
                 <div class="card card--media" style="cursor:pointer" onClick={() => openArticle(article)}>

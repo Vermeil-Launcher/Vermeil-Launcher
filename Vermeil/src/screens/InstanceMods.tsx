@@ -13,65 +13,7 @@ const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
   { value: "updated", label: "Updated" },
 ];
-const VIEW_OPTIONS = [24, 48, 96];
-
-/**
- * Adaptive grid page size. Measures the grid container's width and the visible
- * height below it (inside the scrolling `.content` viewport), then reports how
- * many compact cards fill that area plus a one-row buffer — so the grid is
- * always full and never leaves a dead band on large windows.
- *
- *   - `live: true`  → recompute on every resize (client-side grids; free).
- *   - `live: false` → recompute only after the resize settles (server-paged
- *                     grids, so we don't refetch the rate-limited API on every
- *                     pixel of a drag).
- */
-function createAdaptiveCount(opts: { trackMin: number; rowHeight: number; gap: number; maxCols: number; maxRows: number; min: number; live: boolean }) {
-  const [count, setCount] = createSignal(opts.min);
-  let el: HTMLElement | undefined;
-  let settle: number | undefined;
-
-  const compute = () => {
-    if (!el) return;
-    const w = el.clientWidth;
-    if (w <= 0) return;
-    const content = el.closest(".content") as HTMLElement | null;
-    let availH = window.innerHeight;
-    if (content) {
-      const top = el.getBoundingClientRect().top - content.getBoundingClientRect().top;
-      availH = content.clientHeight - top;
-    }
-    // Columns grow with width up to maxCols; beyond that, cards widen (1fr)
-    // instead of adding columns — so a wide window never feels overwhelming.
-    const cols = Math.min(opts.maxCols, Math.max(1, Math.floor((w + opts.gap) / (opts.trackMin + opts.gap))));
-    const rows = Math.min(opts.maxRows, Math.max(1, Math.ceil(availH / (opts.rowHeight + opts.gap))));
-    // Pin the grid to exactly `cols` stretch-to-fill columns (overrides the CSS
-    // auto-fit track so the column cap is enforced and cards fill the row).
-    el.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-    setCount(cols * rows);
-  };
-
-  const onResize = () => {
-    if (opts.live) compute();
-    else {
-      if (settle !== undefined) clearTimeout(settle);
-      settle = window.setTimeout(compute, 350);
-    }
-  };
-
-  const setEl = (node: HTMLElement) => {
-    el = node;
-    compute();                       // synchronous: usually has width at ref time
-    requestAnimationFrame(compute);  // fallback if layout wasn't ready yet
-    const ro = new ResizeObserver(onResize);
-    ro.observe(node);
-    const content = node.closest(".content");
-    if (content) ro.observe(content);
-    onCleanup(() => { ro.disconnect(); if (settle !== undefined) clearTimeout(settle); });
-  };
-
-  return { setEl, count };
-}
+const BROWSE_PAGE_SIZE = 20;
 
 type InstanceTab = "content" | "files" | "worlds" | "logs" | "settings";
 
@@ -193,17 +135,8 @@ const InstanceMods: Component = () => {
   // backend is in install order (push at end), so newest = reversed list.
   const [installedSearch, setInstalledSearch] = createSignal("");
   const [installedSort, setInstalledSort] = createSignal<"newest" | "oldest">("newest");
-  // Installed-list pagination. Mirrors Browse but holds its own state so
-  // jumping between Installed and Browse doesn't reset the other tab's
-  // page. Default 24 fits roughly two screens at standard window size and
-  // matches the value the user agreed on for "feels instant on big packs".
-  const [installedPage, setInstalledPage] = createSignal(1);
-  // Adaptive page size — fills the visible grid area and recomputes live on
-  // resize (client-side slice, so re-rendering is free). The View dropdown can
-  // pin a fixed count; null = Auto (adaptive).
-  const installedAdaptive = createAdaptiveCount({ trackMin: 180, rowHeight: 132, gap: 12, maxCols: 6, maxRows: 6, min: 12, live: true });
-  const [installedViewOverride, setInstalledViewOverride] = createSignal<number | null>(null);
-  const installedView = () => installedViewOverride() ?? installedAdaptive.count();
+  // Installed content renders its full filtered list (client-side, scrollable) —
+  // no pagination or page-size control. The canonical `.card-grid` handles reflow.
 
   // Map of project_id → ModUpdate. Populated by `checkModUpdates` whenever the
   // Installed tab is opened so each card can render an "Update" pill without
@@ -264,13 +197,8 @@ const InstanceMods: Component = () => {
   const [totalHits, setTotalHits] = createSignal(0);
   const [currentPage, setCurrentPage] = createSignal(1);
   const [sortBy, setSortBy] = createSignal("relevance");
-  // Adaptive page size for Browse. Browse is server-paged against rate-limited
-  // APIs, so this recomputes only after a resize settles (live:false); the
-  // browse-fetch effect re-queries when the count changes. The View dropdown
-  // can pin a fixed count; null = Auto (adaptive).
-  const browseAdaptive = createAdaptiveCount({ trackMin: 180, rowHeight: 132, gap: 12, maxCols: 6, maxRows: 6, min: 12, live: false });
-  const [viewOverride, setViewOverride] = createSignal<number | null>(null);
-  const viewCount = () => viewOverride() ?? browseAdaptive.count();
+  // Browse is server-paged against rate-limited APIs at a fixed page size; the
+  // prev/next pager lives in the floating dock.
   const [modSource, setModSource] = createSignal<"modrinth" | "curseforge">("modrinth");
   const [installing, setInstalling] = createSignal<string | null>(null);
   const [localInstalled, setLocalInstalled] = createSignal<Set<string>>(new Set());
@@ -550,7 +478,7 @@ const InstanceMods: Component = () => {
     }
   };
 
-  const totalPages = () => Math.max(1, Math.ceil(totalHits() / viewCount()));
+  const totalPages = () => Math.max(1, Math.ceil(totalHits() / BROWSE_PAGE_SIZE));
 
   // Load files when tab switches
   createEffect(() => {
@@ -584,7 +512,6 @@ const InstanceMods: Component = () => {
   createEffect(() => {
     if (mainTab() === "content" && contentTab() === "browse") {
       browseFilter(); // track category changes
-      viewCount();    // track adaptive/override page-size changes
       if (instance()) {
         setCurrentPage(1);
         doSearch(1);
@@ -673,7 +600,7 @@ const InstanceMods: Component = () => {
     const inst = instance();
     if (!inst) return;
     const p = page || currentPage();
-    const offset = (p - 1) * viewCount();
+    const offset = (p - 1) * BROWSE_PAGE_SIZE;
     const token = ++searchToken;
     setSearching(true);
     try {
@@ -685,8 +612,8 @@ const InstanceMods: Component = () => {
 
       const source = modSource();
       const result = source === "curseforge"
-        ? await searchCurseforge(searchQuery(), inst.loader.type, version, offset, viewCount(), sortBy(), filter)
-        : await searchMods(searchQuery(), inst.loader.type, version, offset, viewCount(), sortBy(), filter);
+        ? await searchCurseforge(searchQuery(), inst.loader.type, version, offset, BROWSE_PAGE_SIZE, sortBy(), filter)
+        : await searchMods(searchQuery(), inst.loader.type, version, offset, BROWSE_PAGE_SIZE, sortBy(), filter);
 
       if (token !== searchToken) return; // superseded by a newer request
       setSearchResults(result.hits);
@@ -721,7 +648,6 @@ const InstanceMods: Component = () => {
   };
 
   const handleSortChange = (sort: string) => { setSortBy(sort); setCurrentPage(1); doSearch(1); };
-  const handleViewChange = (count: number | null) => { setViewOverride(count); setCurrentPage(1); /* browse-fetch effect re-queries on viewCount change */ };
 
   const goToPage = (page: number) => {
     if (page < 1 || page > totalPages()) return;
@@ -732,11 +658,10 @@ const InstanceMods: Component = () => {
     }, 150); // Debounce rapid slider changes
   };
 
-  // ─── Installed tab: client-side filter + pagination ────────────────────
+  // ─── Installed tab: client-side filter (no pagination) ─────────────────
   // The Installed list operates on `instance().mods` (already in memory),
   // unlike Browse which pages a remote search. We derive the filtered +
-  // sorted list once per dependency change and slice it for the active
-  // page so `<For>` and `installedTotalPages` always see the same data.
+  // sorted list and render all of it; the grid scrolls.
   const installedFiltered = (): any[] => {
     const mods = instance()?.mods || [];
     const f = installedFilter();
@@ -755,57 +680,11 @@ const InstanceMods: Component = () => {
     return installedSort() === "newest" ? filtered.slice().reverse() : filtered;
   };
 
-  const installedTotalPages = (): number =>
-    Math.max(1, Math.ceil(installedFiltered().length / installedView()));
-
-  const installedPaged = (): any[] => {
-    const list = installedFiltered();
-    const start = (installedPage() - 1) * installedView();
-    return list.slice(start, start + installedView());
-  };
-
-  const goToInstalledPage = (page: number) => {
-    if (page < 1 || page > installedTotalPages()) return;
-    setInstalledPage(page);
-  };
-
-  // Reset to page 1 whenever the visible list changes shape. Mirror Browse's
-  // pattern (handleSourceToggle / handleSearch / handleViewChange all reset
-  // currentPage). For Installed we react to the underlying signals rather
-  // than wrapping every onInput in a handler, since several entry points
-  // (filter pills, search box, sort, instance switch) all need the reset.
-  createEffect(() => {
-    installedFilter();
-    installedSearch();
-    installedView();
-    installedSort();
-    activeInstanceId();
-    setInstalledPage(1);
-  });
-
-  // Clamp the active page if the underlying list shrinks (e.g. the user
-  // deletes mods until page 4 no longer exists). Without this the dock
-  // would show a current page past the new total and `installedPaged()`
-  // would return an empty slice.
-  createEffect(() => {
-    const total = installedTotalPages();
-    if (installedPage() > total) setInstalledPage(total);
-  });
-
   // Push pagination state into the dock when the browse tab is active and
-  // there are multiple pages. Clear it otherwise so the dock hides the controls.
+  // there are multiple pages. Clear it otherwise (Installed has no paging).
   createEffect(() => {
     if (mainTab() === "content" && contentTab() === "browse" && totalPages() > 1) {
       setDockPagination({ current: currentPage(), total: totalPages(), onPageChange: goToPage });
-    } else if (mainTab() === "content" && contentTab() === "installed" && installedTotalPages() > 1) {
-      // Installed tab pages a frontend-only array (no debounced search to
-      // call). The dock's island UI stays the same — only the page-change
-      // callback differs.
-      setDockPagination({
-        current: installedPage(),
-        total: installedTotalPages(),
-        onPageChange: goToInstalledPage,
-      });
     } else {
       setDockPagination(null);
     }
@@ -1592,32 +1471,6 @@ const InstanceMods: Component = () => {
               {checkingUpdates() ? "Checking..." : "Check updates"}
             </button>
           </div>
-          {/* Page-size selector. Mirrors the Browse tab's `.browse-controls`
-              row so styling is shared. The prev/next/jump-to-page UI lives
-              in the floating dock — pushed there by the createEffect above. */}
-          <Show when={installedFiltered().length > installedView()}>
-            <div class="browse-controls">
-              <div class="control-group">
-                <span class="control-label">View:</span>
-                <select
-                  class="control-select"
-                  value={installedViewOverride() === null ? "auto" : String(installedViewOverride())}
-                  onChange={(e) => setInstalledViewOverride(e.currentTarget.value === "auto" ? null : parseInt(e.currentTarget.value))}
-                >
-                  <option value="auto">Auto</option>
-                  <For each={VIEW_OPTIONS}>{(n) => <option value={n}>{n}</option>}</For>
-                </select>
-              </div>
-              <span class="control-total">
-                {(() => {
-                  const total = installedFiltered().length;
-                  const start = (installedPage() - 1) * installedView() + 1;
-                  const end = Math.min(start + installedView() - 1, total);
-                  return `${start}–${end} of ${total.toLocaleString()}`;
-                })()}
-              </span>
-            </div>
-          </Show>
         </Show>
         <Show when={contentTab() === "browse"}>
           {/* Browse category tabs. Tabs for categories that aren't usable
@@ -1696,7 +1549,7 @@ const InstanceMods: Component = () => {
               </div>
             </div>
           </Show>
-          <div class="card-grid card-grid--compact" ref={installedAdaptive.setEl}>
+          <div class="card-grid card-grid--compact">
             {/* Managed-mod entry for the Vermeil companion mod. Shown on every
                 supported instance; the toggle here turns Vermeil's in-game
                 features on/off for this instance (the jar is disabled in place,
@@ -1744,7 +1597,7 @@ const InstanceMods: Component = () => {
                 </div>
               </div>
             </Show>
-            <For each={installedPaged()}>
+            <For each={installedFiltered()}>
               {(mod) => (
                 <div class="mod-card" style={mod.enabled ? "" : "opacity:0.5"}>
                   <div class="mod-card-header">
@@ -1864,17 +1717,10 @@ const InstanceMods: Component = () => {
                     <For each={SORT_OPTIONS}>{(opt) => <option value={opt.value}>{opt.label}</option>}</For>
                   </select>
                 </div>
-                <div class="control-group">
-                  <span class="control-label">View:</span>
-                  <select class="control-select" value={viewOverride() === null ? "auto" : String(viewOverride())} onChange={(e) => handleViewChange(e.currentTarget.value === "auto" ? null : parseInt(e.currentTarget.value))}>
-                    <option value="auto">Auto</option>
-                    <For each={VIEW_OPTIONS}>{(n) => <option value={n}>{n}</option>}</For>
-                  </select>
-                </div>
               </div>
             </div>
             <div class="browse-results">
-              <div class="card-grid card-grid--compact browse-grid" ref={browseAdaptive.setEl}>
+              <div class="card-grid card-grid--compact browse-grid">
               <For each={searchResults()}>
                 {(mod) => (
                   <div class={`mod-card ${selectMode() && selectedItems().has(mod.project_id) ? "mod-item-selected" : ""}`}

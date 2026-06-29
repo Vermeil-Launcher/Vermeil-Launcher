@@ -2,11 +2,10 @@ import { Component, createSignal, createEffect, createResource, createMemo, For,
 import { setActiveScreen, setActiveInstanceId, setInitialInstanceTab, setGameLaunched, instances, ensureAccountOrPrompt, account, activeSkinUrl, setDockPagination, clearGameLogs } from "../App";
 import { launchInstance, listInstanceWorlds, getJavaNews, getArticleBody, NewsArticle } from "../ipc/commands";
 import { loaderBadgeClass, loaderLabel } from "../lib/loader";
+import { createGridPageSize } from "../lib/gridPageSize";
 import { IconPlay, IconGlobe, IconShieldCheck } from "../components/Icons";
 import PlayerHead from "../components/PlayerHead";
 import { openUrl } from "@tauri-apps/plugin-opener";
-
-const NEWS_PER_PAGE = 8;
 
 /** Pick a time-of-day greeting. Cheap personalization that makes the home
  *  screen feel less generic without leaning on user data we don't have. */
@@ -51,6 +50,10 @@ function bannerColor(loader: string): string {
 const Home: Component = () => {
   const [news] = createResource(getJavaNews);
   const [newsPage, setNewsPage] = createSignal(1);
+  // Column-aware news page size so each page fills complete rows when the
+  // window is maximized (shared helper — see lib/gridPageSize.ts). News uses
+  // the standard `.card-grid` (track 240, gap 12); media cards are taller.
+  const newsPageSize = createGridPageSize({ track: 240, gap: 12, rowHeight: 240, maxRows: 4 });
   const [selectedArticle, setSelectedArticle] = createSignal<NewsArticle | null>(null);
   const [articleBody, setArticleBody] = createSignal<string>("");
   const [loadingArticle, setLoadingArticle] = createSignal(false);
@@ -80,12 +83,19 @@ const Home: Component = () => {
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   };
 
-  const totalNewsPages = () => Math.ceil((news()?.length || 0) / NEWS_PER_PAGE);
+  const totalNewsPages = () => Math.ceil((news()?.length || 0) / newsPageSize.size());
   const visibleNews = () => {
     const all = news() || [];
-    const start = (newsPage() - 1) * NEWS_PER_PAGE;
-    return all.slice(start, start + NEWS_PER_PAGE);
+    const start = (newsPage() - 1) * newsPageSize.size();
+    return all.slice(start, start + newsPageSize.size());
   };
+
+  // Clamp the page if the column-aware size grows (e.g. on maximize) so a
+  // formerly-valid page number doesn't land past the new last page.
+  createEffect(() => {
+    const total = totalNewsPages();
+    if (newsPage() > total) setNewsPage(Math.max(1, total));
+  });
 
   // Push news pagination into the dock when there are multiple pages.
   createEffect(() => {
@@ -321,7 +331,7 @@ const Home: Component = () => {
             Loading news...
           </div>
         }>
-          <div class="card-grid">
+          <div class="card-grid" ref={newsPageSize.setEl}>
             <For each={visibleNews()}>
               {(article) => (
                 <div class="card card--media" style="cursor:pointer" onClick={() => openArticle(article)}>

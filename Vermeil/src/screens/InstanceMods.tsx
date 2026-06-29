@@ -4,6 +4,7 @@ import { setActiveScreen, instances, activeInstanceId, refetchInstances, refresh
 import { reportDependencyIssues, DependencyIssue } from "../components/DependencyIssuesModal";
 import { contentVersion } from "../lib/contentVersion";
 import { loaderBadgeClass, loaderLabel } from "../lib/loader";
+import { createGridPageSize } from "../lib/gridPageSize";
 import { searchMods, installModToInstance, installCfModToInstance, listInstanceFiles, listInstanceWorlds, openInstanceFolder, deleteInstance, updateInstanceOptions, toggleModInInstance, removeModFromInstance, removeAllContent, checkModUpdates, applyModUpdate, ModUpdate, cloneInstance, getSettings, setInstanceIcon, clearInstanceIcon, searchCurseforge, getPresetJvmArgs, getKnownPresetArgs, getSystemMemory, getEffectiveMemory, EffectiveMemory, ModHit, FileEntry, WorldEntry, closeLogsWindow, syncInstanceMods, setInstanceCompanionEnabled } from "../ipc/commands";
 import { IconArrowLeft, IconBolt, IconMonitor, IconGlobe, IconTrash, IconArrowUp, IconArrowDown, IconSearch, IconModrinth, IconCurseForge, IconSettings, IconCube, IconWand, IconShirt, IconX, IconCheck, IconFolderOpen } from "../components/Icons";
 
@@ -15,48 +16,9 @@ const SORT_OPTIONS = [
   { value: "updated", label: "Updated" },
 ];
 /**
- * Column-aware page size for the server-paged Browse grid. Measures the grid
- * container and reports `columns × rows`, so each fetched page fills complete
- * rows with no empty trailing cell. Unlike the old adaptive helper it does NOT
- * override the grid's CSS template (it only sizes the *fetch*) and recomputes
- * only after a resize settles — so the layout never jumps. `cols` uses the same
- * math CSS `auto-fit` uses, so it matches what's actually rendered.
+ * Column-aware page size for the server-paged Browse grid — see
+ * `lib/gridPageSize.ts`.
  */
-function createGridPageSize(opts: { track: number; gap: number; rowHeight: number; maxRows: number }) {
-  const [size, setSize] = createSignal(21);
-  let el: HTMLElement | undefined;
-  let settle: number | undefined;
-  const compute = () => {
-    if (!el) return;
-    const w = el.clientWidth;
-    if (w <= 0) return;
-    const cols = Math.max(1, Math.floor((w + opts.gap) / (opts.track + opts.gap)));
-    const content = el.closest(".content") as HTMLElement | null;
-    let availH = window.innerHeight;
-    if (content) {
-      const top = el.getBoundingClientRect().top - content.getBoundingClientRect().top;
-      availH = content.clientHeight - top;
-    }
-    const rows = Math.min(opts.maxRows, Math.max(1, Math.ceil(availH / (opts.rowHeight + opts.gap))));
-    setSize(cols * rows); // multiple of cols → trailing row is always full
-  };
-  const onResize = () => {
-    if (settle !== undefined) clearTimeout(settle);
-    settle = window.setTimeout(compute, 300);
-  };
-  const setEl = (node: HTMLElement) => {
-    el = node;
-    compute();
-    requestAnimationFrame(compute);
-    const ro = new ResizeObserver(onResize);
-    ro.observe(node);
-    const content = node.closest(".content");
-    if (content) ro.observe(content);
-    onCleanup(() => { ro.disconnect(); if (settle !== undefined) clearTimeout(settle); });
-  };
-  return { setEl, size };
-}
-
 type InstanceTab = "content" | "files" | "worlds" | "logs" | "settings";
 
 /**

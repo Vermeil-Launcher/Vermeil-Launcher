@@ -2,7 +2,7 @@
 name = "vermeil"
 version = "0.7.5"
 description = "A lightweight Minecraft launcher"
-authors = ["davekb1976-beep"]
+authors = ["Vermeil-Launcher"]
 edition = "2021"
 
 [lib]

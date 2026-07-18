@@ -6,7 +6,7 @@ If you discover a security vulnerability in Vermeil, please report it responsibl
 
 **Do NOT open a public issue for security vulnerabilities.**
 
-Use GitHub's [private vulnerability reporting](https://github.com/davekb1976-beep/Vermeil-Launcher/security/advisories/new) on the repo.
+Use GitHub's [private vulnerability reporting](https://github.com/Vermeil-Launcher/Vermeil-Launcher/security/advisories/new) on the repo.
 
 Include:
 - Description of the vulnerability

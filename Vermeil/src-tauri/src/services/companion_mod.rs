@@ -25,7 +25,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Repo that hosts the companion mod releases.
-const REPO: &str = "davekb1976-beep/Vermeil-Launcher";
+const REPO: &str = "Vermeil-Launcher/Vermeil-Launcher";
 /// Filename prefix for jars we manage. Only files matching our published naming
 /// (`vermeil-<modVersion>+<mcVersion>.jar`) are ever added, disabled, or
 /// removed, so a user's own mods are never touched.

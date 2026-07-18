@@ -6,7 +6,7 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: I checked the [existing issues](https://github.com/davekb1976-beep/Vermeil-Launcher/issues?q=is%3Aissue) for duplicates
+        - label: I checked the [existing issues](https://github.com/Vermeil-Launcher/Vermeil-Launcher/issues?q=is%3Aissue) for duplicates
           required: true
         - label: I am using the latest version of Vermeil
           required: true

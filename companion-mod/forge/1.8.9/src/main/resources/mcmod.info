@@ -5,7 +5,7 @@
     "description": "Companion mod for the Vermeil launcher. Renders the launcher's local custom capes in-game.",
     "version": "${version}",
     "mcversion": "${mcversion}",
-    "url": "https://github.com/davekb1976-beep/Vermeil-Launcher",
+    "url": "https://github.com/Vermeil-Launcher/Vermeil-Launcher",
     "authorList": [],
     "logoFile": ""
   }

@@ -1,6 +1,6 @@
 # Vermeil mod
 
-Companion Fabric mod for the [Vermeil launcher](https://github.com/davekb1976-beep/Vermeil-Launcher).
+Companion Fabric mod for the [Vermeil launcher](https://github.com/Vermeil-Launcher/Vermeil-Launcher).
 
 Its first feature is rendering the launcher's local **custom capes** in-game —
 the vanilla client can only show Mojang-granted capes, so a client-side mod is

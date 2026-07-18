@@ -4,14 +4,14 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 #
 # Usage:
-#   curl -fsSL https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest/download/install.sh | bash
+#   curl -fsSL https://github.com/Vermeil-Launcher/Vermeil-Launcher/releases/latest/download/install.sh | bash
 #
 # Uninstall:
 #   vermeil-uninstall
 
 set -euo pipefail
 
-REPO="davekb1976-beep/Vermeil-Launcher"
+REPO="Vermeil-Launcher/Vermeil-Launcher"
 APP_NAME="Vermeil"
 APP_ID="com.vermeil.launcher"
 BIN_DIR="$HOME/.local/bin"

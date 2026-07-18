@@ -4,9 +4,9 @@
 
 Vermeil is a custom Minecraft: Java Edition launcher built with **Rust (Tauri 2)** backend and **SolidJS + TypeScript** frontend. It's a desktop app for Windows and Linux that manages Minecraft instances, mods, accounts, and game launches.
 
-**Repository:** https://github.com/davekb1976-beep/Vermeil-Launcher
+**Repository:** https://github.com/Vermeil-Launcher/Vermeil-Launcher
 **Website:** https://vermeillauncher.app/
-**Author:** davekb1976-beep
+**Author:** Vermeil-Launcher
 **License:** MIT
 **Current Version:** 0.6.1
 **Status:** Alpha — early, active development; features are still changing and may break between versions.

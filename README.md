@@ -1,8 +1,8 @@
 # Vermeil
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v0.6.1-blue?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest)
-[![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat-square)](https://github.com/davekb1976-beep/Vermeil-Launcher/actions)
+[![Release](https://img.shields.io/badge/Release-v0.6.1-blue?style=flat-square)](https://github.com/Vermeil-Launcher/Vermeil-Launcher/releases/latest)
+[![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat-square)](https://github.com/Vermeil-Launcher/Vermeil-Launcher/actions)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-informational?style=flat-square)]()
 [![Status](https://img.shields.io/badge/Status-Alpha-orange?style=flat-square)]()
 [![Website](https://img.shields.io/badge/Website-vermeillauncher.app-8b5cf6?style=flat-square)](https://vermeillauncher.app/)
@@ -35,7 +35,7 @@ Built with [Tauri 2](https://tauri.app/) (Rust backend) and [SolidJS](https://ww
 
 ## Download
 
-Get the latest release from the [Releases page](https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest).
+Get the latest release from the [Releases page](https://github.com/Vermeil-Launcher/Vermeil-Launcher/releases/latest).
 
 ### Windows
 
@@ -44,7 +44,7 @@ Download and run the `.exe` installer from the Releases page. Uninstall from Set
 ### Linux (one-liner install)
 
 ```bash
-curl -fsSL https://github.com/davekb1976-beep/Vermeil-Launcher/releases/latest/download/install.sh | bash
+curl -fsSL https://github.com/Vermeil-Launcher/Vermeil-Launcher/releases/latest/download/install.sh | bash
 ```
 
 This downloads the AppImage, installs it to `~/.local/bin`, and creates a desktop entry.

@@ -10,7 +10,7 @@ import { downloadUpdate, applyUpdate, dismissUpdate } from "../services/updater"
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { IconX } from "./Icons";
 
-const RELEASES_URL = "https://github.com/davekb1976-beep/Vermeil-Launcher/releases/tag";
+const RELEASES_URL = "https://github.com/Vermeil-Launcher/Vermeil-Launcher/releases/tag";
 
 /**
  * Auto-update prompt rendered as a centered fixed-position card matching the
